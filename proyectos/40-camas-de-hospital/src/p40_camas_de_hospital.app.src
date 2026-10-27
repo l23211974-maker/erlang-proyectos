@@ -1,0 +1,8 @@
+{application, p40_camas_de_hospital, [
+  {description, "Camas de hospital"},
+  {vsn, "0.1.0"},
+  {registered, [p40_camas_de_hospital_sup, p40_camas_de_hospital_server]},
+  {mod, {p40_camas_de_hospital_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

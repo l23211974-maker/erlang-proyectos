@@ -1,0 +1,8 @@
+{application, p08_monitor_de_energia, [
+  {description, "Monitor de energia"},
+  {vsn, "0.1.0"},
+  {registered, [p08_monitor_de_energia_sup, p08_monitor_de_energia_server]},
+  {mod, {p08_monitor_de_energia_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

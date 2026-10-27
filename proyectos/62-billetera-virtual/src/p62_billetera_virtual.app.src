@@ -1,0 +1,8 @@
+{application, p62_billetera_virtual, [
+  {description, "Billetera virtual"},
+  {vsn, "0.1.0"},
+  {registered, [p62_billetera_virtual_sup, p62_billetera_virtual_server]},
+  {mod, {p62_billetera_virtual_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

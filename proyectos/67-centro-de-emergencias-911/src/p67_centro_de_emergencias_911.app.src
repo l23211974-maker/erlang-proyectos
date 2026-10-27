@@ -1,0 +1,8 @@
+{application, p67_centro_de_emergencias_911, [
+  {description, "Centro de emergencias 911"},
+  {vsn, "0.1.0"},
+  {registered, [p67_centro_de_emergencias_911_sup, p67_centro_de_emergencias_911_server]},
+  {mod, {p67_centro_de_emergencias_911_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

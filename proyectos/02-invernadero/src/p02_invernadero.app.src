@@ -1,0 +1,8 @@
+{application, p02_invernadero, [
+  {description, "Invernadero"},
+  {vsn, "0.1.0"},
+  {registered, [p02_invernadero_sup, p02_invernadero_server]},
+  {mod, {p02_invernadero_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

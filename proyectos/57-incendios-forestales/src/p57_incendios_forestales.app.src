@@ -1,0 +1,8 @@
+{application, p57_incendios_forestales, [
+  {description, "Incendios forestales"},
+  {vsn, "0.1.0"},
+  {registered, [p57_incendios_forestales_sup, p57_incendios_forestales_server]},
+  {mod, {p57_incendios_forestales_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

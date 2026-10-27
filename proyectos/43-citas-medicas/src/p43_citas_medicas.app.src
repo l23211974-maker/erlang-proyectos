@@ -1,0 +1,8 @@
+{application, p43_citas_medicas, [
+  {description, "Citas medicas"},
+  {vsn, "0.1.0"},
+  {registered, [p43_citas_medicas_sup, p43_citas_medicas_server]},
+  {mod, {p43_citas_medicas_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

@@ -1,0 +1,8 @@
+{application, p01_vinedos, [
+  {description, "Viñedos"},
+  {vsn, "0.1.0"},
+  {registered, [p01_vinedos_sup, p01_vinedos_server]},
+  {mod, {p01_vinedos_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

@@ -1,0 +1,8 @@
+{application, p68_alarmas_de_domicilio, [
+  {description, "Alarmas de domicilio"},
+  {vsn, "0.1.0"},
+  {registered, [p68_alarmas_de_domicilio_sup, p68_alarmas_de_domicilio_server]},
+  {mod, {p68_alarmas_de_domicilio_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

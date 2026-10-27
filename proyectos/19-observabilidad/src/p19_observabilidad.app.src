@@ -1,0 +1,8 @@
+{application, p19_observabilidad, [
+  {description, "Observabilidad"},
+  {vsn, "0.1.0"},
+  {registered, [p19_observabilidad_sup, p19_observabilidad_server]},
+  {mod, {p19_observabilidad_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

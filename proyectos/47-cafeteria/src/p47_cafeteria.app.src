@@ -1,0 +1,8 @@
+{application, p47_cafeteria, [
+  {description, "Cafeteria"},
+  {vsn, "0.1.0"},
+  {registered, [p47_cafeteria_sup, p47_cafeteria_server]},
+  {mod, {p47_cafeteria_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

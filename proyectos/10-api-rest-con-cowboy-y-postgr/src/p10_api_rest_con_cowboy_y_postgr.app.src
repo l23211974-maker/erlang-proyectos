@@ -1,0 +1,8 @@
+{application, p10_api_rest_con_cowboy_y_postgr, [
+  {description, "API REST con cowboy y PostgreSQL"},
+  {vsn, "0.1.0"},
+  {registered, [p10_api_rest_con_cowboy_y_postgr_sup, p10_api_rest_con_cowboy_y_postgr_server]},
+  {mod, {p10_api_rest_con_cowboy_y_postgr_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

@@ -1,0 +1,8 @@
+{application, p09_semaforos_o_cruceros, [
+  {description, "Semaforos o cruceros"},
+  {vsn, "0.1.0"},
+  {registered, [p09_semaforos_o_cruceros_sup, p09_semaforos_o_cruceros_server]},
+  {mod, {p09_semaforos_o_cruceros_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

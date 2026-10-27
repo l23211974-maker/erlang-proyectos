@@ -1,0 +1,8 @@
+{application, p03_riego_por_zonas, [
+  {description, "Riego por zonas"},
+  {vsn, "0.1.0"},
+  {registered, [p03_riego_por_zonas_sup, p03_riego_por_zonas_server]},
+  {mod, {p03_riego_por_zonas_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

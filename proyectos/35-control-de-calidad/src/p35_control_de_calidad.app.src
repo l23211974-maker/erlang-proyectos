@@ -1,0 +1,8 @@
+{application, p35_control_de_calidad, [
+  {description, "Control de calidad"},
+  {vsn, "0.1.0"},
+  {registered, [p35_control_de_calidad_sup, p35_control_de_calidad_server]},
+  {mod, {p35_control_de_calidad_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

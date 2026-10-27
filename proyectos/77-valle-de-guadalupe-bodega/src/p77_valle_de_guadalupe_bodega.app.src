@@ -1,0 +1,8 @@
+{application, p77_valle_de_guadalupe_bodega, [
+  {description, "Valle de Guadalupe, bodega"},
+  {vsn, "0.1.0"},
+  {registered, [p77_valle_de_guadalupe_bodega_sup, p77_valle_de_guadalupe_bodega_server]},
+  {mod, {p77_valle_de_guadalupe_bodega_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

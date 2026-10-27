@@ -1,0 +1,8 @@
+{application, p05_estacion_meteorologica, [
+  {description, "Estacion meteorologica"},
+  {vsn, "0.1.0"},
+  {registered, [p05_estacion_meteorologica_sup, p05_estacion_meteorologica_server]},
+  {mod, {p05_estacion_meteorologica_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

@@ -1,0 +1,8 @@
+{application, p64_taquilla_de_eventos, [
+  {description, "Taquilla de eventos"},
+  {vsn, "0.1.0"},
+  {registered, [p64_taquilla_de_eventos_sup, p64_taquilla_de_eventos_server]},
+  {mod, {p64_taquilla_de_eventos_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

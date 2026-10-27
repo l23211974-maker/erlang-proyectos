@@ -1,0 +1,8 @@
+{application, p24_cruce_cbx_puente_peatonal, [
+  {description, "Cruce CBX / puente peatonal"},
+  {vsn, "0.1.0"},
+  {registered, [p24_cruce_cbx_puente_peatonal_sup, p24_cruce_cbx_puente_peatonal_server]},
+  {mod, {p24_cruce_cbx_puente_peatonal_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

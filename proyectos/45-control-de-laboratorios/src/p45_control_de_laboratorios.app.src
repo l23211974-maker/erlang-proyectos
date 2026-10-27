@@ -1,0 +1,8 @@
+{application, p45_control_de_laboratorios, [
+  {description, "Control de laboratorios"},
+  {vsn, "0.1.0"},
+  {registered, [p45_control_de_laboratorios_sup, p45_control_de_laboratorios_server]},
+  {mod, {p45_control_de_laboratorios_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

@@ -1,0 +1,8 @@
+{application, p38_andon_digital, [
+  {description, "Andon digital"},
+  {vsn, "0.1.0"},
+  {registered, [p38_andon_digital_sup, p38_andon_digital_server]},
+  {mod, {p38_andon_digital_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

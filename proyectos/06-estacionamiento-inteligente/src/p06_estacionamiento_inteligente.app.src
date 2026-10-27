@@ -1,0 +1,8 @@
+{application, p06_estacionamiento_inteligente, [
+  {description, "Estacionamiento inteligente"},
+  {vsn, "0.1.0"},
+  {registered, [p06_estacionamiento_inteligente_sup, p06_estacionamiento_inteligente_server]},
+  {mod, {p06_estacionamiento_inteligente_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

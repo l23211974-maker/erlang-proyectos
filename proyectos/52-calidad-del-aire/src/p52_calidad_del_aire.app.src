@@ -1,0 +1,8 @@
+{application, p52_calidad_del_aire, [
+  {description, "Calidad del aire"},
+  {vsn, "0.1.0"},
+  {registered, [p52_calidad_del_aire_sup, p52_calidad_del_aire_server]},
+  {mod, {p52_calidad_del_aire_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

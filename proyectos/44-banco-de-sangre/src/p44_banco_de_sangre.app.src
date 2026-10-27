@@ -1,0 +1,8 @@
+{application, p44_banco_de_sangre, [
+  {description, "Banco de sangre"},
+  {vsn, "0.1.0"},
+  {registered, [p44_banco_de_sangre_sup, p44_banco_de_sangre_server]},
+  {mod, {p44_banco_de_sangre_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

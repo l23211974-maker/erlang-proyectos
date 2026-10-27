@@ -1,0 +1,8 @@
+{application, p18_subasta_o_reservas, [
+  {description, "Subasta o reservas"},
+  {vsn, "0.1.0"},
+  {registered, [p18_subasta_o_reservas_sup, p18_subasta_o_reservas_server]},
+  {mod, {p18_subasta_o_reservas_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

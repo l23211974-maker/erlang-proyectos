@@ -1,0 +1,8 @@
+{application, p27_taxis_o_rides, [
+  {description, "Taxis o rides"},
+  {vsn, "0.1.0"},
+  {registered, [p27_taxis_o_rides_sup, p27_taxis_o_rides_server]},
+  {mod, {p27_taxis_o_rides_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

@@ -1,0 +1,8 @@
+{application, p31_control_de_pista_y_rampa, [
+  {description, "Control de pista y rampa"},
+  {vsn, "0.1.0"},
+  {registered, [p31_control_de_pista_y_rampa_sup, p31_control_de_pista_y_rampa_server]},
+  {mod, {p31_control_de_pista_y_rampa_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

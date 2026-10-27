@@ -1,0 +1,8 @@
+{application, p39_sala_de_urgencias, [
+  {description, "Sala de urgencias"},
+  {vsn, "0.1.0"},
+  {registered, [p39_sala_de_urgencias_sup, p39_sala_de_urgencias_server]},
+  {mod, {p39_sala_de_urgencias_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

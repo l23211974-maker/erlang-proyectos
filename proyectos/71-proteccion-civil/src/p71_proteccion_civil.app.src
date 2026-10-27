@@ -1,0 +1,8 @@
+{application, p71_proteccion_civil, [
+  {description, "Proteccion civil"},
+  {vsn, "0.1.0"},
+  {registered, [p71_proteccion_civil_sup, p71_proteccion_civil_server]},
+  {mod, {p71_proteccion_civil_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

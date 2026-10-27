@@ -1,0 +1,8 @@
+{application, p20_release_y_despliegue, [
+  {description, "Release y despliegue"},
+  {vsn, "0.1.0"},
+  {registered, [p20_release_y_despliegue_sup, p20_release_y_despliegue_server]},
+  {mod, {p20_release_y_despliegue_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

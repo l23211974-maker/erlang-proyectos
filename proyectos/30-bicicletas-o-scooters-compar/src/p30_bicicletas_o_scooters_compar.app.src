@@ -1,0 +1,8 @@
+{application, p30_bicicletas_o_scooters_compar, [
+  {description, "Bicicletas o scooters compartidos"},
+  {vsn, "0.1.0"},
+  {registered, [p30_bicicletas_o_scooters_compar_sup, p30_bicicletas_o_scooters_compar_server]},
+  {mod, {p30_bicicletas_o_scooters_compar_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

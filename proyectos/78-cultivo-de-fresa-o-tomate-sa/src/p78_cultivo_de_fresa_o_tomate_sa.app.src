@@ -1,0 +1,8 @@
+{application, p78_cultivo_de_fresa_o_tomate_sa, [
+  {description, "Cultivo de fresa o tomate (San Quintin)"},
+  {vsn, "0.1.0"},
+  {registered, [p78_cultivo_de_fresa_o_tomate_sa_sup, p78_cultivo_de_fresa_o_tomate_sa_server]},
+  {mod, {p78_cultivo_de_fresa_o_tomate_sa_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

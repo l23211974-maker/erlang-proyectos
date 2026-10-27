@@ -1,0 +1,8 @@
+{application, p21_pruebas_de_caos, [
+  {description, "Pruebas de caos"},
+  {vsn, "0.1.0"},
+  {registered, [p21_pruebas_de_caos_sup, p21_pruebas_de_caos_server]},
+  {mod, {p21_pruebas_de_caos_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

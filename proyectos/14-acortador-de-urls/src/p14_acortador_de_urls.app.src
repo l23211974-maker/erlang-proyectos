@@ -1,0 +1,8 @@
+{application, p14_acortador_de_urls, [
+  {description, "Acortador de URLs"},
+  {vsn, "0.1.0"},
+  {registered, [p14_acortador_de_urls_sup, p14_acortador_de_urls_server]},
+  {mod, {p14_acortador_de_urls_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

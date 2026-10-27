@@ -1,0 +1,8 @@
+{application, p50_examen_en_linea, [
+  {description, "Examen en linea"},
+  {vsn, "0.1.0"},
+  {registered, [p50_examen_en_linea_sup, p50_examen_en_linea_server]},
+  {mod, {p50_examen_en_linea_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

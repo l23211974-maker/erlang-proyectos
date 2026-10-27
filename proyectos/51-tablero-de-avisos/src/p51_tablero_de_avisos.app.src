@@ -1,0 +1,8 @@
+{application, p51_tablero_de_avisos, [
+  {description, "Tablero de avisos"},
+  {vsn, "0.1.0"},
+  {registered, [p51_tablero_de_avisos_sup, p51_tablero_de_avisos_server]},
+  {mod, {p51_tablero_de_avisos_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

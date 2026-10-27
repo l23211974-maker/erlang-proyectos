@@ -1,0 +1,8 @@
+{application, p12_cola_de_trabajos, [
+  {description, "Cola de trabajos"},
+  {vsn, "0.1.0"},
+  {registered, [p12_cola_de_trabajos_sup, p12_cola_de_trabajos_server]},
+  {mod, {p12_cola_de_trabajos_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

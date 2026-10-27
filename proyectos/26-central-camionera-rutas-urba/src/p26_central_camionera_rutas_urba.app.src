@@ -1,0 +1,8 @@
+{application, p26_central_camionera_rutas_urba, [
+  {description, "Central camionera / rutas urbanas"},
+  {vsn, "0.1.0"},
+  {registered, [p26_central_camionera_rutas_urba_sup, p26_central_camionera_rutas_urba_server]},
+  {mod, {p26_central_camionera_rutas_urba_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

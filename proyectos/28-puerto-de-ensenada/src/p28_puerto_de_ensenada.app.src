@@ -1,0 +1,8 @@
+{application, p28_puerto_de_ensenada, [
+  {description, "Puerto de Ensenada"},
+  {vsn, "0.1.0"},
+  {registered, [p28_puerto_de_ensenada_sup, p28_puerto_de_ensenada_server]},
+  {mod, {p28_puerto_de_ensenada_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

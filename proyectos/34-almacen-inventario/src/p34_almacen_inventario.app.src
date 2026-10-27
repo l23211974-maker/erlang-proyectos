@@ -1,0 +1,8 @@
+{application, p34_almacen_inventario, [
+  {description, "Almacen / inventario"},
+  {vsn, "0.1.0"},
+  {registered, [p34_almacen_inventario_sup, p34_almacen_inventario_server]},
+  {mod, {p34_almacen_inventario_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

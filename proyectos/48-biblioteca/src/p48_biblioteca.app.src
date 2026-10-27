@@ -1,0 +1,8 @@
+{application, p48_biblioteca, [
+  {description, "Biblioteca"},
+  {vsn, "0.1.0"},
+  {registered, [p48_biblioteca_sup, p48_biblioteca_server]},
+  {mod, {p48_biblioteca_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

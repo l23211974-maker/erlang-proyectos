@@ -1,0 +1,8 @@
+{application, p36_mantenimiento_predictivo, [
+  {description, "Mantenimiento predictivo"},
+  {vsn, "0.1.0"},
+  {registered, [p36_mantenimiento_predictivo_sup, p36_mantenimiento_predictivo_server]},
+  {mod, {p36_mantenimiento_predictivo_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

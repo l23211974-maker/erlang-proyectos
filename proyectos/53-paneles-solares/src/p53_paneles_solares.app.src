@@ -1,0 +1,8 @@
+{application, p53_paneles_solares, [
+  {description, "Paneles solares"},
+  {vsn, "0.1.0"},
+  {registered, [p53_paneles_solares_sup, p53_paneles_solares_server]},
+  {mod, {p53_paneles_solares_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

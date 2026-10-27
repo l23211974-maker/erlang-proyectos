@@ -1,0 +1,8 @@
+{application, p49_estacionamiento_del_campus, [
+  {description, "Estacionamiento del campus"},
+  {vsn, "0.1.0"},
+  {registered, [p49_estacionamiento_del_campus_sup, p49_estacionamiento_del_campus_server]},
+  {mod, {p49_estacionamiento_del_campus_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

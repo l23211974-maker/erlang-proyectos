@@ -1,0 +1,8 @@
+{application, p80_cerveceria_artesanal, [
+  {description, "Cerveceria artesanal"},
+  {vsn, "0.1.0"},
+  {registered, [p80_cerveceria_artesanal_sup, p80_cerveceria_artesanal_server]},
+  {mod, {p80_cerveceria_artesanal_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

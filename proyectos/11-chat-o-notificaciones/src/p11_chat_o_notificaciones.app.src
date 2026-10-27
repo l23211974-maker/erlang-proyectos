@@ -1,0 +1,8 @@
+{application, p11_chat_o_notificaciones, [
+  {description, "Chat o notificaciones"},
+  {vsn, "0.1.0"},
+  {registered, [p11_chat_o_notificaciones_sup, p11_chat_o_notificaciones_server]},
+  {mod, {p11_chat_o_notificaciones_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

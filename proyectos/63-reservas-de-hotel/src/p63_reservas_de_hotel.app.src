@@ -1,0 +1,8 @@
+{application, p63_reservas_de_hotel, [
+  {description, "Reservas de hotel"},
+  {vsn, "0.1.0"},
+  {registered, [p63_reservas_de_hotel_sup, p63_reservas_de_hotel_server]},
+  {mod, {p63_reservas_de_hotel_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

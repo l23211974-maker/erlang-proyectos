@@ -1,0 +1,8 @@
+{application, p66_mercado_de_abastos_tianguis, [
+  {description, "Mercado de abastos / tianguis"},
+  {vsn, "0.1.0"},
+  {registered, [p66_mercado_de_abastos_tianguis_sup, p66_mercado_de_abastos_tianguis_server]},
+  {mod, {p66_mercado_de_abastos_tianguis_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

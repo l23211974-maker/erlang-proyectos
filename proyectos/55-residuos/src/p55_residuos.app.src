@@ -1,0 +1,8 @@
+{application, p55_residuos, [
+  {description, "Residuos"},
+  {vsn, "0.1.0"},
+  {registered, [p55_residuos_sup, p55_residuos_server]},
+  {mod, {p55_residuos_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

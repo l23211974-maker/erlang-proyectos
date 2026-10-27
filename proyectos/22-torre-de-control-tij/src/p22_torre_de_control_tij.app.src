@@ -1,0 +1,8 @@
+{application, p22_torre_de_control_tij, [
+  {description, "Torre de control TIJ"},
+  {vsn, "0.1.0"},
+  {registered, [p22_torre_de_control_tij_sup, p22_torre_de_control_tij_server]},
+  {mod, {p22_torre_de_control_tij_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

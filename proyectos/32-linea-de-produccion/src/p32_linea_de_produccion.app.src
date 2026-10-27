@@ -1,0 +1,8 @@
+{application, p32_linea_de_produccion, [
+  {description, "Linea de produccion"},
+  {vsn, "0.1.0"},
+  {registered, [p32_linea_de_produccion_sup, p32_linea_de_produccion_server]},
+  {mod, {p32_linea_de_produccion_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

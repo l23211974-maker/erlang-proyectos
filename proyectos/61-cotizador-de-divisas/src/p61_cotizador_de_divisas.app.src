@@ -1,0 +1,8 @@
+{application, p61_cotizador_de_divisas, [
+  {description, "Cotizador de divisas"},
+  {vsn, "0.1.0"},
+  {registered, [p61_cotizador_de_divisas_sup, p61_cotizador_de_divisas_server]},
+  {mod, {p61_cotizador_de_divisas_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

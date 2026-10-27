@@ -1,0 +1,8 @@
+{application, p13_rate_limiter_cache, [
+  {description, "Rate limiter / cache"},
+  {vsn, "0.1.0"},
+  {registered, [p13_rate_limiter_cache_sup, p13_rate_limiter_cache_server]},
+  {mod, {p13_rate_limiter_cache_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

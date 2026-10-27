@@ -1,0 +1,8 @@
+{application, p56_sismos, [
+  {description, "Sismos"},
+  {vsn, "0.1.0"},
+  {registered, [p56_sismos_sup, p56_sismos_server]},
+  {mod, {p56_sismos_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

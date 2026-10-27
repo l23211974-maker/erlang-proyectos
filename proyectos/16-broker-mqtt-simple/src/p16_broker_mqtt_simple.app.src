@@ -1,0 +1,8 @@
+{application, p16_broker_mqtt_simple, [
+  {description, "Broker MQTT simple"},
+  {vsn, "0.1.0"},
+  {registered, [p16_broker_mqtt_simple_sup, p16_broker_mqtt_simple_server]},
+  {mod, {p16_broker_mqtt_simple_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

@@ -1,0 +1,8 @@
+{application, p65_subasta_de_ganado_o_producto, [
+  {description, "Subasta de ganado o productos"},
+  {vsn, "0.1.0"},
+  {registered, [p65_subasta_de_ganado_o_producto_sup, p65_subasta_de_ganado_o_producto_server]},
+  {mod, {p65_subasta_de_ganado_o_producto_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

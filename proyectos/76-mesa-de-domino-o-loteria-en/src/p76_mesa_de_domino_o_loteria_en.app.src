@@ -1,0 +1,8 @@
+{application, p76_mesa_de_domino_o_loteria_en, [
+  {description, "Mesa de domino o loteria en linea"},
+  {vsn, "0.1.0"},
+  {registered, [p76_mesa_de_domino_o_loteria_en_sup, p76_mesa_de_domino_o_loteria_en_server]},
+  {mod, {p76_mesa_de_domino_o_loteria_en_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

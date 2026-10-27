@@ -1,0 +1,8 @@
+{application, p75_carreras_simuladas, [
+  {description, "Carreras simuladas"},
+  {vsn, "0.1.0"},
+  {registered, [p75_carreras_simuladas_sup, p75_carreras_simuladas_server]},
+  {mod, {p75_carreras_simuladas_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

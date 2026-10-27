@@ -1,0 +1,8 @@
+{application, p54_gestion_de_agua, [
+  {description, "Gestion de agua"},
+  {vsn, "0.1.0"},
+  {registered, [p54_gestion_de_agua_sup, p54_gestion_de_agua_server]},
+  {mod, {p54_gestion_de_agua_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

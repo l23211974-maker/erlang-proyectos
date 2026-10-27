@@ -1,0 +1,8 @@
+{application, p42_farmacia, [
+  {description, "Farmacia"},
+  {vsn, "0.1.0"},
+  {registered, [p42_farmacia_sup, p42_farmacia_server]},
+  {mod, {p42_farmacia_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

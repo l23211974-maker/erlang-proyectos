@@ -1,0 +1,8 @@
+{application, p37_cadena_de_frio, [
+  {description, "Cadena de frio"},
+  {vsn, "0.1.0"},
+  {registered, [p37_cadena_de_frio_sup, p37_cadena_de_frio_server]},
+  {mod, {p37_cadena_de_frio_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

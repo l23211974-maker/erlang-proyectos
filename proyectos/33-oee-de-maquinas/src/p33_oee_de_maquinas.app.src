@@ -1,0 +1,8 @@
+{application, p33_oee_de_maquinas, [
+  {description, "OEE de maquinas"},
+  {vsn, "0.1.0"},
+  {registered, [p33_oee_de_maquinas_sup, p33_oee_de_maquinas_server]},
+  {mod, {p33_oee_de_maquinas_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

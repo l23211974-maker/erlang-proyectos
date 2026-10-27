@@ -1,0 +1,8 @@
+{application, p79_acuacultura_atun_ostion, [
+  {description, "Acuacultura (atun, ostion)"},
+  {vsn, "0.1.0"},
+  {registered, [p79_acuacultura_atun_ostion_sup, p79_acuacultura_atun_ostion_server]},
+  {mod, {p79_acuacultura_atun_ostion_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

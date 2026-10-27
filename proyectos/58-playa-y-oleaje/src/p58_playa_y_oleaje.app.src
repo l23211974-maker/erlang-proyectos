@@ -1,0 +1,8 @@
+{application, p58_playa_y_oleaje, [
+  {description, "Playa y oleaje"},
+  {vsn, "0.1.0"},
+  {registered, [p58_playa_y_oleaje_sup, p58_playa_y_oleaje_server]},
+  {mod, {p58_playa_y_oleaje_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

@@ -1,0 +1,8 @@
+{application, p46_asistencia_por_qr, [
+  {description, "Asistencia por QR"},
+  {vsn, "0.1.0"},
+  {registered, [p46_asistencia_por_qr_sup, p46_asistencia_por_qr_server]},
+  {mod, {p46_asistencia_por_qr_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

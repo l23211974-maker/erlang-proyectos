@@ -1,0 +1,8 @@
+{application, p25_garitas_san_ysidro_y_otay, [
+  {description, "Garitas San Ysidro y Otay"},
+  {vsn, "0.1.0"},
+  {registered, [p25_garitas_san_ysidro_y_otay_sup, p25_garitas_san_ysidro_y_otay_server]},
+  {mod, {p25_garitas_san_ysidro_y_otay_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

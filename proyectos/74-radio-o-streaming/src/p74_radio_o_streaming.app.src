@@ -1,0 +1,8 @@
+{application, p74_radio_o_streaming, [
+  {description, "Radio o streaming"},
+  {vsn, "0.1.0"},
+  {registered, [p74_radio_o_streaming_sup, p74_radio_o_streaming_server]},
+  {mod, {p74_radio_o_streaming_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

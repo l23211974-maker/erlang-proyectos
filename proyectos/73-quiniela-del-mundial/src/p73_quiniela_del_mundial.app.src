@@ -1,0 +1,8 @@
+{application, p73_quiniela_del_mundial, [
+  {description, "Quiniela del Mundial"},
+  {vsn, "0.1.0"},
+  {registered, [p73_quiniela_del_mundial_sup, p73_quiniela_del_mundial_server]},
+  {mod, {p73_quiniela_del_mundial_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

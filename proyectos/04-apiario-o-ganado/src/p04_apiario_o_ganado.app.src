@@ -1,0 +1,8 @@
+{application, p04_apiario_o_ganado, [
+  {description, "Apiario o ganado"},
+  {vsn, "0.1.0"},
+  {registered, [p04_apiario_o_ganado_sup, p04_apiario_o_ganado_server]},
+  {mod, {p04_apiario_o_ganado_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

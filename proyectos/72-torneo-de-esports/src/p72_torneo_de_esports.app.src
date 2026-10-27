@@ -1,0 +1,8 @@
+{application, p72_torneo_de_esports, [
+  {description, "Torneo de esports"},
+  {vsn, "0.1.0"},
+  {registered, [p72_torneo_de_esports_sup, p72_torneo_de_esports_server]},
+  {mod, {p72_torneo_de_esports_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

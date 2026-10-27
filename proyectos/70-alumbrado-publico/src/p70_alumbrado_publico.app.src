@@ -1,0 +1,8 @@
+{application, p70_alumbrado_publico, [
+  {description, "Alumbrado publico"},
+  {vsn, "0.1.0"},
+  {registered, [p70_alumbrado_publico_sup, p70_alumbrado_publico_server]},
+  {mod, {p70_alumbrado_publico_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

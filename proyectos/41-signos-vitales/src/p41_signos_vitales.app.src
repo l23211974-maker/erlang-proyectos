@@ -1,0 +1,8 @@
+{application, p41_signos_vitales, [
+  {description, "Signos vitales"},
+  {vsn, "0.1.0"},
+  {registered, [p41_signos_vitales_sup, p41_signos_vitales_server]},
+  {mod, {p41_signos_vitales_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

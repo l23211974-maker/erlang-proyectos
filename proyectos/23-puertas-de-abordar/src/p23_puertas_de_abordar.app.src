@@ -1,0 +1,8 @@
+{application, p23_puertas_de_abordar, [
+  {description, "Puertas de abordar"},
+  {vsn, "0.1.0"},
+  {registered, [p23_puertas_de_abordar_sup, p23_puertas_de_abordar_server]},
+  {mod, {p23_puertas_de_abordar_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.

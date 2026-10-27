@@ -1,0 +1,8 @@
+{application, p60_restaurante, [
+  {description, "Restaurante"},
+  {vsn, "0.1.0"},
+  {registered, [p60_restaurante_sup, p60_restaurante_server]},
+  {mod, {p60_restaurante_app, []}},
+  {applications, [kernel, stdlib, cowboy, recon]},
+  {env, []}
+]}.
