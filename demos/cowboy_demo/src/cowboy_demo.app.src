@@ -1,0 +1,8 @@
+{application, cowboy_demo, [
+  {description, "Demo didactica de Cowboy: REST, SSE, WebSocket y estaticos"},
+  {vsn, "0.1.0"},
+  {registered, [cowboy_demo_sup, cowboy_demo_store, cowboy_demo_sim]},
+  {mod, {cowboy_demo_app, []}},
+  {applications, [kernel, stdlib, sasl, cowboy, recon]},
+  {env, []}
+]}.
