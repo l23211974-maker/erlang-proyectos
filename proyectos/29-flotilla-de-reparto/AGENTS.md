@@ -139,6 +139,14 @@ rebar3 release      # _build/prod/rel/p29_flotilla_de_reparto
 - `ssh flotilla 'comando'` **no** carga asdf (bash no interactivo, no lee `.profile`):
   prefija `export PATH=$HOME/.asdf/shims:$HOME/bin:$PATH` o usa `bash -lc '...'`.
   erl, erlc y rebar3 están en `~/.asdf/shims` y `~/bin`.
+- **Las comillas dobles y las contrabarras mueren en el tránsito PowerShell→ssh**: un
+  `-d '{"unidad":7}'` llega roto al bash remoto (la API responde
+  `{"error":"se_espera_unidad_entera"}`) y el canal además se come *una* contrabarra
+  (probado con la UI 0.3.0). Para mandar JSON desde Windows, escríbelo en el Pi sin
+  una sola comilla doble en la línea, con `printf` octal y contrabarras dobladas:
+  `printf '\\173\\042unidad\\042\\0727\\175' > /tmp/u.json;`
+  `curl -s -X POST -H 'Content-Type: application/json' --data @/tmp/u.json ...`
+  (`\173`=`{`, `\042`=`"`, `\072`=`:`, `\175`=`}`).
 - `sudo` no pide contraseña; hay 26 GB libres y las deps de `_build` ya están bajadas
   (si borras `_build`, rebar3 vuelve a hex.pm).
 - Antes de dar algo por desplegado: `rebar3 compile` y `rebar3 eunit` **en el Pi**;
