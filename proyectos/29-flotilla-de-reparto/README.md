@@ -32,6 +32,10 @@ La demo corre la jornada completa (2160 ticks GPS de 10 s simulados cada 33 ms,
 ~72 s reales), inyecta la avería al ~46 % de la jornada y el pedido urgente al 75 %,
 y termina sola imprimiendo el estado final.
 
+En el **Raspberry Pi** (RPi 4, Debian 11, OTP 27.3.4.19) los pasos completos —release,
+modo sin teclado, cifras esperadas y problemas frecuentes— están en el gist:
+<https://gist.github.com/l23211974-maker/f754a5fa477b148f2cdc2f36a10a76a8>
+
 ## Diseño OTP
 
 ```
