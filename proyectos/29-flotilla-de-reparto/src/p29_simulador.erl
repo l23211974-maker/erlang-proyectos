@@ -13,37 +13,48 @@ demo() ->
 
 inicio() ->
   T = application:get_env(p29_flotilla_de_reparto, ticks_jornada, 2160),
-  TickAveria = trunc(T * 0.4583),   %% ~11 a.m. en una jornada de 6 h (8 a 2 pm)
-  TickUrgente = (T * 3) div 4,      %% urgente a media tarde
   ok = subscribir(),
+  %% La jornada de la demo empieza en el tick en que ella arranca, no en el 0
+  %% absoluto del reloj. Con ticks absolutos, un arranque lento (Pi, release,
+  %% shell ya cargada) se suscribia despues de la averia/urgencia y la demo
+  %% "terminaba bien" sin haberlas inyectado: el test de la mini-jornada daba
+  %% 12 entregas en el Pi y 13 en una maquina mas rapida.
+  T0 = tick_actual(),
+  Fin = T0 + T,
+  TickAveria = T0 + trunc(T * 0.4583),   %% ~11 a.m. en una jornada de 6 h (8 a 2 pm)
+  TickUrgente = T0 + (T * 3) div 4,      %% urgente a media tarde
   esperar_flota(),
   logger:info("demo #29: jornada de ~p ticks GPS (10 s cada uno simulados); "
               "averia en el tick ~p; urgente en el tick ~p",
-              [T, TickAveria, TickUrgente], #{dominio => flotilla}),
+              [T, trunc(T * 0.4583), (T * 3) div 4], #{dominio => flotilla}),
   receive
-    {p29_tick, N} -> paso(N, T, TickAveria, TickUrgente)
+    {p29_tick, N} ->
+      paso(N, Fin, TickAveria, TickUrgente, #{averia => false, urgente => false})
   end.
 
-paso(N, T, _TickAveria, _TickUrgente) when N >= T ->
+paso(N, Fin, _TickAveria, _TickUrgente, _Hechos) when N >= Fin ->
   resumen_final(),
-  case whereis(p29_reloj) of
-    undefined -> ok;
-    _ -> gen_server:call(p29_reloj, {desuscribir, self()})
-  end,
+  desuscribir(),
   exit(normal);
-paso(N, T, TickAveria, TickUrgente) ->
-  case N =:= TickAveria of
-    true -> inyectar_averia();
-    false -> ok
-  end,
-  case N =:= TickUrgente of
-    true -> inyectar_urgente();
-    false -> ok
-  end,
+paso(N, Fin, TickAveria, TickUrgente, Hechos) ->
+  %% >= y no =:=: si la demo se suscribe tarde (o el reloj salta varios ticks
+  %% mientras arranca la flota) el evento se inyecta en el primer tick que lo
+  %% alcance, una sola vez cada uno.
+  Hechos1 = inyectar_una_vez(averia, N >= TickAveria, fun inyectar_averia/0, Hechos),
+  Hechos2 = inyectar_una_vez(urgente, N >= TickUrgente, fun inyectar_urgente/0, Hechos1),
   progreso(N),
   receive
-    {p29_tick, N2} when is_integer(N2) -> paso(N2, T, TickAveria, TickUrgente)
+    {p29_tick, N2} when is_integer(N2) ->
+      paso(N2, Fin, TickAveria, TickUrgente, Hechos2)
   end.
+
+inyectar_una_vez(Clave, true, Inyectar, Hechos) ->
+  case maps:get(Clave, Hechos) of
+    true -> Hechos;
+    false -> Inyectar(), Hechos#{Clave := true}
+  end;
+inyectar_una_vez(_Clave, false, _Inyectar, Hechos) ->
+  Hechos.
 
 inyectar_averia() ->
   case p29_despachador:vehiculo_cargado() of
@@ -80,6 +91,18 @@ subscribir() ->
   case whereis(p29_reloj) of
     undefined -> ok;
     _ -> gen_server:call(p29_reloj, {subscribe, self()})
+  end.
+
+desuscribir() ->
+  case whereis(p29_reloj) of
+    undefined -> ok;
+    _ -> gen_server:call(p29_reloj, {desuscribir, self()})
+  end.
+
+tick_actual() ->
+  case whereis(p29_reloj) of
+    undefined -> 0;
+    _ -> p29_reloj:tick_actual()
   end.
 
 %% la demo arranca despues del arbol, pero por prudencia espera a que la
