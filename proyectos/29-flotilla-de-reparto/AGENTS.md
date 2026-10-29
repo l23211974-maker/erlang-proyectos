@@ -21,22 +21,30 @@ trabajando aquí y que no se deduce leyendo el código.
 
 ```powershell
 rebar3 compile      # warnings_as_errors: un solo warning rompe el build
-rebar3 eunit        # 10 casos, 0 fallos = verde
-rebar3 shell        # dentro: p29_simulador:demo().  (jornada completa, ~72 s)
+rebar3 eunit        # 11 casos, 0 fallos = verde
+rebar3 shell        # web en :8080 + dentro: p29_simulador:demo(). (jornada completa, ~72 s)
 rebar3 release      # _build/prod/rel/p29_flotilla_de_reparto
 ```
 
 - Un caso suelto: `rebar3 eunit --test=p29_flotilla_de_reparto_tests:arbol_despues_de_arrancar_test_`
-- La suite tiene **10 casos**. Si un día `rebar3 eunit` dice 20, es que el módulo está
+- La suite tiene **11 casos**. Si un día `rebar3 eunit` dice 20, es que el módulo está
   duplicado en `_build/test/lib/p29_flotilla_de_reparto/ebin` y `.../test`: borra el beam
   de `ebin` y vuelve a correr; no son 20 casos distintos.
 - La demo imprime el resumen al terminar; para mirar el estado en vivo:
   `p29_despachador:estado()`, `p29_datos:entregas_todas()`.
+- **`rebar3 shell` no arranca en segunda sesión no interactiva de Windows** (crash de
+  `prim_tty` dentro de la VM). Para una VM de prueba sin TTY (scripts, agentes):
+  compila con `erlc` un módulo de arranque en Temp que haga
+  `application:ensure_all_started(p29_flotilla_de_reparto), timer:sleep(infinity)` y
+  corre `erl -pa ... -noshell -config config/sys.config -eval "modulo:main(0)."` con
+  los `-pa` construidos en array de PowerShell.
 
 ## Arquitectura que no se ve en los nombres
 
-- `rest_for_one`: datos → reloj → despachador → flota_sup → entregas_sup. El orden es la
-  dependencia real; si cae un eslabón se reinicia todo lo que está después.
+- `rest_for_one`: datos → reloj → despachador → flota_sup → entregas_sup →
+  broadcaster → web. El orden es la dependencia real; si cae un eslabón se reinicia
+  todo lo que está después (la web cae con su dominio, nunca queda un dashboard
+  verde sobre datos muertos).
 - Las tablas ETS `p29_entregas` / `p29_vehiculos` son **caché de lectura**. El dueño de
   cada fila es el `gen_statem` de la entrega o el `gen_server` de la unidad: nunca
   escribas ETS desde otro proceso ni desde un handler HTTP, usa la API
@@ -59,7 +67,43 @@ rebar3 release      # _build/prod/rel/p29_flotilla_de_reparto
   en `design/DESIGN.md`, que no existe. Los `code.html` son Tailwind por CDN con
   `onclick` inline: se portan a estáticos de cowboy, no se sirven tal cual.
 
-## Trampas que ya costaron tiempo
+## Trampas que ya costaron tiempo (fase web)
+
+- **prometheus.erl es 6.1.3** (la 5.0.1 no existe en hex) y arrastra el dep
+  `ddskerl`. Metricas: gauges `p29_flotilla_*` declarados con
+  `prometheus_gauge:declare` (idempotente) y `set` en cada scrape; cuerpo por
+  `prometheus_text_format:format()`.
+- **El test web usa `web_port 0`** (puerto efímero; default en `arrancar/1`) y el
+  teardown es una tupla `fun({SupPid, _Puerto}) -> cerrar(SupPid) end`; con el
+  `fun cerrar/1` directo eunit cancela el caso por `badarg` en `unlink` del puerto.
+
+- **`json` no siempre es una app**: en el Pi (OTP 27) existe `json.app`; en otras
+  instalaciones OTP vive como módulo dentro de stdlib y `ensure_all_started(json)`
+  muere con «no such file or directory json.app». Por eso `json` NO va en
+  `applications` del `.app.src`; `p29_flotilla_de_reparto_app:iniciar_json/0` la
+  arranca solo si `code:lib_dir(json)` responde.
+- **`undefined` NO se codifica como null** en `json:encode/1` (sale como string):
+  el atom `null` sí. `p29_json:num/1` convierte undefined → null a mano.
+- **El router de cowboy exige formato host-wrapped**:
+  `cowboy_router:compile([{'_', Rutas}])`. Una lista plana de rutas explota con
+  `function_clause` en `compile_paths/2`.
+- **El listener de la web sobrevive al árbol**: el ref vive en `ranch_sup`. `p29_web`
+  hace `process_flag(trap_exit)` + `terminate/2` → `cowboy:stop_listener(...)` y, en
+  `init`, un stop defensivo idempotente (intenta en `try ... catch`); sin esto los
+  re-arranques y los escenarios de test mueren de `{error, already_started}`.
+- **`ranch:listeners/0` no existe en ranch 2.x**, no lo uses; el stop defensivo con
+  try/catch basta.
+- **SSE**: el handler `-behaviour(cowboy_loop)` debe exportar `init/2, info/3,
+  terminate/3` y devolver `{cowboy_loop, Estado, TimeoutMs}` (15000 → latidos);
+  en `terminate` desuscribirse del broadcaster. El broadcaster es el ÚNICO suscriptor
+  del reloj y no fabrica JSON si no hay watchers (el reloj tira a 33 ms).
+- **El caos por HTTP pasa por la API del despachador** (`p29_despachador:averiar/1`,
+  `urgente/1`), jamás escribiendo ETS desde el handler. Un cuerpo JSON no parseable
+  → 400 con `try`, nunca un crash del request process.
+- **En la instantánea SSE** la lista de unidades va con la llave `"unidades"` para
+  no chocar con los contadores `"vehiculos"` del resumen.
+
+## Trampas previas (fase dominio)
 
 - **BOM UTF-8**: `>` y `Out-File` de PowerShell 5.1 escriben BOM y `erlc` falla con
   «illegal character». Escribe los `.erl` con

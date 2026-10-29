@@ -4,7 +4,8 @@
 %% Arbol de supervision del proyecto. rest_for_one: las dependencias arrancan
 %% en orden y si algo intermedio cae, lo que depende de el se re-arranca:
 %%   datos (tablas ETS) -> reloj (ticks) -> despachador (quien ordena) ->
-%%   flota_sup (vehiculos) -> entregas_sup (gen_statem por paquete)
+%%   flota_sup (vehiculos) -> entregas_sup (gen_statem por paquete) ->
+%%   broadcaster (difusion SSE) -> web (cowboy, siempre el ultimo)
 %% El despachador aparte esta del arbol de unidades: si un vehiculo muere,
 %% el despachador NO muere y la reasignacion ocurre.
 
@@ -30,6 +31,12 @@ init([]) ->
       restart => permanent, shutdown => infinity, type => supervisor},
     #{id => p29_entregas_sup,
       start => {p29_entregas_sup, start_link, []},
-      restart => permanent, shutdown => infinity, type => supervisor}
+      restart => permanent, shutdown => infinity, type => supervisor},
+    #{id => p29_broadcaster,
+      start => {p29_broadcaster, start_link, []},
+      restart => permanent, shutdown => 5000, type => worker},
+    #{id => p29_web,
+      start => {p29_web, start_link, []},
+      restart => permanent, shutdown => 5000, type => worker}
   ],
   {ok, {#{strategy => rest_for_one, intensity => 10, period => 60}, Children}}.

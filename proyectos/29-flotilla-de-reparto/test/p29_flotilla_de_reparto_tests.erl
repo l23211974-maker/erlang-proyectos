@@ -16,7 +16,9 @@ arrancar(EnvsExtra) ->
      {vehiculos, 2}, {entregas, 12}, {reloj_auto, false},
      {tick_interval_ms, 3600000}, {prob_fallida, 0.0},
      {sin_senal_ticks, 100}, {ticks_por_parada, 999999},
-     {capacidad_kg, 6000}, {asignar_al_inicio, true}
+     {capacidad_kg, 6000}, {asignar_al_inicio, true},
+     %% web en puerto efimero: cada escenario levanta su propio cowboy
+     {web_port, 0}
     ] ++ EnvsExtra),
   {ok, Pid} = p29_flotilla_de_reparto_sup:start_link(),
   esperar(fun() -> length(p29_datos:vehiculos_todas()) =:= 2 end),
@@ -314,3 +316,80 @@ simulador_test_() ->
                end)
       ]
    end}.
+
+%% ---- 9. web: API, mapa y /metrics sobre el arbol completo -----------------------
+
+%% El escenario levanta cowboy en un puerto efimero (web_port 0) contra los
+%% mismos endpoints que consume la UI de la flotilla en produccion.
+web_endpoints_test_() ->
+  {setup,
+   fun() ->
+       Sup = arrancar([]),
+       esperar_asignadas(12),
+       {Sup, ranch:get_port(p29_web_http)}
+   end,
+   fun({SupPid, _Puerto}) ->
+       cerrar(SupPid)
+   end,
+   fun({_Sup, Puerto}) ->
+       [
+        ?_test(begin
+                  inets:start(),
+                  Ruta = fun(Q) ->
+                             "http://127.0.0.1:" ++ integer_to_list(Puerto) ++ Q
+                         end,
+                  {ok, {{_, 200, _}, _, CuerpoEstado}} =
+                    httpc:request(get, {Ruta("/api/estado"), []},
+                                  [{timeout, 3000}], [{body_format, binary}]),
+                  EstadoJson = json:decode(CuerpoEstado),
+                  ?assertEqual(<<"ok">>, maps:get(<<"invariantes">>, EstadoJson)),
+                  ?assertEqual(12,
+                               maps:get(<<"en_ruta">>,
+                                        maps:get(<<"entregas">>, EstadoJson))),
+                  {ok, {{_, 200, _}, _, CuerpoEntregas}} =
+                    httpc:request(get, {Ruta("/api/entregas"), []},
+                                  [{timeout, 3000}], [{body_format, binary}]),
+                  ?assertEqual(12, length(json:decode(CuerpoEntregas))),
+                  {ok, {{_, 200, _}, _, CuerpoVehiculos}} =
+                    httpc:request(get, {Ruta("/api/vehiculos"), []},
+                                  [{timeout, 3000}], [{body_format, binary}]),
+                  ?assertEqual(2, length(json:decode(CuerpoVehiculos))),
+                  {ok, {{_, 200, _}, _, CuerpoMetricas}} =
+                    httpc:request(get, {Ruta("/metrics"), []},
+                                  [{timeout, 3000}], [{body_format, binary}]),
+                  ?assertMatch({match, _},
+                               re:run(CuerpoMetricas,
+                                      <<"^p29_flotilla_entregas\\{estado=">>,
+                                      [multiline])),
+                  %% caos por HTTP: averiar una unidad viva y una inexistente
+                  {ok, {{_, 200, _}, _, CuerpoAveriar}} =
+                    httpc:request(post, {Ruta("/api/averiar"), [],
+                                         "application/json",
+                                         <<"{\"unidad\":1}">>},
+                                  [{timeout, 3000}], [{body_format, binary}]),
+                  ?assertMatch(#{<<"ok">> := true, <<"unidad">> := 1},
+                               json:decode(CuerpoAveriar)),
+                  {ok, {{_, 404, _}, _, CuerpoNoHubo}} =
+                    httpc:request(post, {Ruta("/api/averiar"), [],
+                                         "application/json",
+                                         <<"{\"unidad\":99}">>},
+                                  [{timeout, 3000}], [{body_format, binary}]),
+                  ?assertMatch(#{<<"ok">> := false}, json:decode(CuerpoNoHubo)),
+                  %% cuerpo basura: 400, nunca crash
+                  {ok, {{_, 400, _}, _, CuerpoBasura}} =
+                    httpc:request(post, {Ruta("/api/averiar"), [],
+                                         "application/json",
+                                         <<"\x07no-es-json">>},
+                                  [{timeout, 3000}], [{body_format, binary}]),
+                  ?assertMatch(#{<<"ok">> := false}, json:decode(CuerpoBasura)),
+                  %% urgente por HTTP: alta de un pedido urgente fuera del lote
+                  {ok, {{_, 200, _}, _, CuerpoUrgente}} =
+                    httpc:request(post, {Ruta("/api/urgente"), [],
+                                         "application/json",
+                                         <<"{\"peso\":30}">>},
+                                  [{timeout, 3000}], [{body_format, binary}]),
+                  ?assertMatch(#{<<"ok">> := true, <<"entrega">> := _},
+                               json:decode(CuerpoUrgente))
+               end)
+       ]
+    end}.

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unidad · Flotilla de Reparto #29</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body data-page="unidad">
+<main>
+<header>
+  <h1>Ficha de unidad</h1>
+  <span class="label-caps" style="color: var(--primary)">telemetría · detalle y reasignación</span>
+  <span class="hora telemetry" id="tick-hora">--:--</span>
+</header>
+
+<nav class="pestañas">
+  <a href="/">Control de jornada</a>
+  <a href="/historial.html">Historial y alertas</a>
+</nav>
+
+<section class="tarjeta-unidad">
+  <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+    <h1 id="titulo">Unidad –</h1>
+    <span id="estado-unidad"><span class="pill off">cargando</span></span>
+  </div>
+  <div class="telemetria">
+    <span>Último GPS: <b id="tel-ultimo">—</b></span>
+    <span>Posición: <b id="tel-pos">—</b></span>
+    <span>Carga / capacidad: <b id="tel-capacidad">—</b></span>
+  </div>
+  <div class="acciones">
+    <a href="/"><button type="button">← Volver al control</button></a>
+    <button type="button" class="grave" id="btn-averiar">Inyectar avería (prueba de caos)</button>
+  </div>
+</section>
+
+<section class="bloque">
+  <h2>Cargas vivas de la unidad <span class="cuenta">(en ruta ahora)</span></h2>
+  <table style="margin-bottom:1rem">
+    <thead><tr>
+      <th>ID</th><th>Colonia</th><th>Peso</th><th>Ventana</th>
+      <th>Estado</th><th>Unidad</th><th>Retraso</th>
+    </tr></thead>
+    <tbody id="tbody-cargas"></tbody>
+  </table>
+  <h2>Servidas hoy <span class="cuenta">(entregadas por esta unidad)</span></h2>
+  <table>
+    <thead><tr>
+      <th>ID</th><th>Colonia</th><th>Peso</th><th>Ventana</th>
+      <th>Estado</th><th>Unidad</th><th>Retraso</th>
+    </tr></thead>
+    <tbody id="tbody-servidas"></tbody>
+  </table>
+</section>
+
+<footer>
+  <span class="item">La reasignación tras avería la hace el despachador por greedy first-fit; la unidad muerta la relanza <b>p29_flota_sup</b> vacía.</span>
+  <span class="item"><a href="/metrics" target="_blank">/metrics</a></span>
+</footer>
+</main>
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Historial · Flotilla de Reparto #29</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body data-page="historial">
+<main>
+<header>
+  <h1>Historial y bitácora de alertas</h1>
+  <span class="hora telemetry" id="tick-hora">--:--</span>
+</header>
+
+<nav class="pestañas">
+  <a href="/">Control de jornada</a>
+  <a href="/historial.html" aria-current="page">Historial y alertas</a>
+</nav>
+
+<div class="bloques">
+  <section class="bloque">
+    <h2>Entregas falladas en el día
+        <span class="cuenta" id="cuenta-fallidas">–</span>
+        <span class="sub" style="font:400 12px/16px var(--sans);color:var(--on-variant)">
+          cliente ausente u otro motivo de la corrida
+        </span></h2>
+    <table>
+      <thead><tr>
+        <th>ID</th><th>Colonia</th><th>Peso</th><th>Ventana</th>
+        <th>Estado</th><th>Unidad</th><th>Retraso</th>
+      </tr></thead>
+      <tbody id="tbody-fallidas"></tbody>
+    </table>
+    <p style="font:400 12px/18px var(--sans);color:var(--on-variant);margin-top:.5rem">
+      Tasa objetivo del enunciado: 5–15 % del total. La <a href="/metrics" target="_blank">/metrics</a>
+      expone el conteo en tiempo real como <b>p29_flotilla_entregas{estado="fallida"}</b>.
+    </p>
+  </section>
+
+  <section class="bloque">
+    <h2>Unidades con alerta activa
+        <span class="cuenta" id="cuenta-alertas">–</span></h2>
+    <table>
+      <thead><tr>
+        <th>Unidad</th><th>Estado</th><th>Último GPS</th><th>Carga</th><th>Entregadas</th>
+      </tr></thead>
+      <tbody id="tbody-alertas"></tbody>
+    </table>
+    <p style="font:400 12px/18px var(--sans);color:var(--on-variant);margin-top:.5rem">
+      Sin señal: el watchdog del despachador marca la unidad a los
+      <b>sin_senal_ticks</b> sin GPS, devuelve su carga a pendiente y reasigna; la
+      señal de vuelta repone la unidad. Averiada: el monitor <b>'DOWN'</b> la
+      detecta y <b>p29_flota_sup</b> la relanza vacía.
+    </p>
+  </section>
+</div>
+</main>
+<script src="/app.js"></script>
+</body>
+</html>

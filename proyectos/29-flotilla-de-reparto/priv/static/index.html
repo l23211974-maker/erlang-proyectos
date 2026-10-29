@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flotilla de Reparto #29 · Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body data-page="index">
+
+<div id="banner-incidente">
+  <span class="tag label-caps">Alerta de flota</span>
+  <span class="texto"></span>
+</div>
+
+<main>
+<header>
+  <h1>Control de reparto y telemetría central</h1>
+  <span class="dot ok" style="animation: pulse 2s infinite"></span>
+  <span class="label-caps" style="color: var(--primary)">mapa en vivo</span>
+  <span class="hora telemetry" id="tick-hora">--:--</span>
+</header>
+
+<nav class="pestañas">
+  <a href="/" aria-current="page">Control de jornada</a>
+  <a href="/historial.html">Historial y alertas</a>
+</nav>
+
+<section class="kpis" id="kpis" style="margin-bottom:1rem">
+  <div class="kpi tvig">
+    <span class="label-caps">Flota en operación</span>
+    <span class="valor">–</span>
+    <span class="sub">unidades reportando GPS</span>
+  </div>
+  <div class="kpi tok">
+    <span class="label-caps"><span class="dot ok"></span>Entregadas</span>
+    <span class="valor">–</span>
+    <span class="sub">sin entregas</span>
+  </div>
+  <div class="kpi tvig">
+    <span class="label-caps"><span class="dot" style="background:var(--primary)"></span>En la calle</span>
+    <span class="valor">–</span>
+    <span class="sub">pendientes en cola</span>
+  </div>
+  <div class="kpi tcr">
+    <span class="label-caps"><span class="dot crit"></span>Fallidas</span>
+    <span class="valor">–</span>
+    <span class="sub">cliente ausente</span>
+  </div>
+  <div class="kpi twar">
+    <span class="label-caps"><span class="dot warn"></span>Con alerta</span>
+    <span class="valor">–</span>
+    <span class="sub">unidades con alerta</span>
+  </div>
+</section>
+
+<div class="grid-principal">
+  <aside>
+    <div id="mapa">
+      <div class="cabeza">
+        <span class="label-caps">Rejilla 10×10 · GPS cada 10 s simulados</span>
+        <span class="telemetry" id="tick-reloj" style="display:none"></span>
+      </div>
+      <div class="celdas" id="mapa-celdas">
+        <!-- 100 celdas: la rejilla se dibuja por JS -->
+      </div>
+      <div class="leyenda">
+        <span><span class="dot ok"></span>en ruta</span>
+        <span><span class="dot warn"></span>sin señal</span>
+        <span><span class="dot crit"></span>averiado</span>
+      </div>
+    </div>
+  </aside>
+
+  <section class="bloques">
+    <div class="bloque">
+      <h2>Flota <span class="cuenta" id="cuenta-flota"></span></h2>
+      <table>
+        <thead><tr>
+          <th>Unidad</th><th>Estado</th><th>Último GPS</th><th>Carga</th>
+          <th>Entregadas</th><th>Pos</th><th></th>
+        </tr></thead>
+        <tbody id="tbody-flota"></tbody>
+      </table>
+    </div>
+    <div class="bloque">
+      <h2>Manifiesto en ruta <span class="cuenta">(primeras entregas activas)</span></h2>
+      <table>
+        <thead><tr>
+          <th>ID</th><th>Colonia</th><th>Peso</th><th>Ventana</th>
+          <th>Estado</th><th>Unidad</th><th>Retraso</th>
+        </tr></thead>
+        <tbody id="tbody-manifiesto"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <span class="item">Reasignaciones del día: <b id="dato-reasignaciones">–</b></span>
+  <span class="item">Retraso medio sobre ventana: <b id="dato-retraso">–</b></span>
+  <span class="item" id="badge-invariantes" data-valor=""><span class="pill off"><span class="dot off"></span>invariantes —</span></span>
+  <span class="item"><a href="/metrics" target="_blank">/metrics</a></span>
+</footer>
+</main>
+
+<script src="/app.js"></script>
+</body>
+</html>

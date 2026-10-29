@@ -18,11 +18,11 @@ avería a ~11 a. m. y pedido urgente a media jornada.
 
 ```bash
 rebar3 compile   # dominio completo
-rebar3 eunit     # 10 casos en 8 escenarios (árbol, asignación, statem, avería, señal, caos, demo)
-rebar3 shell     # de aquí se corre p29_simulador:demo().
+rebar3 eunit     # 11 casos en 9 escenarios (árbol, asignación, statem, avería, señal, caos, demo, web)
+rebar3 shell     # web en :8080 + de aquí se corre p29_simulador:demo().
 ```
 
-Dentro de la shell:
+Dentro de la shell (o ni eso: `sys.config` trae `web_port 8080` y la UI arranca sola):
 
 ```erlang
 p29_simulador:demo().
@@ -31,6 +31,24 @@ p29_simulador:demo().
 La demo corre la jornada completa (2160 ticks GPS de 10 s simulados cada 33 ms,
 ~72 s reales), inyecta la avería al ~46 % de la jornada y el pedido urgente al 75 %,
 y termina sola imprimiendo el estado final.
+
+### Web (fase 2)
+
+La app levanta su propio HTTP con cowboy al arrancar:
+
+| Ruta | Qué sirve |
+|---|---|
+| `/` | Dashboard: KPIs, mapa GPS en vivo (rejilla 10×10), flota y manifiesto |
+| `/unidad.html?id=N` | Ficha de la unidad + botón de caos *inyectar avería* |
+| `/historial.html` | Entregas fallidas y bitácora de alertas |
+| `/api/entregas` · `/api/vehiculos` · `/api/estado` | JSON del dominio (`estado` incluye `invariantes`) |
+| `/api/averiar` | **POST** `{"unidad": N}` — caos |
+| `/api/urgente` | **POST** — alta de un pedido urgente fuera del lote |
+| `/eventos` | SSE: un evento `estado` por tick con resumen + instantánea de unidades |
+| `/metrics` | Prometheus (gauges `p29_flotilla_*` + métricas de VM) |
+
+La UI es HTML/CSS/JS plano servido de `priv/static/` (los tokens son los del
+export de Stitch); `/eventos` alimenta el mapa con `EventSource`, sin frameworks.
 
 En el **Raspberry Pi** (RPi 4, Debian 11, OTP 27.3.4.19) los pasos completos —release,
 modo sin teclado, cifras esperadas y problemas frecuentes— están en el gist:
@@ -44,7 +62,9 @@ p29_sup (rest_for_one)
 ├── p29_reloj        (gen_server: único dueño del tiempo; emite {p29_tick, N})
 ├── p29_despachador  (gen_server: asigna, reasigna, watchdog de señal, counters)
 ├── p29_flota_sup    (simple_one_for_one: un gen_server p29_vehiculo por unidad)
-└── p29_entregas_sup (simple_one_for_one: un gen_statem p29_entrega por paquete)
+├── p29_entregas_sup (simple_one_for_one: un gen_statem p29_entrega por paquete)
+├── p29_broadcaster  (gen_server: único suscriptor del reloj; difunde instantáneas a los handlers SSE)
+└── p29_web          (gen_server: listener cowboy — estáticos, /api/*, /eventos, /metrics)
 ```
 
 ### Por qué rest_for_one y este orden
@@ -99,6 +119,12 @@ deterministas; con `reloj_auto = true` el reloj corre solo cada
 | `p29_flota_sup` | `simple_one_for_one` de unidades; relanza vacías |
 | `p29_entregas_sup` | `simple_one_for_one` de entregas |
 | `p29_simulador` | Espectador demo: suscríbase al reloj, inyecta avería/urgente e imprime el resumen |
+| `p29_json` | Encoders JSON del dominio (OTP 27 stdlib `json`); reloj→«HH:MM» con `tick_hora/1` |
+| `p29_broadcaster` | Único suscriptor del reloj; un JSON por tick repartido a los watchers SSE con monitores |
+| `p29_api` | Handlers `/api/*`: GET de consultas y POST de caos (`averiar`, `urgente`) |
+| `p29_sse` | Handler `cowboy_loop` de `/eventos`: primer payload al conectar + latidos cada 15 s |
+| `p29_metrics` | Handler `/metrics`: gauges `p29_flotilla_*` refrescados en cada scrape |
+| `p29_web` | Listener cowboy + router; trap_exit y stop de listener en terminate |
 
 ## Supuestos de diseño
 
@@ -167,9 +193,9 @@ reparto.
 ## Estado y pendiente
 
 - [x] Diseño OTP y dominio completo (estados, supervisión, pero con diccionario ETS)
-- [x] Suite eunit: 10 casos en verde (`rebar3 compile` + `rebar3 eunit`), también en el Raspberry Pi
+- [x] Suite eunit: 11 casos en verde (`rebar3 compile` + `rebar3 eunit`), también en el Raspberry Pi
 - [x] Demo productiva validada (averia + urgente + watchdog + invariantes), también en el Raspberry Pi 4
-- [ ] Diseño visual en Stitch (`design/PROMPT_STITCH.md`) y export a `design/`
-- [ ] Endpoints `/api/...` y WebSocket del mapa con cowboy
-- [ ] Métricas `/metrics` (prometheus.erl) y diagnóstico con recon
-- [ ] Release + systemd en el CM5 (Debian 13, OTP 27, 4 schedulers)
+- [x] Diseño visual en Stitch (`design/PROMPT_STITCH.md`) y export a `design/`; maquetas portadas a `priv/static/`
+- [x] Endpoints `/api/...` y mapa en vivo por SSE con cowboy
+- [x] Métricas `/metrics` (prometheus.erl 6.1.3) y diagnóstico con recon
+- [ ] Release + systemd en el Raspberry Pi (Debian 11, OTP 27, 4 schedulers)
