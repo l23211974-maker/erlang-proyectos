@@ -8,10 +8,12 @@ trabajando aquí y que no se deduce leyendo el código.
 
 - Es una app rebar3 **independiente**: todos los comandos se corren desde esta carpeta,
   no desde la raíz del repo (allí no hay `rebar.config`).
-- El destino final es el **Raspberry Pi del estudiante** (aarch64, Debian 13, OTP 27,
-  4 cores), no la máquina de desarrollo: `ssh flotilla` (alias en `~/.ssh/config` que
-  salta por el proxy de Corellium). El jump host, su token y la contraseña **no van al
-  repo**; viven solo en la configuración SSH local.
+- El destino final es el **Raspberry Pi del estudiante**: Raspberry Pi 4 Model B, Debian 11
+  (bullseye), 4 cores, 3.8 GB, OTP 27.3.4.19 vía asdf. No es el CM5 con Debian 13 que
+  describe el `AGENTS.md` de la raíz, así que no des por hechas sus rutas ni versiones.
+  Se entra con `ssh flotilla` (alias en `~/.ssh/config` que salta por el proxy de
+  Corellium). El jump host, su token y la contraseña **no van al repo**; viven solo en la
+  configuración SSH local.
 - El escritorio del estudiante es Windows con PowerShell 5.1: los comandos de abajo son
   PowerShell, no bash.
 
@@ -19,14 +21,15 @@ trabajando aquí y que no se deduce leyendo el código.
 
 ```powershell
 rebar3 compile      # warnings_as_errors: un solo warning rompe el build
-rebar3 eunit        # 20 tests, 0 fallos = verde
+rebar3 eunit        # 10 casos, 0 fallos = verde
 rebar3 shell        # dentro: p29_simulador:demo().  (jornada completa, ~72 s)
 rebar3 release      # _build/prod/rel/p29_flotilla_de_reparto
 ```
 
 - Un caso suelto: `rebar3 eunit --test=p29_flotilla_de_reparto_tests:arbol_despues_de_arrancar_test_`
-- `--module=p29_flotilla_de_reparto_tests` corre **10 de los 20** casos: no sirve como
-  verificación final, solo para iterar.
+- La suite tiene **10 casos**. Si un día `rebar3 eunit` dice 20, es que el módulo está
+  duplicado en `_build/test/lib/p29_flotilla_de_reparto/ebin` y `.../test`: borra el beam
+  de `ebin` y vuelve a correr; no son 20 casos distintos.
 - La demo imprime el resumen al terminar; para mirar el estado en vivo:
   `p29_despachador:estado()`, `p29_datos:entregas_todas()`.
 
@@ -43,6 +46,10 @@ rebar3 release      # _build/prod/rel/p29_flotilla_de_reparto
 - El determinismo es deliberado: flota, pesos, colonias y ventanas salen de
   `erlang:phash2`, no de `rand`. Meter `rand` sin semilla hace fallar `simulador_test_`
   (comprueba cifras exactas).
+- El simulador cuenta su jornada desde el tick en que arranca (`T0 = tick_actual()`), no
+  desde el 0 absoluto, y la avería/el urgente se inyectan con `>=` una sola vez. No
+  vuelvas a programarlos en ticks absolutos: en el Pi el arranque tarda más que la
+  jornada de la mini-demo y se los saltaba (12 entregas en vez de 13).
 - El despachador atrapa salidas (`trap_exit`) y detecta muertes por monitores `'DOWN'`;
   las unidades se relanzan bajo `p29_flota_sup`. Si tocas el arranque, respeta
   `esperar_sup`: sin el supervisor dinámico nadie relanza unidades muertas.
@@ -83,8 +90,15 @@ rebar3 release      # _build/prod/rel/p29_flotilla_de_reparto
 
 ## En el Pi
 
+- El repo vive en `~/erlang-proyectos` (clon de GitHub). Se edita y empuja desde
+  Windows y allí se hace `git pull --ff-only`; no hay credenciales de git en el Pi.
+- `ssh flotilla 'comando'` **no** carga asdf (bash no interactivo, no lee `.profile`):
+  prefija `export PATH=$HOME/.asdf/shims:$HOME/bin:$PATH` o usa `bash -lc '...'`.
+  erl, erlc y rebar3 están en `~/.asdf/shims` y `~/bin`.
+- `sudo` no pide contraseña; hay 26 GB libres y las deps de `_build` ya están bajadas
+  (si borras `_build`, rebar3 vuelve a hex.pm).
 - Antes de dar algo por desplegado: `rebar3 compile` y `rebar3 eunit` **en el Pi**;
-  OTP/aarch64 puede comportarse distinto que en Windows.
+  OTP/aarch64 puede comportarse distinto que en Windows (pasó con la demo: ver abajo).
 - `config/vm.args` fija `+S 4:4`: nunca pongas más schedulers que cores físicos.
 - `config/sys.config` lleva los envs de la demo, no secretos; la cookie de `vm.args`
   (`cambiar_en_produccion`) es de ejemplo y se cambia al desplegar.

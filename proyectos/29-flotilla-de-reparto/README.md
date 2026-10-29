@@ -18,7 +18,7 @@ avería a ~11 a. m. y pedido urgente a media jornada.
 
 ```bash
 rebar3 compile   # dominio completo
-rebar3 eunit     # 8 escenarios (árbol, asignación, statem, avería, señal, caos, demo)
+rebar3 eunit     # 10 casos en 8 escenarios (árbol, asignación, statem, avería, señal, caos, demo)
 rebar3 shell     # de aquí se corre p29_simulador:demo().
 ```
 
@@ -157,7 +157,7 @@ FIN: 901 entregas (900 + urgente)
 ## Estado y pendiente
 
 - [x] Diseño OTP y dominio completo (estados, supervisión, pero con diccionario ETS)
-- [x] Suite eunit: 20 tests en verde (`rebar3 compile` + `rebar3 eunit`)
+- [x] Suite eunit: 10 casos en verde (`rebar3 compile` + `rebar3 eunit`), también en el Raspberry Pi
 - [x] Demo productiva validada (averia + urgente + watchdog + invariantes)
 - [ ] Diseño visual en Stitch (`design/PROMPT_STITCH.md`) y export a `design/`
 - [ ] Endpoints `/api/...` y WebSocket del mapa con cowboy
