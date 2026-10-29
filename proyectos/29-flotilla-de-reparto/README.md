@@ -139,6 +139,12 @@ FIN: 901 entregas (900 + urgente)
   invariantes  ok
 ```
 
+La misma corrida en el **Raspberry Pi 4** (Debian 11, OTP 27.3.4.19, 4 cores) cierra
+en el tick 2160 con **780 entregadas, 74 fallidas y 47 en ruta** (818/81/2 si se deja
+drenar la cola) y `invariantes ok`, 15/15 unidades y 40 reasignaciones. Las diferencias
+con la tabla son de ±1 % y vienen de en qué tick exacto se corta la jornada, no del
+reparto.
+
 ## Prueba de caos
 
 - **Matar la unidad más cargada en pleno día** (`p29_despachador:averiar/1` o el
@@ -158,7 +164,7 @@ FIN: 901 entregas (900 + urgente)
 
 - [x] Diseño OTP y dominio completo (estados, supervisión, pero con diccionario ETS)
 - [x] Suite eunit: 10 casos en verde (`rebar3 compile` + `rebar3 eunit`), también en el Raspberry Pi
-- [x] Demo productiva validada (averia + urgente + watchdog + invariantes)
+- [x] Demo productiva validada (averia + urgente + watchdog + invariantes), también en el Raspberry Pi 4
 - [ ] Diseño visual en Stitch (`design/PROMPT_STITCH.md`) y export a `design/`
 - [ ] Endpoints `/api/...` y WebSocket del mapa con cowboy
 - [ ] Métricas `/metrics` (prometheus.erl) y diagnóstico con recon

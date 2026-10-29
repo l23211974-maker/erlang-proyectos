@@ -83,7 +83,7 @@ rebar3 release      # _build/prod/rel/p29_flotilla_de_reparto
   verificación de negocio, más útil que contar procesos.
 - Corrida de referencia (`config/sys.config`): 901 entregas, ~785 entregadas, ~9–10 %
   fallidas, 15/15 unidades vivas, ~40 reasignaciones, `invariantes ok`.
-- El `retraso_medio` de la corrida (~944 ticks) es un artefacto del modelo de paradas
+- El `retraso_medio` de la corrida (~930–945 ticks) es un artefacto del modelo de paradas
   (`ticks_por_parada`), no un bug de la reasignación.
 - Las cifras del README (paradas/día, entregas falladas, coste de la última milla) están
   verificadas con fuentes: no las cambies a ojo.
