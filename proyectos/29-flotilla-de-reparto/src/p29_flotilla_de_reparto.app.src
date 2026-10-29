@@ -1,7 +1,8 @@
 {application, p29_flotilla_de_reparto, [
   {description, "Flotilla de reparto"},
   {vsn, "0.1.0"},
-  {registered, [p29_flotilla_de_reparto_sup, p29_flotilla_de_reparto_server]},
+  {registered, [p29_flotilla_de_reparto_sup, p29_datos, p29_reloj,
+                p29_despachador, p29_flota_sup, p29_entregas_sup]},
   {mod, {p29_flotilla_de_reparto_app, []}},
   {applications, [kernel, stdlib, cowboy, recon]},
   {env, []}
