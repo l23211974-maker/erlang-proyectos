@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+
+<html lang="es"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}@keyframes pulse-subtle{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.4;transform:scale(1.2);}}.animate-live-dot{animation:pulse-subtle 2s cubic-bezier(0.4,0,0.6,1) infinite;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"surface-container-low":"#eff4ff","primary":"#006194","surface-container-highest":"#d3e4fe","on-primary":"#ffffff","background":"#f8f9ff","tertiary":"#00628d","secondary-fixed-dim":"#bdc5e9","secondary-container":"#d0d9fd","secondary":"#545d7c","on-primary-fixed-variant":"#004b73","on-primary-container":"#fdfcff","on-tertiary":"#ffffff","on-secondary":"#ffffff","inverse-on-surface":"#eaf1ff","tertiary-fixed":"#c9e6ff","surface":"#f8f9ff","surface-container":"#e5eeff","tertiary-fixed-dim":"#89ceff","on-surface-variant":"#3f4850","surface-bright":"#f8f9ff","on-secondary-fixed":"#111a36","inverse-surface":"#213145","on-background":"#0b1c30","on-tertiary-fixed":"#001e2f","on-surface":"#0b1c30","outline":"#707881","on-error-container":"#93000a","primary-fixed-dim":"#93ccff","inverse-primary":"#93ccff","surface-variant":"#d3e4fe","on-tertiary-fixed-variant":"#004c6e","on-secondary-fixed-variant":"#3d4664","on-secondary-container":"#555e7d","surface-container-lowest":"#ffffff","on-tertiary-container":"#fcfcff","error-container":"#ffdad6","surface-container-high":"#dce9ff","error":"#ba1a1a","surface-dim":"#cbdbf5","primary-container":"#007bb9","tertiary-container":"#007cb1","surface-tint":"#006398","on-error":"#ffffff","outline-variant":"#bfc7d2","secondary-fixed":"#dbe1ff","on-primary-fixed":"#001d31","primary-fixed":"#cce5ff"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"space-md":"1rem","gutter":"1rem","margin":"1rem","gutter-desktop":"1.5rem","space-xs":"0.25rem","margin-desktop":"2rem","space-lg":"1.5rem","space-sm":"0.5rem","space-xl":"2.5rem"},"fontFamily":{"body-md":["Inter"],"telemetry-sm":["JetBrains Mono"],"headline-lg-mobile":["Inter"],"body-sm":["Inter"],"headline-lg":["Inter"],"headline-md":["Inter"],"telemetry-md":["JetBrains Mono"],"telemetry-lg":["JetBrains Mono"],"label-caps":["JetBrains Mono"],"body-lg":["Inter"],"headline-xl-mobile":["Inter"],"headline-xl":["Inter"]},"fontSize":{"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"telemetry-sm":["11px",{"lineHeight":"14px","fontWeight":"500"}],"headline-lg-mobile":["20px",{"lineHeight":"28px","fontWeight":"600"}],"body-sm":["12px",{"lineHeight":"16px","fontWeight":"400"}],"headline-lg":["24px",{"lineHeight":"32px","fontWeight":"600"}],"headline-md":["18px",{"lineHeight":"24px","fontWeight":"600"}],"telemetry-md":["14px",{"lineHeight":"18px","fontWeight":"500"}],"telemetry-lg":["20px",{"lineHeight":"26px","fontWeight":"700"}],"label-caps":["10px",{"lineHeight":"12px","letterSpacing":"0.08em","fontWeight":"700"}],"body-lg":["16px",{"lineHeight":"24px","fontWeight":"400"}],"headline-xl-mobile":["24px",{"lineHeight":"32px","fontWeight":"700"}],"headline-xl":["32px",{"lineHeight":"40px","fontWeight":"700"}]}}}};</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased"><header class="fixed top-0 left-0 right-0 z-50 h-16 bg-surface-container-lowest/95 backdrop-blur-xl shadow-[0_1px_8px_rgba(11,28,48,0.06)]"><div class="h-16 w-full px-gutter-desktop flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-md min-w-max"><div class="flex items-center gap-space-sm"><div class="flex items-center justify-center w-9 h-9 rounded-lg bg-surface-container-high text-primary"><span class="material-symbols-outlined text-[22px]">radar</span></div><div class="flex flex-col"><span class="font-headline-md text-headline-md tracking-tight text-primary leading-none">AeroTerra</span><span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Telematics Core</span></div></div><div class="hidden xl:flex items-center gap-space-xs pl-space-sm"><span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Jurisdicción:</span><div class="flex items-center gap-space-xs px-space-sm py-1 rounded bg-surface-container text-on-surface font-body-sm text-body-sm"><span class="material-symbols-outlined text-[16px] text-tertiary">apartment</span><span>Centro Control Centro-Norte</span></div></div></div><div class="hidden md:flex flex-1 max-w-md mx-space-md"><div class="relative w-full flex items-center"><span class="material-symbols-outlined absolute left-3 text-on-surface-variant text-[18px]">search</span><input class="w-full h-10 pl-9 pr-3 rounded-lg bg-surface-container-low text-on-surface placeholder:text-on-surface-variant font-telemetry-sm text-telemetry-sm focus:outline-none focus:bg-surface-container transition-all" placeholder="Buscar unidad (ej. MAT-902, TRK-104)..." type="text"/><span class="absolute right-2 font-label-caps text-label-caps px-1.5 py-0.5 rounded bg-surface-container-highest text-on-surface-variant">⌘K</span></div></div><div class="flex items-center gap-space-md"><div class="hidden lg:flex items-center gap-space-md px-space-md py-1.5 rounded-lg bg-surface-container-low"><div class="flex items-center gap-space-xs"><div class="w-2 h-2 rounded-full bg-primary animate-live-dot"></div><span class="font-telemetry-sm text-telemetry-sm text-primary uppercase font-bold">GPS EN VIVO</span></div><div class="h-4 w-px bg-outline-variant"></div><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-[16px] text-on-surface-variant">schedule</span><span class="font-telemetry-sm text-telemetry-sm text-on-surface font-semibold">14:28:42</span><span class="font-label-caps text-label-caps text-on-surface-variant">UTC-5</span></div></div><div class="flex items-center gap-space-sm pl-space-xs"><div class="relative flex items-center justify-center"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1XDRqHai_QzRTzVWHfM3v8aokg9bMLUgc0575uRP0o-lQBBHmtEmb_-u2InMrbej45ld0J9rQJkCV0e6krN4Nh9jQLkOeNQVLfj97EwlhJgdc54c7mbssubUQWnjEDeW-8raSzfuiOmpLijDaPwbuMAZwu941ZgPPf60RH9zDBjICjBqyP2DmedFEdPHM72MoXgpmuSK6gBW9nm66TKY_2WRI7fKn_fa1rCr6_G_RLj"/><div class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary"></div></div><div class="hidden sm:flex flex-col text-left"><span class="font-body-sm text-body-sm font-semibold text-on-surface leading-tight">Ing. Sofía Morales</span><span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant leading-tight">Despachadora en Turno</span></div></div></div></div></header><aside class="fixed left-0 top-16 bottom-0 w-64 bg-surface-container-low z-40 hidden md:flex flex-col justify-between py-space-md px-space-sm shadow-[0_1px_8px_rgba(11,28,48,0.03)]"><div class="flex flex-col gap-space-lg"><div class="px-space-sm"><span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Consola de Control</span></div><nav class="flex flex-col gap-space-xs" data-active-classes="bg-primary text-on-primary font-semibold rounded-lg"><a aria-current="page" class="flex items-center gap-space-sm px-space-md py-3 transition-colors min-h-[44px] bg-primary text-on-primary font-semibold rounded-lg" data-path="dashboard-principal" href="#"><span class="material-symbols-outlined text-[20px]">grid_view</span><span class="font-body-md text-body-md">Dashboard Principal</span></a><a class="flex items-center gap-space-sm px-space-md py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors min-h-[44px]" data-path="detalle-de-unidad" href="#"><span class="material-symbols-outlined text-[20px]">local_shipping</span><span class="font-body-md text-body-md">Detalle de Unidad</span></a><a class="flex items-center gap-space-sm px-space-md py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors min-h-[44px]" data-path="historial-y-bitacora" href="#"><span class="material-symbols-outlined text-[20px]">history_toggle_off</span><span class="font-body-md text-body-md">Historial &amp; Bitácora</span></a></nav></div><div class="px-space-sm pt-space-md"><div class="p-space-sm rounded-lg bg-surface-container flex flex-col gap-space-xs"><div class="flex items-center justify-between"><span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Red Telemetría</span><span class="font-telemetry-sm text-telemetry-sm text-primary font-bold">99.8%</span></div><div class="w-full bg-surface-container-highest h-1 rounded-full overflow-hidden"><div class="bg-primary h-full w-[99.8%]"></div></div><span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">142 Nodos Enlazados</span></div></div></aside><div class="md:pl-64"><main class="relative w-full pt-16 bg-surface min-h-[calc(100vh-4rem)] pb-20 md:pb-0"><div class="flex flex-col w-full">
+<!-- BANNER DE INCIDENTE ACTIVO / ACCIÓN CRÍTICA INMEDIATA -->
+<div class="w-full bg-error-container text-on-error-container px-space-md py-space-sm flex flex-wrap items-center justify-between gap-space-sm shadow-sm">
+<div class="flex items-center gap-space-sm min-w-0">
+<span class="material-symbols-outlined text-[20px] text-error flex-shrink-0 animate-pulse">warning</span>
+<div class="flex items-baseline gap-space-xs truncate">
+<span class="font-label-caps text-label-caps uppercase bg-error text-on-error px-1.5 py-0.5 rounded">INCIDENTE NV-1</span>
+<span class="font-telemetry-sm text-telemetry-sm font-semibold truncate">TRK-219 reporte de despresurización en eje 3 (Autopista 57, Km 189) - Unidad inmovilizada en arcén</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm flex-shrink-0">
+<span class="font-telemetry-sm text-telemetry-sm text-on-error-container/80 hidden sm:inline">14:26:10 UTC</span>
+<button class="min-h-[36px] px-space-sm py-1 rounded bg-error text-on-error font-telemetry-sm text-telemetry-sm font-bold uppercase tracking-wider hover:opacity-90 active:scale-95 transition-all flex items-center gap-1" onclick="filtrarEstado('critico')">
+<span>Atender Incidente</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</div>
+<div class="p-space-md lg:p-space-lg flex flex-col gap-space-lg max-w-[1920px] mx-auto w-full">
+<!-- HEADER OPERACIONAL & KPI STRIP DE SEMÁFORO ESTRICTO -->
+<section class="flex flex-col gap-space-md">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-sm">
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Matriz Táctica Activa</span>
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-live-dot"></span>
+<span class="font-telemetry-sm text-telemetry-sm text-primary font-bold">RADAR MULTIMODAL ACTIVO</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Monitoreo de Enlace y Telemetría Central</h1>
+</div>
+<div class="flex items-center gap-space-sm flex-wrap">
+<div class="bg-surface-container px-space-md py-2 rounded-lg flex items-center gap-space-md">
+<div class="flex flex-col">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Ciclo de Refresco</span>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface font-bold">1.8s (Banda Satelital L)</span>
+</div>
+<div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+</div>
+<button class="min-h-[44px] px-space-lg py-2.5 rounded-lg bg-primary text-on-primary font-headline-md text-headline-md font-semibold shadow-md hover:bg-primary-container active:scale-[0.98] transition-all flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-[20px]">add_circle</span>
+<span>Despacho Rápido / Nueva Misión</span>
+</button>
+</div>
+</div>
+<!-- 4 TARJETAS KPI DE SEMÁFORO ESTRICTO -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md">
+<!-- TOTAL -->
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex flex-col justify-between relative overflow-hidden">
+<div class="flex items-start justify-between">
+<div class="flex flex-col">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Flota en Operación</span>
+<span class="font-telemetry-lg text-telemetry-lg text-on-surface font-bold mt-1">48 <span class="font-body-sm text-body-sm text-on-surface-variant font-normal">Unidades</span></span>
+</div>
+<div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[22px]">hub</span>
+</div>
+</div>
+<div class="mt-space-md pt-space-xs flex items-center justify-between font-telemetry-sm text-telemetry-sm text-on-surface-variant">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-tertiary">flight</span> 20 Aéreas</span>
+<span class="h-3 w-px bg-surface-container-highest"></span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-secondary">local_shipping</span> 28 Terrestres</span>
+</div>
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-surface-container">
+<div class="bg-primary h-full w-full"></div>
+</div>
+</div>
+<!-- SEMÁFORO VERDE: OK -->
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex flex-col justify-between relative overflow-hidden cursor-pointer hover:bg-surface-container-low transition-colors" onclick="filtrarEstado('normal')">
+<div class="flex items-start justify-between">
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase">En Ruta / A Tiempo</span>
+</div>
+<div class="flex items-baseline gap-space-xs mt-1">
+<span class="font-telemetry-lg text-telemetry-lg text-on-surface font-bold">38</span>
+<span class="font-telemetry-sm text-telemetry-sm font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">79.1%</span>
+</div>
+</div>
+<div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+<span class="material-symbols-outlined text-[22px]">verified</span>
+</div>
+</div>
+<div class="mt-space-md pt-space-xs flex items-center justify-between font-telemetry-sm text-telemetry-sm text-on-surface-variant">
+<span>Rango Horario Nominal</span>
+<span class="text-emerald-700 font-bold">Δt &lt; +3 min</span>
+</div>
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-surface-container">
+<div class="bg-emerald-500 h-full w-[79%]"></div>
+</div>
+</div>
+<!-- SEMÁFORO AMARILLO: ALERTA / RETRASO -->
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex flex-col justify-between relative overflow-hidden cursor-pointer hover:bg-surface-container-low transition-colors" onclick="filtrarEstado('alerta')">
+<div class="flex items-start justify-between">
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Alerta / Turbulencia / Tráfico</span>
+</div>
+<div class="flex items-baseline gap-space-xs mt-1">
+<span class="font-telemetry-lg text-telemetry-lg text-on-surface font-bold">07</span>
+<span class="font-telemetry-sm text-telemetry-sm font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">14.6%</span>
+</div>
+</div>
+<div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
+<span class="material-symbols-outlined text-[22px]">speed</span>
+</div>
+</div>
+<div class="mt-space-md pt-space-xs flex items-center justify-between font-telemetry-sm text-telemetry-sm text-on-surface-variant">
+<span>Demora Promedio</span>
+<span class="text-amber-700 font-bold">+18.4 min</span>
+</div>
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-surface-container">
+<div class="bg-amber-500 h-full w-[15%]"></div>
+</div>
+</div>
+<!-- SEMÁFORO ROJO: CRÍTICO -->
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex flex-col justify-between relative overflow-hidden cursor-pointer hover:bg-surface-container-low transition-colors ring-2 ring-error/20" onclick="filtrarEstado('critico')">
+<div class="flex items-start justify-between">
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-error animate-ping"></span>
+<span class="font-label-caps text-label-caps text-error uppercase font-bold">Crítico / Falla / SOS</span>
+</div>
+<div class="flex items-baseline gap-space-xs mt-1">
+<span class="font-telemetry-lg text-telemetry-lg text-error font-bold">03</span>
+<span class="font-telemetry-sm text-telemetry-sm font-semibold text-error bg-error-container px-1.5 py-0.5 rounded">6.3%</span>
+</div>
+</div>
+<div class="w-10 h-10 rounded-lg bg-error-container flex items-center justify-center text-error">
+<span class="material-symbols-outlined text-[22px]">crisis_alert</span>
+</div>
+</div>
+<div class="mt-space-md pt-space-xs flex items-center justify-between font-telemetry-sm text-telemetry-sm">
+<span class="text-on-surface-variant">Intervención Urgente</span>
+<span class="text-error font-bold underline">FILTRAR (3)</span>
+</div>
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-error-container">
+<div class="bg-error h-full w-[6%]"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- BARRA TÁCTIL DE FILTROS MULTIMODAL Y ESTADO (TOUCH-FIRST >= 44px) -->
+<section class="bg-surface-container-lowest p-space-sm md:p-space-md rounded-xl shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-space-md">
+<!-- FILTROS DE MODALIDAD -->
+<div class="flex items-center gap-space-xs overflow-x-auto pb-1 xl:pb-0" id="filter-modality-group">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase pr-space-xs hidden sm:inline">Modo:</span>
+<button class="modalidad-btn min-h-[44px] px-space-md py-2 rounded-lg bg-primary text-on-primary font-body-sm text-body-sm font-semibold flex items-center gap-space-xs transition-all shadow-sm" onclick="setModalidad('todos', this)">
+<span class="material-symbols-outlined text-[18px]">all_inclusive</span>
+<span>Todos (48)</span>
+</button>
+<button class="modalidad-btn min-h-[44px] px-space-md py-2 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high font-body-sm text-body-sm font-medium flex items-center gap-space-xs transition-all" onclick="setModalidad('aereo', this)">
+<span class="material-symbols-outlined text-[18px] text-tertiary">flight</span>
+<span>Aeronaves / Aéreo (20)</span>
+</button>
+<button class="modalidad-btn min-h-[44px] px-space-md py-2 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high font-body-sm text-body-sm font-medium flex items-center gap-space-xs transition-all" onclick="setModalidad('terrestre', this)">
+<span class="material-symbols-outlined text-[18px] text-secondary">local_shipping</span>
+<span>Terrestre / Flota (28)</span>
+</button>
+</div>
+<!-- FILTROS DE ESTADO / SEMÁFORO -->
+<div class="flex items-center gap-space-xs overflow-x-auto pb-1 xl:pb-0" id="filter-status-group">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase pr-space-xs hidden sm:inline">Estado:</span>
+<button class="estado-btn min-h-[44px] px-space-md py-2 rounded-lg bg-surface-container-highest text-on-surface font-telemetry-sm text-telemetry-sm font-bold flex items-center gap-1.5 transition-all" onclick="setEstado('todos', this)">
+<span>TODAS</span>
+</button>
+<button class="estado-btn min-h-[44px] px-space-md py-2 rounded-lg bg-surface-container text-on-surface hover:bg-emerald-50 font-telemetry-sm text-telemetry-sm font-bold flex items-center gap-1.5 transition-all" onclick="setEstado('normal', this)">
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+<span>NORMAL</span>
+</button>
+<button class="estado-btn min-h-[44px] px-space-md py-2 rounded-lg bg-surface-container text-on-surface hover:bg-amber-50 font-telemetry-sm text-telemetry-sm font-bold flex items-center gap-1.5 transition-all" onclick="setEstado('alerta', this)">
+<span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+<span>RETRASOS (7)</span>
+</button>
+<button class="estado-btn min-h-[44px] px-space-md py-2 rounded-lg bg-surface-container text-on-surface hover:bg-red-50 font-telemetry-sm text-telemetry-sm font-bold flex items-center gap-1.5 transition-all text-error" onclick="setEstado('critico', this)">
+<span class="w-2.5 h-2.5 rounded-full bg-error animate-pulse"></span>
+<span>CRÍTICOS (3)</span>
+</button>
+</div>
+</section>
+<!-- VISTA CENTRAL DIVIDIDA (12 COLUMNAS): RADAR GPS (8 COLS) + DESPACHO EN TRÁNSITO (4 COLS) -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-start">
+<!-- MAPA TÁCTICO INTERACTIVO TELEMÁTICO (8 COLS) -->
+<section class="lg:col-span-8 flex flex-col gap-space-sm bg-surface-container-lowest p-space-sm md:p-space-md rounded-2xl shadow-sm">
+<!-- MAP BAR HEADER & CONTROLES DE CAPA -->
+<div class="flex items-center justify-between px-space-xs pb-space-xs flex-wrap gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary text-[22px]">explore</span>
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface leading-tight">Sector Noreste - Corredor MEX-MTY</h2>
+<p class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">Proyección Mercator WGS84 • Altitud 0 - 24,000 FT MSL</p>
+</div>
+</div>
+<!-- TOGGLES DE CAPAS RÁPIDAS -->
+<div class="flex items-center gap-space-xs">
+<button class="min-h-[40px] px-3 py-1.5 rounded-lg bg-surface-container text-on-surface font-telemetry-sm text-telemetry-sm flex items-center gap-1.5 transition-all hover:bg-surface-container-high" id="toggle-radar" onclick="toggleCapa(this, 'radar')">
+<span class="material-symbols-outlined text-[18px] text-tertiary">water_drop</span>
+<span>Radar Doppler</span>
+</button>
+<button class="min-h-[40px] px-3 py-1.5 rounded-lg bg-primary-fixed text-on-primary-fixed font-telemetry-sm text-telemetry-sm font-bold flex items-center gap-1.5 transition-all" id="toggle-trafico" onclick="toggleCapa(this, 'trafico')">
+<span class="material-symbols-outlined text-[18px]">traffic</span>
+<span>Tráfico Vial</span>
+</button>
+</div>
+</div>
+<!-- CANVAS DEL MAPA CON CAPA VECTORIAL Y MARCADORES EN VIVO -->
+<div class="relative w-full h-[520px] md:h-[620px] rounded-xl overflow-hidden bg-surface-container-high shadow-inner select-none" id="radar-canvas">
+<!-- MAPA DE FONDO SATELITAL/TOPOGRÁFICO SIMULADO CON VECTORIAL OVERLAY -->
+<div class="absolute inset-0 w-full h-full bg-cover bg-center opacity-85" data-location="Monterrey, Mexico" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCobOtjmvUp6tqHv_ce5CXS5xjJ1zG-WNysSMTOo8cGqyE3ID46d3tnAg230BPbQ-pMC-SwVOfmWXvj5IKXGiFwKWP9jdNQIMFRBvqflWojY9tAA8ZUqGiD83bKK1UsiQJ4cmxVkbtfVyaEzNOKh3oh_kJJtNoYQA8qWnOGsLcDtSgraGakwkaY9dQ50uWVDatSRd61-KbNoNky2r-ATNVldbriyJo-O50utMH7ViI')"></div>
+<!-- REJILLA HUD TELEMÁTICA -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none stroke-primary/20" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<pattern height="60" id="grid-pattern" patternunits="userSpaceOnUse" width="60">
+<path d="M 60 0 L 0 0 0 60" fill="none" stroke="currentColor" stroke-dasharray="2 4" stroke-width="0.5"></path>
+</pattern>
+</defs>
+<rect fill="url(#grid-pattern)" height="100%" width="100%"></rect>
+<!-- VÍA TERRESTRE: AUTOPISTA 57 (LÍNEA SÓLIDA) -->
+<path d="M 120 540 Q 280 430 410 320 T 680 180 T 840 90" fill="none" opacity="0.6" stroke="#64748b" stroke-linecap="round" stroke-width="6"></path>
+<path d="M 120 540 Q 280 430 410 320 T 680 180 T 840 90" fill="none" opacity="0.9" stroke="#f59e0b" stroke-dasharray="6 6" stroke-width="2"></path>
+<!-- CORREDOR AÉREO VOR: VECTORES PUNTEADOS CON BALIZAS -->
+<!-- RUTA AERO-301 -->
+<path d="M 860 110 L 520 280 L 260 410" fill="none" stroke="#007cb1" stroke-dasharray="8 6" stroke-width="2.5"></path>
+<!-- RUTA DRON-CARGO 08 -->
+<path d="M 180 190 Q 320 210 460 270" fill="none" stroke="#d97706" stroke-dasharray="4 4" stroke-width="2"></path>
+</svg>
+<!-- COMPÁS & VOR HUD SUPERIOR DERECHO -->
+<div class="absolute top-4 right-4 bg-surface-container-lowest/90 backdrop-blur-md p-space-sm rounded-lg shadow-md flex flex-col gap-1 text-right pointer-events-none">
+<span class="font-label-caps text-label-caps text-on-surface-variant">HDG MAGNÉTICO: 342°</span>
+<span class="font-telemetry-sm text-telemetry-sm font-bold text-primary">QNH 1018 HPA • FL085</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">COORD: 25°40'N / 100°18'W</span>
+</div>
+<!-- MARCADOR 1: AERO-301 (AVIÓN VERDE / EN APROXIMACIÓN / A TIEMPO) -->
+<div class="absolute top-[38%] left-[58%] -translate-x-1/2 -translate-y-1/2 z-20 group cursor-pointer" onclick="seleccionarMarcador('AERO-301')">
+<div class="relative flex items-center justify-center">
+<span class="absolute w-10 h-10 rounded-full bg-emerald-500/20 animate-ping"></span>
+<div class="w-9 h-9 rounded-full bg-emerald-600 text-on-primary flex items-center justify-center shadow-lg transition-transform hover:scale-110">
+<span class="material-symbols-outlined text-[20px] rotate-45">flight</span>
+</div>
+</div>
+<!-- CALLOUT FLOTANTE -->
+<div class="mt-1 bg-surface-container-lowest/95 backdrop-blur-md px-2.5 py-1.5 rounded-lg shadow-md flex flex-col min-w-[170px] pointer-events-auto">
+<div class="flex items-center justify-between gap-2">
+<span class="font-telemetry-sm text-telemetry-sm font-bold text-on-surface">AERO-301</span>
+<span class="font-label-caps text-label-caps px-1 rounded bg-emerald-100 text-emerald-800">A TIEMPO</span>
+</div>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">Cessna Grand Caravan</span>
+<div class="flex items-center justify-between text-emerald-700 font-telemetry-sm text-telemetry-sm mt-0.5">
+<span>9,500 FT</span>
+<span>165 KTS</span>
+</div>
+</div>
+</div>
+<!-- MARCADOR 2: DRON-Cargo 08 (DRON AMARILLO / VIENTO CRUZADO) -->
+<div class="absolute top-[28%] left-[28%] -translate-x-1/2 -translate-y-1/2 z-20 group cursor-pointer" onclick="seleccionarMarcador('DRON-Cargo 08')">
+<div class="relative flex items-center justify-center">
+<span class="absolute w-8 h-8 rounded-full bg-amber-500/30 animate-pulse"></span>
+<div class="w-9 h-9 rounded-full bg-amber-500 text-on-primary flex items-center justify-center shadow-lg transition-transform hover:scale-110">
+<span class="material-symbols-outlined text-[20px]">toys</span>
+</div>
+</div>
+<!-- CALLOUT FLOTANTE -->
+<div class="mt-1 bg-surface-container-lowest/95 backdrop-blur-md px-2.5 py-1.5 rounded-lg shadow-md flex flex-col min-w-[180px] pointer-events-auto">
+<div class="flex items-center justify-between gap-2">
+<span class="font-telemetry-sm text-telemetry-sm font-bold text-on-surface">DRON-08 CGO</span>
+<span class="font-label-caps text-label-caps px-1 rounded bg-amber-100 text-amber-800">+18m RETRASO</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Viento cruzado 38 KT</span>
+<div class="flex items-center justify-between text-amber-700 font-telemetry-sm text-telemetry-sm mt-0.5">
+<span>1,200 FT AGL</span>
+<span>48 KM/H</span>
+</div>
+</div>
+</div>
+<!-- MARCADOR 3: TRK-104 (CAMIÓN VERDE / EN RUTA NOMINAL) -->
+<div class="absolute top-[62%] left-[45%] -translate-x-1/2 -translate-y-1/2 z-20 group cursor-pointer" onclick="seleccionarMarcador('TRK-104')">
+<div class="relative flex items-center justify-center">
+<div class="w-9 h-9 rounded-full bg-emerald-600 text-on-primary flex items-center justify-center shadow-lg transition-transform hover:scale-110">
+<span class="material-symbols-outlined text-[20px]">local_shipping</span>
+</div>
+</div>
+<!-- CALLOUT FLOTANTE -->
+<div class="mt-1 bg-surface-container-lowest/95 backdrop-blur-md px-2.5 py-1.5 rounded-lg shadow-md flex flex-col min-w-[170px] pointer-events-auto">
+<div class="flex items-center justify-between gap-2">
+<span class="font-telemetry-sm text-telemetry-sm font-bold text-on-surface">TRK-104</span>
+<span class="font-label-caps text-label-caps px-1 rounded bg-emerald-100 text-emerald-800">EN RUTA</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Autopista 57 Km 142</span>
+<div class="flex items-center justify-between text-emerald-700 font-telemetry-sm text-telemetry-sm mt-0.5">
+<span>82 KM/H</span>
+<span>ETA 16:10</span>
+</div>
+</div>
+</div>
+<!-- MARCADOR 4: TRK-219 (CAMIÓN ROJO / FALLA NEUMÁTICOS / DETENIDO EN ARCÉN) -->
+<div class="absolute top-[75%] left-[22%] -translate-x-1/2 -translate-y-1/2 z-20 group cursor-pointer" onclick="seleccionarMarcador('TRK-219')">
+<div class="relative flex items-center justify-center">
+<span class="absolute w-12 h-12 rounded-full bg-error/30 animate-ping"></span>
+<div class="w-10 h-10 rounded-full bg-error text-on-error flex items-center justify-center shadow-xl transition-transform hover:scale-110 ring-4 ring-error-container">
+<span class="material-symbols-outlined text-[22px]">car_crash</span>
+</div>
+</div>
+<!-- CALLOUT FLOTANTE CRÍTICO -->
+<div class="mt-1 bg-surface-container-lowest/95 backdrop-blur-md px-3 py-2 rounded-lg shadow-lg flex flex-col min-w-[200px] border-l-4 border-error pointer-events-auto">
+<div class="flex items-center justify-between gap-2">
+<span class="font-telemetry-sm text-telemetry-sm font-bold text-error">TRK-219 [SOS]</span>
+<span class="font-label-caps text-label-caps px-1.5 py-0.5 rounded bg-error text-on-error uppercase">DETENIDO</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface font-semibold truncate">Falla Presión Neumáticos</span>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">Km 189 Arcén Poniente • 0 KM/H</span>
+<button class="mt-1.5 w-full py-1 rounded bg-error text-on-error font-label-caps text-label-caps uppercase hover:opacity-90 active:scale-95 transition-all text-center">
+                Despachar Auxilio Mecánico
+              </button>
+</div>
+</div>
+<!-- CONTROLES TÁCTILES FLOTANTES DEL HUD (INFERIOR IZQUIERDO) -->
+<div class="absolute bottom-4 left-4 z-30 flex flex-col gap-2">
+<div class="flex flex-col bg-surface-container-lowest/95 backdrop-blur-md rounded-lg shadow-md overflow-hidden">
+<button class="w-11 h-11 flex items-center justify-center text-on-surface hover:bg-surface-container active:bg-surface-container-high transition-colors" onclick="mapZoom(1)" title="Acercar">
+<span class="material-symbols-outlined text-[22px]">add</span>
+</button>
+<div class="h-px bg-surface-container-highest"></div>
+<button class="w-11 h-11 flex items-center justify-center text-on-surface hover:bg-surface-container active:bg-surface-container-high transition-colors" onclick="mapZoom(-1)" title="Alejar">
+<span class="material-symbols-outlined text-[22px]">remove</span>
+</button>
+</div>
+<button class="w-11 h-11 rounded-lg bg-surface-container-lowest/95 backdrop-blur-md shadow-md flex items-center justify-center text-primary hover:bg-surface-container transition-colors" onclick="recenterMap()" title="Centrar Flota Completa">
+<span class="material-symbols-outlined text-[22px]">my_location</span>
+</button>
+</div>
+<!-- LEYENDA TÉCNICA FLOTANTE (INFERIOR DERECHO) -->
+<div class="absolute bottom-4 right-4 z-30 bg-surface-container-lowest/90 backdrop-blur-md px-space-sm py-1.5 rounded-lg shadow-md hidden sm:flex items-center gap-space-md text-on-surface-variant">
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+<span class="font-telemetry-sm text-telemetry-sm">Nominal</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+<span class="font-telemetry-sm text-telemetry-sm">Alerta Met / Tráfico</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-error"></span>
+<span class="font-telemetry-sm text-telemetry-sm">Crítico / Fallo</span>
+</div>
+</div>
+</div>
+</section>
+<!-- PANEL LATERAL DERECHO: ACCIÓN REQUERIDA Y DESPACHO EN TRÁNSITO (4 COLS) -->
+<section class="lg:col-span-4 flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[20px]">pending_actions</span>
+<h2 class="font-headline-md text-headline-md text-on-surface">Atención Requerida</h2>
+</div>
+<span class="font-telemetry-sm text-telemetry-sm font-bold bg-error-container text-on-error-container px-2 py-0.5 rounded-full">
+            10 Nodos
+          </span>
+</div>
+<!-- LISTA FILTRABLE DE TARJETAS OPERACIONALES -->
+<div class="flex flex-col gap-space-sm max-h-[620px] overflow-y-auto pr-1" id="units-list-container">
+<!-- TARJETA 1 (CRÍTICA - TRK-219) -->
+<article class="unidad-card bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex flex-col gap-space-sm border-l-4 border-error hover:bg-surface-container-low transition-all" data-mod="terrestre" data-status="critico">
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-space-xs">
+<div class="w-8 h-8 rounded-lg bg-error-container text-error flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">local_shipping</span>
+</div>
+<div>
+<div class="flex items-center gap-1">
+<span class="font-headline-md text-headline-md font-bold text-on-surface">TRK-219</span>
+<span class="font-label-caps text-label-caps bg-error text-on-error px-1.5 py-0.2 rounded font-bold">SOS</span>
+</div>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">Tractocamión Kenworth T680</span>
+</div>
+</div>
+<div class="text-right">
+<span class="font-telemetry-sm text-telemetry-sm font-bold text-error">0 KM/H</span>
+<span class="block font-label-caps text-label-caps text-on-surface-variant">PAUSA 14 MIN</span>
+</div>
+</div>
+<div class="bg-surface-container p-space-xs rounded-lg flex flex-col gap-0.5 font-telemetry-sm text-telemetry-sm">
+<div class="flex justify-between">
+<span class="text-on-surface-variant">Causa Telemetría:</span>
+<span class="font-bold text-error">Pérdida súbita TPMS (12 PSI)</span>
+</div>
+<div class="flex justify-between">
+<span class="text-on-surface-variant">Operador:</span>
+<span class="text-on-surface">M. Estrada • Lic. Federal A</span>
+</div>
+<div class="flex justify-between">
+<span class="text-on-surface-variant">Carga:</span>
+<span class="text-on-surface">Componentes Aeroespaciales (18 Tn)</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-space-xs pt-1">
+<button class="min-h-[44px] px-2 rounded-lg bg-surface-container-highest text-on-surface hover:bg-surface-container font-body-sm text-body-sm font-semibold flex items-center justify-center gap-1 transition-colors" onclick="inspeccionarUnidad('TRK-219')">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+<span>Inspeccionar</span>
+</button>
+<button class="min-h-[44px] px-2 rounded-lg bg-error text-on-error hover:opacity-90 font-body-sm text-body-sm font-bold flex items-center justify-center gap-1 transition-colors shadow-sm" onclick="reasignarRuta('TRK-219')">
+<span class="material-symbols-outlined text-[18px]">alt_route</span>
+<span>Asistir / Taller</span>
+</button>
+</div>
+</article>
+<!-- TARJETA 2 (ALERTA - DRON-CARGO 08) -->
+<article class="unidad-card bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex flex-col gap-space-sm border-l-4 border-amber-500 hover:bg-surface-container-low transition-all" data-mod="aereo" data-status="alerta">
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-space-xs">
+<div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">toys</span>
+</div>
+<div>
+<div class="flex items-center gap-1">
+<span class="font-headline-md text-headline-md font-bold text-on-surface">DRON-08 CGO</span>
+<span class="font-label-caps text-label-caps bg-amber-100 text-amber-900 px-1.5 py-0.2 rounded font-bold">+18m</span>
+</div>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">EHang Heavy-Cargo eVTOL</span>
+</div>
+</div>
+<div class="text-right">
+<span class="font-telemetry-sm text-telemetry-sm font-bold text-amber-700">48 KM/H</span>
+<span class="block font-label-caps text-label-caps text-on-surface-variant">BATERÍA 68%</span>
+</div>
+</div>
+<div class="bg-surface-container p-space-xs rounded-lg flex flex-col gap-0.5 font-telemetry-sm text-telemetry-sm">
+<div class="flex justify-between">
+<span class="text-on-surface-variant">Viento Racha:</span>
+<span class="font-bold text-amber-700">38 Nudos de proa (Desvío 12°)</span>
+</div>
+<div class="flex justify-between">
+<span class="text-on-surface-variant">Altitud / Vía:</span>
+<span class="text-on-surface">1,200 FT AGL • Corredor C-4</span>
+</div>
+<div class="flex justify-between">
+<span class="text-on-surface-variant">Destino:</span>
+<span class="text-on-surface">Hub Logístico Saltillo (H-02)</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-space-xs pt-1">
+<button class="min-h-[44px] px-2 rounded-lg bg-surface-container-highest text-on-surface hover:bg-surface-container font-body-sm text-body-sm font-semibold flex items-center justify-center gap-1 transition-colors" onclick="inspeccionarUnidad('DRON-Cargo 08')">
+<span class="material-symbols-outlined text-[18px]">csv</span>
+<span>Telemetría</span>
+</button>
+<button class="min-h-[44px] px-2 rounded-lg bg-primary text-on-primary hover:bg-primary-container font-body-sm text-body-sm font-semibold flex items-center justify-center gap-1 transition-colors" onclick="reasignarRuta('DRON-Cargo 08')">
+<span class="material-symbols-outlined text-[18px]">tune</span>
+<span>Reajustar FL</span>
+</button>
+</div>
+</article>
+<!-- TARJETA 3 (NOMINAL - AERO-301) -->
+<article class="unidad-card bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex flex-col gap-space-sm border-l-4 border-emerald-500 hover:bg-surface-container-low transition-all" data-mod="aereo" data-status="normal">
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-space-xs">
+<div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">flight</span>
+</div>
+<div>
+<div class="flex items-center gap-1">
+<span class="font-headline-md text-headline-md font-bold text-on-surface">AERO-301</span>
+<span class="font-label-caps text-label-caps bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-bold">NOMINAL</span>
+</div>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">Cessna 208B Super Cargomaster</span>
+</div>
+</div>
+<div class="text-right">
+<span class="font-telemetry-sm text-telemetry-sm font-bold text-emerald-700">165 KTS</span>
+<span class="block font-label-caps text-label-caps text-on-surface-variant">FL095</span>
+</div>
+</div>
+<div class="bg-surface-container p-space-xs rounded-lg flex flex-col gap-0.5 font-telemetry-sm text-telemetry-sm">
+<div class="flex justify-between">
+<span class="text-on-surface-variant">Patrón:</span>
+<span class="font-bold text-emerald-700">Aproximación ILS Pista 29 MTY</span>
+</div>
+<div class="flex justify-between">
+<span class="text-on-surface-variant">ETA Estimado:</span>
+<span class="text-on-surface">14:52 UTC (A tiempo)</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-space-xs pt-1">
+<button class="min-h-[44px] px-2 rounded-lg bg-surface-container-highest text-on-surface hover:bg-surface-container font-body-sm text-body-sm font-semibold flex items-center justify-center gap-1 transition-colors" onclick="inspeccionarUnidad('AERO-301')">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+<span>Ficha Vuelo</span>
+</button>
+<button class="min-h-[44px] px-2 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high font-body-sm text-body-sm font-semibold flex items-center justify-center gap-1 transition-colors" onclick="reasignarRuta('AERO-301')">
+<span class="material-symbols-outlined text-[18px]">headset_mic</span>
+<span>Comms Torre</span>
+</button>
+</div>
+</article>
+<!-- TARJETA 4 (NOMINAL - TRK-104) -->
+<article class="unidad-card bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex flex-col gap-space-sm border-l-4 border-emerald-500 hover:bg-surface-container-low transition-all" data-mod="terrestre" data-status="normal">
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-space-xs">
+<div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">local_shipping</span>
+</div>
+<div>
+<div class="flex items-center gap-1">
+<span class="font-headline-md text-headline-md font-bold text-on-surface">TRK-104</span>
+<span class="font-label-caps text-label-caps bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-bold">NOMINAL</span>
+</div>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">Freightliner Cascadia 2023</span>
+</div>
+</div>
+<div class="text-right">
+<span class="font-telemetry-sm text-telemetry-sm font-bold text-emerald-700">82 KM/H</span>
+<span class="block font-label-caps text-label-caps text-on-surface-variant">COMBUSTIBLE 84%</span>
+</div>
+</div>
+<div class="bg-surface-container p-space-xs rounded-lg flex flex-col gap-0.5 font-telemetry-sm text-telemetry-sm">
+<div class="flex justify-between">
+<span class="text-on-surface-variant">Tramo Actual:</span>
+<span class="text-on-surface">Autopista 57, Km 142 (Tráfico Fluido)</span>
+</div>
+<div class="flex justify-between">
+<span class="text-on-surface-variant">Destino Final:</span>
+<span class="text-on-surface">CEDIS Escobedo • ETA 16:10</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-space-xs pt-1">
+<button class="min-h-[44px] px-2 rounded-lg bg-surface-container-highest text-on-surface hover:bg-surface-container font-body-sm text-body-sm font-semibold flex items-center justify-center gap-1 transition-colors" onclick="inspeccionarUnidad('TRK-104')">
+<span class="material-symbols-outlined text-[18px]">route</span>
+<span>Telemetría</span>
+</button>
+<button class="min-h-[44px] px-2 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high font-body-sm text-body-sm font-semibold flex items-center justify-center gap-1 transition-colors" onclick="reasignarRuta('TRK-104')">
+<span class="material-symbols-outlined text-[18px]">chat</span>
+<span>Mensaje Cabina</span>
+</button>
+</div>
+</article>
+</div>
+</section>
+</div>
+<!-- SECCIÓN INFERIOR: FEED / MARQUEE DE ALERTAS EN TIEMPO REAL -->
+<section class="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[20px]">notifications_active</span>
+<h2 class="font-headline-md text-headline-md text-on-surface">Bitácora de Eventos Críticos &amp; Telemetría en Vivo</h2>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Sincronizado vía Satélite</span>
+<div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+<!-- ALERTA 1: FALLA MECÁNICA SOS -->
+<div class="p-space-sm rounded-xl bg-error-container/40 border-l-4 border-error flex flex-col justify-between gap-space-sm">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-label-caps text-label-caps text-error uppercase font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">report</span> EMERGENCIA TÉCNICA
+              </span>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant font-semibold">14:26:10 UTC</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface font-medium leading-snug">
+              TRK-219 reporta pérdida total de presión en rueda posterior derecha. Detenido en zona de seguridad. Despacho vial requerido.
+            </p>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">Coord: 25.184, -100.912</span>
+<button class="min-h-[36px] px-space-sm rounded bg-error text-on-error font-label-caps text-label-caps uppercase font-bold hover:opacity-90 active:scale-95 transition-all" onclick="atenderAlerta('TRK-219')">
+              Intervenir
+            </button>
+</div>
+</div>
+<!-- ALERTA 2: CONDICIÓN METEOROLÓGICA -->
+<div class="p-space-sm rounded-xl bg-amber-500/10 border-l-4 border-amber-500 flex flex-col justify-between gap-space-sm">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-label-caps text-label-caps text-amber-700 uppercase font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">air</span> ALERTA VIENTO / METAR
+              </span>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant font-semibold">14:22:45 UTC</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface font-medium leading-snug">
+              DRON-Cargo 08 enfrentando cizalladura severa de bajo nivel en Cañón de Huasteca. Consumo de batería acelerado al 135%.
+            </p>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">Ruta C-4 • Alt: 1,200 FT</span>
+<button class="min-h-[36px] px-space-sm rounded bg-amber-600 text-on-primary font-label-caps text-label-caps uppercase font-bold hover:opacity-90 active:scale-95 transition-all" onclick="atenderAlerta('DRON-08')">
+              Ver Corredor
+            </button>
+</div>
+</div>
+<!-- ALERTA 3: CONGESTIONAMIENTO VIAL -->
+<div class="p-space-sm rounded-xl bg-surface-container-high border-l-4 border-tertiary flex flex-col justify-between gap-space-sm">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-label-caps text-label-caps text-tertiary uppercase font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">traffic</span> TRÁFICO VIAL ELEVADO
+              </span>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant font-semibold">14:15:30 UTC</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface font-medium leading-snug">
+              Retención de +35 min en caseta Los Chorros (dirección Saltillo). 4 unidades terrestres en aproximación notificadas con bypass alterno.
+            </p>
+</div>
+<div class="flex items-center justify-between pt-1">
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">4 Camiones afectados</span>
+<button class="min-h-[36px] px-space-sm rounded bg-surface-container-highest text-on-surface font-label-caps text-label-caps uppercase font-bold hover:bg-surface-container active:scale-95 transition-all" onclick="atenderAlerta('TRAFICO-CHORROS')">
+              Ver Desvío
+            </button>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- DIÁLOGO / MODAL FLOTANTE TELEMÁTICO PARA ACCIONES OPERADOR (OCULTO POR DEFECTO) -->
+<div class="fixed inset-0 z-50 bg-inverse-surface/40 backdrop-blur-sm hidden items-center justify-center p-space-md" id="modal-operador">
+<div class="bg-surface-container-lowest max-w-lg w-full rounded-2xl shadow-xl p-space-lg flex flex-col gap-space-md border border-outline-variant/30">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<div class="w-8 h-8 rounded-lg bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">terminal</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface" id="modal-title">Gestión de Misión Multimodal</h3>
+</div>
+<button class="w-10 h-10 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors" onclick="cerrarModal()">
+<span class="material-symbols-outlined text-[22px]">close</span>
+</button>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant" id="modal-desc">
+        Seleccione protocolo de reasignación o asistencia en vivo para el activo en supervisión.
+      </p>
+<div class="flex flex-col gap-space-xs font-telemetry-sm text-telemetry-sm bg-surface-container p-space-sm rounded-lg" id="modal-details">
+<!-- Contenido dinámico -->
+</div>
+<div class="flex items-center justify-end gap-space-sm pt-space-xs">
+<button class="min-h-[44px] px-space-md rounded-lg bg-surface-container text-on-surface font-body-sm text-body-sm font-semibold hover:bg-surface-container-high transition-colors" onclick="cerrarModal()">
+          Descartar
+        </button>
+<button class="min-h-[44px] px-space-lg rounded-lg bg-primary text-on-primary font-body-sm text-body-sm font-bold shadow-md hover:bg-primary-container transition-all" onclick="confirmarProtocolo()">
+          Ejecutar Orden de Despacho
+        </button>
+</div>
+</div>
+</div>
+</div>
+<script>
+  let filtroModActual = 'todos';
+  let filtroEstActual = 'todos';
+
+  function aplicarFiltros() {
+    const cards = document.querySelectorAll('.unidad-card');
+    cards.forEach(card => {
+      const cardMod = card.getAttribute('data-mod');
+      const cardEst = card.getAttribute('data-status');
+
+      const coincideMod = (filtroModActual === 'todos') || (cardMod === filtroModActual);
+      const coincideEst = (filtroEstActual === 'todos') || (cardEst === filtroEstActual);
+
+      if (coincideMod && coincideEst) {
+        card.classList.remove('hidden');
+      } else {
+        card.classList.add('hidden');
+      }
+    });
+  }
+
+  function setModalidad(mod, el) {
+    filtroModActual = mod;
+    document.querySelectorAll('.modalidad-btn').forEach(btn => {
+      btn.className = "modalidad-btn min-h-[44px] px-space-md py-2 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high font-body-sm text-body-sm font-medium flex items-center gap-space-xs transition-all";
+    });
+    el.className = "modalidad-btn min-h-[44px] px-space-md py-2 rounded-lg bg-primary text-on-primary font-body-sm text-body-sm font-semibold flex items-center gap-space-xs transition-all shadow-sm";
+    aplicarFiltros();
+  }
+
+  function setEstado(est, el) {
+    filtroEstActual = est;
+    document.querySelectorAll('.estado-btn').forEach(btn => {
+      btn.classList.remove('bg-surface-container-highest', 'ring-2', 'ring-primary');
+      btn.classList.add('bg-surface-container');
+    });
+    el.classList.add('bg-surface-container-highest', 'ring-2', 'ring-primary');
+    aplicarFiltros();
+  }
+
+  function filtrarEstado(est) {
+    filtroEstActual = est;
+    const btn = Array.from(document.querySelectorAll('.estado-btn')).find(b => {
+      const text = b.textContent.toLowerCase();
+      if (est === 'normal' && text.includes('normal')) return true;
+      if (est === 'alerta' && text.includes('retrasos')) return true;
+      if (est === 'critico' && text.includes('críticos')) return true;
+      return false;
+    });
+    if (btn) setEstado(est, btn);
+    else aplicarFiltros();
+  }
+
+  function toggleCapa(btn, tipo) {
+    btn.classList.toggle('bg-primary-fixed');
+    btn.classList.toggle('text-on-primary-fixed');
+    btn.classList.toggle('font-bold');
+  }
+
+  function mapZoom(delta) {
+    const canvas = document.getElementById('radar-canvas');
+    if (!canvas) return;
+    const currentScale = parseFloat(canvas.dataset.zoom || '1');
+    const newScale = Math.min(Math.max(currentScale + (delta * 0.15), 0.8), 1.6);
+    canvas.dataset.zoom = newScale;
+    canvas.style.transform = `scale(${newScale})`;
+    canvas.style.transformOrigin = 'center center';
+    canvas.style.transition = 'transform 0.25s ease';
+  }
+
+  function recenterMap() {
+    const canvas = document.getElementById('radar-canvas');
+    if (!canvas) return;
+    canvas.dataset.zoom = '1';
+    canvas.style.transform = 'scale(1)';
+  }
+
+  function seleccionarMarcador(id) {
+    abrirModal(`Enfoque Telemetría: ${id}`, `Enlace directo al nodo telemático ${id}. Recibiendo paquetes de aviónica/ECU en tiempo real.`);
+  }
+
+  function inspeccionarUnidad(id) {
+    abrirModal(`Inspección Integral: ${id}`, `Apertura de diagnóstico de componentes, estado de sensorica, historial de geofencing y telemetría de frenos/motor.`);
+  }
+
+  function reasignarRuta(id) {
+    abrirModal(`Reasignación Táctica: ${id}`, `Definición de vector alterno por congestión o condiciones meteorológicas adversas.`);
+  }
+
+  function atenderAlerta(id) {
+    abrirModal(`Intervención de Alerta: ${id}`, `Confirmación de protocolo de contingencia con despacho central y notificación a cuadrillas de tierra.`);
+  }
+
+  function abrirModal(titulo, desc) {
+    const modal = document.getElementById('modal-operador');
+    document.getElementById('modal-title').innerText = titulo;
+    document.getElementById('modal-desc').innerText = desc;
+    document.getElementById('modal-details').innerHTML = `
+      <div class="flex justify-between"><span>Estado Canal:</span><span class="font-bold text-emerald-600">ENLACE NOMINAL (100% Paquetes)</span></div>
+      <div class="flex justify-between"><span>Retardo Enlace:</span><span>42 ms (Iridium SBD)</span></div>
+      <div class="flex justify-between"><span>Autorización ATC/SCT:</span><span>VIGENTE - CORREDOR NORESTE</span></div>
+    `;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+
+  function cerrarModal() {
+    const modal = document.getElementById('modal-operador');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+
+  function confirmarProtocolo() {
+    alert("Protocolo transmitido satelitalmente al activo. Código de confirmación: ACK-892");
+    cerrarModal();
+  }
+</script></main></div><nav class="fixed bottom-0 left-0 right-0 z-40 bg-surface-container-lowest/95 backdrop-blur-xl flex md:hidden items-center justify-around px-space-sm py-space-xs shadow-[0_-2px_10px_rgba(11,28,48,0.06)]" data-active-classes="bg-primary text-on-primary font-semibold rounded-lg"><a aria-current="page" class="flex flex-col items-center justify-center py-2 px-space-sm transition-all min-h-[48px] min-w-[72px] bg-primary text-on-primary font-semibold rounded-lg" data-path="dashboard-principal" href="#"><span class="material-symbols-outlined text-[22px]">grid_view</span><span class="font-telemetry-sm text-telemetry-sm">Monitoreo</span></a><a class="flex flex-col items-center justify-center py-2 px-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all min-h-[48px] min-w-[72px]" data-path="detalle-de-unidad" href="#"><span class="material-symbols-outlined text-[22px]">local_shipping</span><span class="font-telemetry-sm text-telemetry-sm">Despacho</span></a><a class="flex flex-col items-center justify-center py-2 px-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all min-h-[48px] min-w-[72px]" data-path="historial-y-bitacora" href="#"><span class="material-symbols-outlined text-[22px]">history_toggle_off</span><span class="font-telemetry-sm text-telemetry-sm">Bitácora</span></a></nav></body></html>

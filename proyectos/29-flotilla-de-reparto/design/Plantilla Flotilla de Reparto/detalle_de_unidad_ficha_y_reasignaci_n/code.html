@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+
+<html lang="es"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}@keyframes pulse-subtle{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.4;transform:scale(1.2);}}.animate-live-dot{animation:pulse-subtle 2s cubic-bezier(0.4,0,0.6,1) infinite;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"surface-container-low":"#eff4ff","primary":"#006194","surface-container-highest":"#d3e4fe","on-primary":"#ffffff","background":"#f8f9ff","tertiary":"#00628d","secondary-fixed-dim":"#bdc5e9","secondary-container":"#d0d9fd","secondary":"#545d7c","on-primary-fixed-variant":"#004b73","on-primary-container":"#fdfcff","on-tertiary":"#ffffff","on-secondary":"#ffffff","inverse-on-surface":"#eaf1ff","tertiary-fixed":"#c9e6ff","surface":"#f8f9ff","surface-container":"#e5eeff","tertiary-fixed-dim":"#89ceff","on-surface-variant":"#3f4850","surface-bright":"#f8f9ff","on-secondary-fixed":"#111a36","inverse-surface":"#213145","on-background":"#0b1c30","on-tertiary-fixed":"#001e2f","on-surface":"#0b1c30","outline":"#707881","on-error-container":"#93000a","primary-fixed-dim":"#93ccff","inverse-primary":"#93ccff","surface-variant":"#d3e4fe","on-tertiary-fixed-variant":"#004c6e","on-secondary-fixed-variant":"#3d4664","on-secondary-container":"#555e7d","surface-container-lowest":"#ffffff","on-tertiary-container":"#fcfcff","error-container":"#ffdad6","surface-container-high":"#dce9ff","error":"#ba1a1a","surface-dim":"#cbdbf5","primary-container":"#007bb9","tertiary-container":"#007cb1","surface-tint":"#006398","on-error":"#ffffff","outline-variant":"#bfc7d2","secondary-fixed":"#dbe1ff","on-primary-fixed":"#001d31","primary-fixed":"#cce5ff"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"space-md":"1rem","gutter":"1rem","margin":"1rem","gutter-desktop":"1.5rem","space-xs":"0.25rem","margin-desktop":"2rem","space-lg":"1.5rem","space-sm":"0.5rem","space-xl":"2.5rem"},"fontFamily":{"body-md":["Inter"],"telemetry-sm":["JetBrains Mono"],"headline-lg-mobile":["Inter"],"body-sm":["Inter"],"headline-lg":["Inter"],"headline-md":["Inter"],"telemetry-md":["JetBrains Mono"],"telemetry-lg":["JetBrains Mono"],"label-caps":["JetBrains Mono"],"body-lg":["Inter"],"headline-xl-mobile":["Inter"],"headline-xl":["Inter"]},"fontSize":{"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"telemetry-sm":["11px",{"lineHeight":"14px","fontWeight":"500"}],"headline-lg-mobile":["20px",{"lineHeight":"28px","fontWeight":"600"}],"body-sm":["12px",{"lineHeight":"16px","fontWeight":"400"}],"headline-lg":["24px",{"lineHeight":"32px","fontWeight":"600"}],"headline-md":["18px",{"lineHeight":"24px","fontWeight":"600"}],"telemetry-md":["14px",{"lineHeight":"18px","fontWeight":"500"}],"telemetry-lg":["20px",{"lineHeight":"26px","fontWeight":"700"}],"label-caps":["10px",{"lineHeight":"12px","letterSpacing":"0.08em","fontWeight":"700"}],"body-lg":["16px",{"lineHeight":"24px","fontWeight":"400"}],"headline-xl-mobile":["24px",{"lineHeight":"32px","fontWeight":"700"}],"headline-xl":["32px",{"lineHeight":"40px","fontWeight":"700"}]}}}};</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased"><header class="fixed top-0 left-0 right-0 z-50 h-16 bg-surface-container-lowest/95 backdrop-blur-xl shadow-[0_1px_8px_rgba(11,28,48,0.06)]"><div class="h-16 w-full px-gutter-desktop flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-md min-w-max"><div class="flex items-center gap-space-sm"><div class="flex items-center justify-center w-9 h-9 rounded-lg bg-surface-container-high text-primary"><span class="material-symbols-outlined text-[22px]">radar</span></div><div class="flex flex-col"><span class="font-headline-md text-headline-md tracking-tight text-primary leading-none">AeroTerra</span><span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Telematics Core</span></div></div><div class="hidden xl:flex items-center gap-space-xs pl-space-sm"><span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Jurisdicción:</span><div class="flex items-center gap-space-xs px-space-sm py-1 rounded bg-surface-container text-on-surface font-body-sm text-body-sm"><span class="material-symbols-outlined text-[16px] text-tertiary">apartment</span><span>Centro Control Centro-Norte</span></div></div></div><div class="hidden md:flex flex-1 max-w-md mx-space-md"><div class="relative w-full flex items-center"><span class="material-symbols-outlined absolute left-3 text-on-surface-variant text-[18px]">search</span><input class="w-full h-10 pl-9 pr-3 rounded-lg bg-surface-container-low text-on-surface placeholder:text-on-surface-variant font-telemetry-sm text-telemetry-sm focus:outline-none focus:bg-surface-container transition-all" placeholder="Buscar unidad (ej. MAT-902, TRK-104)..." type="text"/><span class="absolute right-2 font-label-caps text-label-caps px-1.5 py-0.5 rounded bg-surface-container-highest text-on-surface-variant">⌘K</span></div></div><div class="flex items-center gap-space-md"><div class="hidden lg:flex items-center gap-space-md px-space-md py-1.5 rounded-lg bg-surface-container-low"><div class="flex items-center gap-space-xs"><div class="w-2 h-2 rounded-full bg-primary animate-live-dot"></div><span class="font-telemetry-sm text-telemetry-sm text-primary uppercase font-bold">GPS EN VIVO</span></div><div class="h-4 w-px bg-outline-variant"></div><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-[16px] text-on-surface-variant">schedule</span><span class="font-telemetry-sm text-telemetry-sm text-on-surface font-semibold">14:28:42</span><span class="font-label-caps text-label-caps text-on-surface-variant">UTC-5</span></div></div><div class="flex items-center gap-space-sm pl-space-xs"><div class="relative flex items-center justify-center"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1XDRqHai_QzRTzVWHfM3v8aokg9bMLUgc0575uRP0o-lQBBHmtEmb_-u2InMrbej45ld0J9rQJkCV0e6krN4Nh9jQLkOeNQVLfj97EwlhJgdc54c7mbssubUQWnjEDeW-8raSzfuiOmpLijDaPwbuMAZwu941ZgPPf60RH9zDBjICjBqyP2DmedFEdPHM72MoXgpmuSK6gBW9nm66TKY_2WRI7fKn_fa1rCr6_G_RLj"/><div class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary"></div></div><div class="hidden sm:flex flex-col text-left"><span class="font-body-sm text-body-sm font-semibold text-on-surface leading-tight">Ing. Sofía Morales</span><span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant leading-tight">Despachadora en Turno</span></div></div></div></div></header><aside class="fixed left-0 top-16 bottom-0 w-64 bg-surface-container-low z-40 hidden md:flex flex-col justify-between py-space-md px-space-sm shadow-[0_1px_8px_rgba(11,28,48,0.03)]"><div class="flex flex-col gap-space-lg"><div class="px-space-sm"><span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Consola de Control</span></div><nav class="flex flex-col gap-space-xs" data-active-classes="bg-primary text-on-primary font-semibold rounded-lg"><a class="flex items-center gap-space-sm px-space-md py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors min-h-[44px]" data-path="dashboard-principal" href="#"><span class="material-symbols-outlined text-[20px]">grid_view</span><span class="font-body-md text-body-md">Dashboard Principal</span></a><a aria-current="page" class="flex items-center gap-space-sm px-space-md py-3 transition-colors min-h-[44px] bg-primary text-on-primary font-semibold rounded-lg" data-path="detalle-de-unidad" href="#"><span class="material-symbols-outlined text-[20px]">local_shipping</span><span class="font-body-md text-body-md">Detalle de Unidad</span></a><a class="flex items-center gap-space-sm px-space-md py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors min-h-[44px]" data-path="historial-y-bitacora" href="#"><span class="material-symbols-outlined text-[20px]">history_toggle_off</span><span class="font-body-md text-body-md">Historial &amp; Bitácora</span></a></nav></div><div class="px-space-sm pt-space-md"><div class="p-space-sm rounded-lg bg-surface-container flex flex-col gap-space-xs"><div class="flex items-center justify-between"><span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Red Telemetría</span><span class="font-telemetry-sm text-telemetry-sm text-primary font-bold">99.8%</span></div><div class="w-full bg-surface-container-highest h-1 rounded-full overflow-hidden"><div class="bg-primary h-full w-[99.8%]"></div></div><span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">142 Nodos Enlazados</span></div></div></aside><div class="md:pl-64"><main class="relative w-full pt-16 bg-surface min-h-[calc(100vh-4rem)] pb-20 md:pb-0"><div class="flex flex-col w-full">
+<div class="w-full bg-error-container text-on-error-container px-gutter-desktop py-space-sm shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm min-w-0">
+<span class="material-symbols-outlined text-[20px] text-error flex-shrink-0 animate-pulse">warning</span>
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="font-label-caps text-label-caps uppercase bg-error text-on-error px-1.5 py-0.5 rounded">ALERTA MET 04-B</span>
+<span class="font-telemetry-sm text-telemetry-sm text-on-error-container font-semibold">14:26:11 UTC</span>
+<span class="font-body-sm text-body-sm text-on-error-container truncate">Celda convectiva activa sobre radial 315° Bajío. Techo de nubes bajo y turbulencia severa nivel FL090.</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs self-end sm:self-center flex-shrink-0">
+<button class="min-h-[36px] px-space-sm py-1 rounded bg-error text-on-error font-label-caps text-label-caps uppercase hover:opacity-90 active:scale-95 transition-all flex items-center gap-space-xs" onclick="document.getElementById('modulo-reasignacion').scrollIntoView({behavior: 'smooth'})">
+<span>GESTIONAR DESVÍO</span>
+<span class="material-symbols-outlined text-[16px]">south</span>
+</button>
+</div>
+</div>
+<div class="px-gutter md:px-gutter-desktop py-space-md flex flex-col gap-space-lg max-w-7xl mx-auto w-full">
+<section class="bg-surface-container-lowest rounded-xl p-space-md md:p-space-lg shadow-sm flex flex-col gap-space-md relative overflow-hidden">
+<div class="absolute -right-8 -top-8 w-44 h-44 bg-surface-container-low rounded-full opacity-60 pointer-events-none"></div>
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center gap-space-sm flex-wrap">
+<span class="font-label-caps text-label-caps px-2 py-0.5 rounded bg-primary-fixed text-on-primary-fixed font-bold tracking-wider uppercase">
+              Aeronave de Carga Ligera V-82
+            </span>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">
+              ICAO: C208B • S/N: 208B-5104
+            </span>
+<div class="flex items-center gap-space-xs text-primary">
+<span class="w-2 h-2 rounded-full bg-primary animate-live-dot"></span>
+<span class="font-label-caps text-label-caps uppercase">Telemetry Sync OK</span>
+</div>
+</div>
+<h1 class="font-headline-xl text-headline-xl text-on-surface tracking-tight leading-tight">
+            XC-LGT <span class="text-on-surface-variant font-headline-md text-headline-md">/ Misión AER-894</span>
+</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+            Cessna Caravan 208B Cargomaster • Tramo: Hangar Toluca (MMTO) → Hangar Regional San Luis Potosí (MMSP)
+          </p>
+</div>
+<div class="flex flex-col sm:flex-row lg:flex-col items-start lg:items-end gap-space-xs">
+<div class="flex items-center gap-space-sm px-space-md py-2 rounded-full bg-amber-50 text-amber-900 shadow-sm">
+<span class="material-symbols-outlined text-[18px] text-amber-600">schedule</span>
+<div class="flex flex-col">
+<span class="font-label-caps text-label-caps uppercase text-amber-800 leading-none">ESTADO: SEMÁFORO AMARILLO</span>
+<span class="font-telemetry-md text-telemetry-md font-bold text-amber-950 leading-none mt-0.5">RETRASO PREVISTO (+35 MIN)</span>
+</div>
+</div>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant text-left lg:text-right">
+            Motivo: Desvío meteorológico por tormenta en celda Bajío
+          </span>
+</div>
+</div>
+<div class="flex flex-wrap items-center gap-space-sm pt-space-xs">
+<button class="min-h-[48px] px-space-md py-2.5 rounded-lg bg-primary text-on-primary font-body-md text-body-md font-semibold flex items-center justify-center gap-space-sm shadow-sm hover:bg-primary-container active:scale-95 transition-all" id="btn-call-pilot" onclick="iniciarLlamadaRadio()">
+<span class="material-symbols-outlined text-[20px]">headset_mic</span>
+<span>Llamar a Piloto (Radio VHF 128.45 / SAT)</span>
+</button>
+<button class="min-h-[48px] px-space-md py-2.5 rounded-lg bg-surface-container text-on-surface font-body-md text-body-md font-medium hover:bg-surface-container-high active:scale-95 transition-all flex items-center justify-center gap-space-sm" onclick="mostrarNotificacion('Accediendo al log digital de cabina...')">
+<span class="material-symbols-outlined text-[20px]">assignment</span>
+<span>Bitácora de Vuelo (14 Tramos)</span>
+</button>
+<button class="min-h-[48px] px-space-md py-2.5 rounded-lg bg-surface-container text-on-surface font-body-md text-body-md font-medium hover:bg-surface-container-high active:scale-95 transition-all flex items-center justify-center gap-space-sm" onclick="window.print()">
+<span class="material-symbols-outlined text-[20px]">print</span>
+<span>Imprimir Hoja de Despacho</span>
+</button>
+</div>
+<div class="hidden rounded-lg bg-surface-container-high p-space-sm flex items-center justify-between gap-space-sm" id="modal-radio">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary text-[24px] animate-pulse">cell_tower</span>
+<div>
+<div class="font-telemetry-sm text-telemetry-sm font-bold text-primary uppercase">ENLACE SATCOM CONECTADO - CANAL PRIMARIO</div>
+<div class="font-body-sm text-body-sm text-on-surface">Capitán Méndez escuchando en frecuencia 128.45 MHz Bajío Sector 3</div>
+</div>
+</div>
+<button class="px-space-sm py-1 rounded bg-error text-on-error font-label-caps text-label-caps uppercase" onclick="cerrarLlamadaRadio()">Cortar</button>
+</div>
+</section>
+<section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-space-md">
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col justify-between gap-space-md relative overflow-hidden">
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="Portrait photo of a professional commercial cargo pilot in uniform with epaulets, looking confident inside an aircraft hangar background, high definition editorial corporate style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuATaI0zwE1u5ANipMjK__-gtfQR-OjaFtb4_VGEv59VWU_v8H7Wb0umblGpbvj1agegFkledmrjh-S3EafLxidZSv3G0aZQM7ovKMNxvQkwiAllxp3m-OjFVWXnOIKpLWP6K4lkEuhp6gIv4uLOSCHB3N90DiAuFPKpXKetURtmsPfNDsnu9oI3Pjzihx2mbb3Btbg1qCi9LpyCJUg_WCLyiCmOvj_UWneeDJ6MAc8"/>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Mando al Frente</span>
+<span class="font-headline-md text-headline-md text-on-surface truncate">Cap. Roberto Méndez</span>
+<span class="font-telemetry-sm text-telemetry-sm text-primary font-semibold">ATP-89104 (DGAC MX)</span>
+</div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between items-center bg-surface-container-low px-space-sm py-1.5 rounded">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Horas de Turno</span>
+<span class="font-telemetry-md text-telemetry-md font-bold text-on-surface">4.2h / 8.0h máx</span>
+</div>
+<div class="flex justify-between items-center bg-surface-container-low px-space-sm py-1.5 rounded">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Estado Satelital</span>
+<span class="font-telemetry-sm text-telemetry-sm text-primary font-semibold flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span> Garmin Connext OK
+            </span>
+</div>
+<div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[52.5%]"></div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col justify-between gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs text-primary">
+<span class="material-symbols-outlined text-[20px]">explore</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Telemetría GPS / ADS-B</span>
+</div>
+<span class="font-label-caps text-label-caps bg-surface-container px-2 py-0.5 rounded text-on-surface font-semibold">TIS-B LIVE</span>
+</div>
+<div class="space-y-1">
+<div class="font-telemetry-md text-telemetry-md font-bold text-on-surface">
+            20°35'18"N, 100°23'45"W
+          </div>
+<div class="font-body-sm text-body-sm text-on-surface-variant">
+            Sector Radial QRO 284 / VOR 114.3
+          </div>
+</div>
+<div class="grid grid-cols-3 gap-space-xs text-center">
+<div class="bg-surface-container-low p-space-xs rounded">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase block">Altitud</span>
+<span class="font-telemetry-md text-telemetry-md font-bold text-on-surface">8,500 ft</span>
+<span class="font-telemetry-sm text-telemetry-sm text-primary">FL085</span>
+</div>
+<div class="bg-surface-container-low p-space-xs rounded">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase block">Ground Speed</span>
+<span class="font-telemetry-md text-telemetry-md font-bold text-on-surface">165 kts</span>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">305 km/h</span>
+</div>
+<div class="bg-surface-container-low p-space-xs rounded">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase block">Rumbo</span>
+<span class="font-telemetry-md text-telemetry-md font-bold text-on-surface">320°</span>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">NW Trk</span>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col justify-between gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs text-tertiary">
+<span class="material-symbols-outlined text-[20px]">ac_unit</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Carga Crítica &amp; Frío</span>
+</div>
+<span class="font-label-caps text-label-caps bg-surface-container-high px-2 py-0.5 rounded text-primary font-bold">CADENA ACTIVA</span>
+</div>
+<div>
+<div class="flex justify-between items-baseline mb-1">
+<span class="font-headline-md text-headline-md font-bold text-on-surface">1,420 kg</span>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">/ 1,800 kg máx (78.8%)</span>
+</div>
+<div class="w-full bg-surface-container h-2 rounded-full overflow-hidden">
+<div class="bg-tertiary h-full w-[78.8%]"></div>
+</div>
+</div>
+<div class="flex items-center justify-between bg-surface-container-low p-space-sm rounded">
+<div class="flex flex-col">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase">14 Bultos Médicos</span>
+<span class="font-body-sm text-body-sm text-on-surface font-semibold">Vacunas &amp; Hemoderivados</span>
+</div>
+<div class="text-right">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase block">Temp. Bodega</span>
+<span class="font-telemetry-lg text-telemetry-lg font-bold text-primary">+3.8°C</span>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col justify-between gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs text-primary">
+<span class="material-symbols-outlined text-[20px]">local_gas_station</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Autonomía &amp; Reservas</span>
+</div>
+<span class="font-label-caps text-label-caps bg-surface-container-highest px-2 py-0.5 rounded text-on-surface-variant font-bold">JET-A</span>
+</div>
+<div>
+<div class="flex items-baseline justify-between mb-1">
+<span class="font-headline-md text-headline-md font-bold text-on-surface">420 lbs</span>
+<span class="font-telemetry-md text-telemetry-md font-semibold text-primary">2h 45m remanente</span>
+</div>
+<div class="w-full bg-surface-container h-2 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[65%]"></div>
+</div>
+</div>
+<div class="bg-surface-container-low p-space-sm rounded flex flex-col gap-1">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Alterno Designado</span>
+<div class="flex items-center justify-between">
+<span class="font-body-md text-body-md font-bold text-on-surface">MMQT (Querétaro Intercontinental)</span>
+<span class="font-telemetry-sm text-telemetry-sm text-primary font-semibold">18 nm / 00:07 ETE</span>
+</div>
+</div>
+</div>
+</section>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-start">
+<section class="lg:col-span-5 bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[22px]">hub</span>
+<h2 class="font-headline-md text-headline-md text-on-surface">Vectorización &amp; Monitoreo Geoespacial</h2>
+</div>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">Cuadrante Bajío</span>
+</div>
+<div class="relative w-full h-80 rounded-lg overflow-hidden bg-surface-container shadow-inner">
+<div class="w-full h-full bg-cover bg-center" data-location="Queretaro Intercontinental Airport, Mexico" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBwRxnpZdYgF6z2xlHKQ92LnKRTPG3hYHtRJRKqJ7d5b2R0Eb3UdW32ofiinZhDFXsajFjju7BVTODII9OVOXB4I5inJZDDdyYGRYIyKrexBKBAUSbzDgI9Si5q1YDtO6cyZgKgxdB61N5NfxLOzVAswo2AXyov_MYViXHoqGAjb748ACc1ns_owJlUSMu0lkUphZe51KCUxnNTR9MlTWZ1J5UiLqRQ9PKkUVwrPOI')"></div>
+<div class="absolute inset-0 bg-inverse-surface/40 pointer-events-none"></div>
+<svg class="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<pattern height="40" id="radar-grid" patternunits="userSpaceOnUse" width="40">
+<path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="0.5"></path>
+</pattern>
+</defs>
+<rect fill="url(#radar-grid)" height="100%" width="100%"></rect>
+<circle cx="280" cy="90" fill="rgba(186, 26, 26, 0.2)" r="44" stroke="#ba1a1a" stroke-dasharray="4 2" stroke-width="1.5"></circle>
+<text fill="#ffffff" font-family="JetBrains Mono" font-size="10" font-weight="bold" text-anchor="middle" x="280" y="85">CB SEVERO</text>
+<text fill="#ffdad6" font-family="JetBrains Mono" font-size="9" text-anchor="middle" x="280" y="98">TOPS FL340</text>
+<path d="M 60 260 L 140 190 L 195 155" fill="none" stroke="#d97706" stroke-linecap="round" stroke-width="3.5"></path>
+<path d="M 195 155 L 275 105" fill="none" opacity="0.6" stroke="#d97706" stroke-dasharray="4 4" stroke-width="2"></path>
+<path class="hidden" d="M 195 155 Q 160 170 125 210" fill="none" id="ruta-a" stroke="#007bb9" stroke-dasharray="6 4" stroke-width="3"></path>
+<path class="hidden" d="M 195 155 Q 240 190 320 200" fill="none" id="ruta-b" stroke="#007bb9" stroke-dasharray="6 4" stroke-width="3"></path>
+<path class="hidden" d="M 195 155 C 220 135 235 155 215 175 C 195 195 175 175 195 155" fill="none" id="ruta-c" stroke="#007bb9" stroke-dasharray="3 3" stroke-width="2.5"></path>
+<g transform="translate(195, 155) rotate(320)">
+<circle class="animate-ping" cx="0" cy="0" fill="rgba(0, 97, 148, 0.4)" r="14"></circle>
+<path d="M 0 -10 L 8 8 L 0 5 L -8 8 Z" fill="#ffffff" stroke="#006194" stroke-width="1.5"></path>
+</g>
+<circle cx="125" cy="210" fill="#006194" r="5"></circle>
+<text fill="#ffffff" font-family="JetBrains Mono" font-size="9" font-weight="bold" text-anchor="middle" x="125" y="228">MMQT (Querétaro)</text>
+<circle cx="320" cy="200" fill="#545d7c" r="5"></circle>
+<text fill="#ffffff" font-family="JetBrains Mono" font-size="9" font-weight="bold" text-anchor="middle" x="320" y="218">MMAS (Aguascalientes)</text>
+</svg>
+<div class="absolute bottom-2 left-2 right-2 bg-inverse-surface/90 backdrop-blur-md p-space-xs rounded flex items-center justify-between text-inverse-on-surface">
+<div class="flex items-center gap-space-sm text-telemetry-sm font-telemetry-sm">
+<span class="flex items-center gap-1">
+<span class="w-3 h-1 bg-amber-500 rounded-full inline-block"></span>
+                Ruta Original
+              </span>
+<span class="flex items-center gap-1">
+<span class="w-3 h-1 bg-primary-fixed-dim rounded-full inline-block border-b border-dashed"></span>
+                Vector Propuesto
+              </span>
+</div>
+<span class="font-label-caps text-label-caps text-secondary-fixed">GPS FIX: WAAS/SBAS</span>
+</div>
+</div>
+<div class="flex flex-col gap-space-xs bg-surface-container-low p-space-sm rounded-lg">
+<div class="flex items-center justify-between font-label-caps text-label-caps text-on-surface-variant uppercase">
+<span>Registro Operativo de Destino</span>
+<span class="text-primary font-bold">Ruta Primaria Comprometida</span>
+</div>
+<div class="flex items-center gap-space-sm">
+<div class="flex-1">
+<span class="font-body-sm text-body-sm text-on-surface-variant block">Destino Original Planificado</span>
+<span class="font-body-md text-body-md font-bold text-on-surface">Hangar Regional San Luis Potosí (MMSP)</span>
+</div>
+<span class="material-symbols-outlined text-error text-[20px]">block</span>
+</div>
+</div>
+<div class="p-space-sm rounded-lg bg-surface-container flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-lg bg-surface-container-lowest flex items-center justify-center flex-shrink-0">
+<img class="w-full h-full object-cover rounded-lg" data-alt="A modern commercial turboprop cargo aircraft Cessna Caravan 208 parked on tarmac under cloudy sky, telephoto shot, sharp details, aviation logistics theme" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCskIzemsQKrd2qEJu_Y3I5gzXgNZ1vzshvnzzfqM9Y9lauFBbBpY0S_QtuL4adtz-vptqHRxBx1IGsPNhD15Puer7Wy-D8O7_Hjn4F7mzs3oY_sQL8Cgt98dZbJJhju063HmM_dLR6IWupT4YsfDabv6x87vuO8KS_lqiRiS3fQksp6OQeVOo6ZN-V3Et7MSTRQVV7v8unJVBL4Bp5t3yzOf2BlMItudkyuvbXo-8"/>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-body-sm text-body-sm font-semibold text-on-surface truncate">Configuración de Bodega: V-82 Cargo Pod</span>
+<span class="font-telemetry-sm text-telemetry-sm text-on-surface-variant">Capacidad volumétrica: 340 cu.ft • Compuerta lateral activa</span>
+</div>
+</div>
+</section>
+<section class="lg:col-span-7 bg-surface-container-lowest rounded-xl p-space-md md:p-space-lg shadow-sm flex flex-col gap-space-lg" id="modulo-reasignacion">
+<div class="flex items-start justify-between flex-wrap gap-space-xs">
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[24px]">alt_route</span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Módulo Dinámico de Reasignación de Entrega</h2>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">
+              Seleccione la contingencia multimodal o vector de desvío para recalcular manifiesto y notificar a la aeronave.
+            </p>
+</div>
+<span class="font-label-caps text-label-caps px-2 py-1 rounded bg-secondary-container text-on-secondary-container font-bold uppercase">
+            Despacho en Caliente
+          </span>
+</div>
+<div class="flex flex-col gap-space-sm">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase">1. Seleccionar Opción de Reasignación Operacional:</span>
+<div class="grid grid-cols-1 gap-space-sm" role="radiogroup">
+<label class="cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all border-2 border-transparent has-[:checked]:border-primary has-[:checked]:bg-surface-container min-h-[56px]" onclick="seleccionarOpcion('A')">
+<div class="flex items-start sm:items-center gap-space-sm">
+<input checked="" class="w-5 h-5 text-primary mt-1 sm:mt-0 focus:ring-0" name="opcion-reasignacion" type="radio" value="A"/>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="font-body-md text-body-md font-bold text-on-surface">Opción A [Intermodal]:</span>
+<span class="font-body-sm text-body-sm font-semibold text-primary">Helipuerto / Plataforma Querétaro</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Traspaso directo de 14 bultos médicos a Camión Refrigerado TRK-104 en tarmac MMQT.</span>
+</div>
+</div>
+<div class="mt-2 sm:mt-0 flex sm:flex-col items-center sm:items-end justify-between flex-shrink-0">
+<span class="font-telemetry-md text-telemetry-md font-bold text-on-surface">ETA: 14:48</span>
+<span class="font-label-caps text-label-caps text-primary uppercase font-bold">+12 min trasbordo</span>
+</div>
+</label>
+<label class="cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all border-2 border-transparent has-[:checked]:border-primary has-[:checked]:bg-surface-container min-h-[56px]" onclick="seleccionarOpcion('B')">
+<div class="flex items-start sm:items-center gap-space-sm">
+<input class="w-5 h-5 text-primary mt-1 sm:mt-0 focus:ring-0" name="opcion-reasignacion" type="radio" value="B"/>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="font-body-md text-body-md font-bold text-on-surface">Opción B [Ruta Aérea Alterna]:</span>
+<span class="font-body-sm text-body-sm font-semibold text-secondary">Desvío a Aguascalientes (MMAS)</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Rumbo 300° evitando núcleo convectivo. Pista 10/28 abierta sin demoras notificadas.</span>
+</div>
+</div>
+<div class="mt-2 sm:mt-0 flex sm:flex-col items-center sm:items-end justify-between flex-shrink-0">
+<span class="font-telemetry-md text-telemetry-md font-bold text-on-surface">ETA: 15:22</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase">+48 min vuelo</span>
+</div>
+</label>
+<label class="cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all border-2 border-transparent has-[:checked]:border-primary has-[:checked]:bg-surface-container min-h-[56px]" onclick="seleccionarOpcion('C')">
+<div class="flex items-start sm:items-center gap-space-sm">
+<input class="w-5 h-5 text-primary mt-1 sm:mt-0 focus:ring-0" name="opcion-reasignacion" type="radio" value="C"/>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="font-body-md text-body-md font-bold text-on-surface">Opción C [Mantener Espera]:</span>
+<span class="font-body-sm text-body-sm font-semibold text-amber-800">Holding Pattern 15 min</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Espera en patrón sobre VOR QRO en espera de mejoría meteorológica antes de MMSP.</span>
+</div>
+</div>
+<div class="mt-2 sm:mt-0 flex sm:flex-col items-center sm:items-end justify-between flex-shrink-0">
+<span class="font-telemetry-md text-telemetry-md font-bold text-amber-800">Espera: 15 min</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Combustible: OK</span>
+</div>
+</label>
+</div>
+</div>
+<form class="flex flex-col gap-space-md pt-space-xs" onsubmit="transmitirReasignacion(event)">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase">2. Formulario de Instrucción de Despacho Operativo:</span>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<div class="flex flex-col gap-space-xs">
+<label class="font-body-sm text-body-sm font-semibold text-on-surface" for="nuevo-destino">Punto de Entrega Asignado</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-on-surface-variant text-[20px]">pin_drop</span>
+<input class="w-full min-h-[48px] pl-10 pr-3 rounded-lg bg-surface-container-low text-on-surface font-body-md text-body-md focus:outline-none focus:bg-surface-container" id="nuevo-destino" type="text" value="MMQT - Helipuerto / Plataforma Carga Querétaro"/>
+</div>
+</div>
+<div class="flex flex-col gap-space-xs">
+<label class="font-body-sm text-body-sm font-semibold text-on-surface" for="unidad-enlace">Unidad Terrestre de Enlace (Receptor)</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-on-surface-variant text-[20px]">local_shipping</span>
+<input class="w-full min-h-[48px] pl-10 pr-3 rounded-lg bg-surface-container-low text-on-surface font-body-md text-body-md focus:outline-none focus:bg-surface-container" id="unidad-enlace" type="text" value="TRK-104 (Kenworth T680 Caja Refrigerada)"/>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-space-xs">
+<label class="font-body-sm text-body-sm font-semibold text-on-surface">Nivel de Prioridad de Transmisión</label>
+<div class="grid grid-cols-3 gap-space-sm">
+<button class="btn-prioridad min-h-[48px] rounded-lg bg-surface-container text-on-surface font-body-md text-body-md font-medium active:scale-95 transition-all" onclick="setPrioridad('Normal', this)" type="button">
+                Normal
+              </button>
+<button class="btn-prioridad min-h-[48px] rounded-lg bg-primary text-on-primary font-body-md text-body-md font-bold active:scale-95 transition-all shadow-sm" onclick="setPrioridad('Urgente', this)" type="button">
+                Urgente
+              </button>
+<button class="btn-prioridad min-h-[48px] rounded-lg bg-surface-container text-on-surface font-body-md text-body-md font-medium active:scale-95 transition-all" onclick="setPrioridad('Crítica', this)" type="button">
+                Crítica (Emergencia)
+              </button>
+</div>
+</div>
+<div class="flex flex-col gap-space-xs">
+<label class="font-body-sm text-body-sm font-semibold text-on-surface" for="instruccion-tecnica">Texto de Transmisión Directa (CPDLC / Radio Readback)</label>
+<textarea class="w-full p-space-sm rounded-lg bg-surface-container-low text-on-surface font-telemetry-sm text-telemetry-sm focus:outline-none focus:bg-surface-container resize-none" id="instruccion-tecnica" rows="2">DESVÍO INMEDIATO MMQT VIA RADIAL 185. MOTIVO TORMENTA MMSP. COORDINADO TRASPASO TRK-104 CADENA DE FRÍO EN PLATAFORMA SUR. CONFIRMAR CONDICIÓN AUTONOMÍA.</textarea>
+</div>
+<div class="pt-space-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-xs text-on-surface-variant font-telemetry-sm text-telemetry-sm">
+<span class="material-symbols-outlined text-[18px] text-primary">security</span>
+<span>Canal Seguro ACARS Codificado AES-256</span>
+</div>
+<button class="min-h-[52px] px-space-xl py-3 rounded-lg bg-primary text-on-primary font-body-lg text-body-lg font-bold flex items-center justify-center gap-space-sm shadow-md hover:bg-primary-container active:scale-95 transition-all" id="btn-transmitir" type="submit">
+<span class="material-symbols-outlined text-[24px]">send</span>
+<span>Confirmar y Transmitir Reasignación a Piloto</span>
+</button>
+</div>
+</form>
+</section>
+</div>
+<div class="fixed bottom-20 md:bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 pointer-events-none" id="toast-notificacion">
+<div class="bg-inverse-surface text-inverse-on-surface px-space-md py-space-sm rounded-xl shadow-xl flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary-fixed text-[24px]" id="toast-icon">check_circle</span>
+<span class="font-body-md text-body-md font-medium" id="toast-texto">Reasignación transmitida exitosamente.</span>
+</div>
+</div>
+</div>
+<script>
+    function seleccionarOpcion(tipo) {
+      const rutaA = document.getElementById('ruta-a');
+      const rutaB = document.getElementById('ruta-b');
+      const rutaC = document.getElementById('ruta-c');
+      const inputDestino = document.getElementById('nuevo-destino');
+      const inputUnidad = document.getElementById('unidad-enlace');
+      const textInstruccion = document.getElementById('instruccion-tecnica');
+
+      if (rutaA) rutaA.classList.add('hidden');
+      if (rutaB) rutaB.classList.add('hidden');
+      if (rutaC) rutaC.classList.add('hidden');
+
+      if (tipo === 'A') {
+        if (rutaA) rutaA.classList.remove('hidden');
+        if (inputDestino) inputDestino.value = 'MMQT - Helipuerto / Plataforma Carga Querétaro';
+        if (inputUnidad) inputUnidad.value = 'TRK-104 (Kenworth T680 Caja Refrigerada)';
+        if (textInstruccion) textInstruccion.value = 'DESVÍO INMEDIATO MMQT VIA RADIAL 185. MOTIVO TORMENTA MMSP. COORDINADO TRASPASO TRK-104 CADENA DE FRÍO EN PLATAFORMA SUR. CONFIRMAR CONDICIÓN AUTONOMÍA.';
+      } else if (tipo === 'B') {
+        if (rutaB) rutaB.classList.remove('hidden');
+        if (inputDestino) inputDestino.value = 'MMAS - Aeropuerto Internacional Aguascalientes';
+        if (inputUnidad) inputUnidad.value = 'Despacho Terrestre Regional Zona Norte (Hub Aguascalientes)';
+        if (textInstruccion) textInstruccion.value = 'VECTOR DIRECTO MMAS RUMBO 300 FL085. EVITAR CELDA BAJÍO. RECEPCIÓN EN HANGAR 4 PARA DESCARGA DE VACUNAS.';
+      } else if (tipo === 'C') {
+        if (rutaC) rutaC.classList.remove('hidden');
+        if (inputDestino) inputDestino.value = 'MMSP (Destino Original) tras 15m Holding';
+        if (inputUnidad) inputUnidad.value = 'MMSP Recepción en Hangar SLP';
+        if (textInstruccion) textInstruccion.value = 'ENTRAR EN ESPERA ESTÁNDAR 15 MIN SOBRE VOR QRO NIVEL FL085 VIRAJES POR LA DERECHA. MONITOREO DE DESARROLLO DE TORMENTA.';
+      }
+    }
+
+    function setPrioridad(nivel, boton) {
+      document.querySelectorAll('.btn-prioridad').forEach(btn => {
+        btn.classList.remove('bg-primary', 'text-on-primary', 'font-bold', 'bg-error', 'text-on-error');
+        btn.classList.add('bg-surface-container', 'text-on-surface', 'font-medium');
+      });
+
+      if (nivel === 'Normal') {
+        boton.classList.remove('bg-surface-container', 'text-on-surface');
+        boton.classList.add('bg-primary', 'text-on-primary', 'font-bold');
+      } else if (nivel === 'Urgente') {
+        boton.classList.remove('bg-surface-container', 'text-on-surface');
+        boton.classList.add('bg-primary', 'text-on-primary', 'font-bold');
+      } else if (nivel === 'Crítica') {
+        boton.classList.remove('bg-surface-container', 'text-on-surface');
+        boton.classList.add('bg-error', 'text-on-error', 'font-bold');
+      }
+    }
+
+    function transmitirReasignacion(event) {
+      event.preventDefault();
+      const btn = document.getElementById('btn-transmitir');
+      btn.disabled = true;
+      btn.classList.add('opacity-75');
+      btn.innerHTML = '<span class="material-symbols-outlined text-[24px] animate-spin">autorenew</span><span>Transmitiendo a XC-LGT...</span>';
+
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.classList.remove('opacity-75');
+        btn.innerHTML = '<span class="material-symbols-outlined text-[24px]">check</span><span>Transmitido & Acuse Recibido</span>';
+        mostrarNotificacion('¡Instrucción transmitida a aeronave XC-LGT! Acuse de piloto recibido en cabina.');
+      }, 1200);
+    }
+
+    function iniciarLlamadaRadio() {
+      const modal = document.getElementById('modal-radio');
+      if (modal) modal.classList.remove('hidden');
+      mostrarNotificacion('Conexión con aeronave establecida vía SATCOM VHF 128.45 MHz.');
+    }
+
+    function cerrarLlamadaRadio() {
+      const modal = document.getElementById('modal-radio');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function mostrarNotificacion(mensaje) {
+      const toast = document.getElementById('toast-notificacion');
+      const texto = document.getElementById('toast-texto');
+      if (!toast || !texto) return;
+      
+      texto.innerText = mensaje;
+      toast.classList.remove('translate-y-24', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.add('translate-y-24', 'opacity-0');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 4000);
+    }
+
+    // Inicializar visualización por defecto
+    seleccionarOpcion('A');
+  </script>
+</div></main></div><nav class="fixed bottom-0 left-0 right-0 z-40 bg-surface-container-lowest/95 backdrop-blur-xl flex md:hidden items-center justify-around px-space-sm py-space-xs shadow-[0_-2px_10px_rgba(11,28,48,0.06)]" data-active-classes="bg-primary text-on-primary font-semibold rounded-lg"><a class="flex flex-col items-center justify-center py-2 px-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all min-h-[48px] min-w-[72px]" data-path="dashboard-principal" href="#"><span class="material-symbols-outlined text-[22px]">grid_view</span><span class="font-telemetry-sm text-telemetry-sm">Monitoreo</span></a><a aria-current="page" class="flex flex-col items-center justify-center py-2 px-space-sm transition-all min-h-[48px] min-w-[72px] bg-primary text-on-primary font-semibold rounded-lg" data-path="detalle-de-unidad" href="#"><span class="material-symbols-outlined text-[22px]">local_shipping</span><span class="font-telemetry-sm text-telemetry-sm">Despacho</span></a><a class="flex flex-col items-center justify-center py-2 px-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all min-h-[48px] min-w-[72px]" data-path="historial-y-bitacora" href="#"><span class="material-symbols-outlined text-[22px]">history_toggle_off</span><span class="font-telemetry-sm text-telemetry-sm">Bitácora</span></a></nav></body></html>
