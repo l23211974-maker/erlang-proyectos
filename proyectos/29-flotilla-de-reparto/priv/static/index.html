@@ -6,105 +6,313 @@
 <title>Flotilla de Reparto #29 · Control</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
 <link rel="stylesheet" href="/app.css">
 </head>
 <body data-page="index">
 
-<div id="banner-incidente">
-  <span class="tag label-caps">Alerta de flota</span>
-  <span class="texto"></span>
+<!-- BANNER DE INCIDENTE ACTIVO (idéntico a la maqueta; se llena con el vivo) -->
+<div class="banner-incidente" id="banner-incidente">
+  <span class="material-symbols-outlined icono">warning</span>
+  <div class="grupo">
+    <span class="tag">Incidente NV-1</span>
+    <span class="texto" id="banner-texto">Flota nominal · sin incidentes en el canal de GPS</span>
+  </div>
+  <button class="btn-banner" onclick="setEstado('critico', null)">
+    Atender incidente <span class="material-symbols-outlined" style="font-size:16px">arrow_forward</span>
+  </button>
 </div>
 
-<main>
-<header>
-  <h1>Control de reparto y telemetría central</h1>
-  <span class="dot ok" style="animation: pulse 2s infinite"></span>
-  <span class="label-caps" style="color: var(--primary)">mapa en vivo</span>
-  <span class="hora telemetry" id="tick-hora">--:--</span>
+<div class="contenedor">
+
+<header class="cabecera-op cabecera-op-fila">
+  <div style="display:flex;flex-direction:column;gap:var(--ss)">
+    <div class="kicker">
+      <span class="caps">Matriz táctica activa</span>
+      <span class="vivo anim-vivo"></span>
+      <span class="estado-radar">RADAR MULTIMODAL ACTIVO</span>
+    </div>
+    <h1 class="principal" style="margin:0">Monitoreo de enlace y telemetría central</h1>
+  </div>
+  <div style="display:flex;align-items:center;gap:var(--ss);flex-wrap:wrap">
+    <div class="refresco">
+      <div class="col">
+        <span class="caps" style="color:var(--on-variant)">Ciclo de refresco</span>
+        <span class="telemetry" style="font-weight:700">GPS cada 10 s (simulado)</span>
+      </div>
+      <span class="punto"></span>
+      <span class="telemetry" id="tick-hora" style="font-weight:700">--:--</span>
+    </div>
+    <a class="btn-primario" href="historial.html">
+      <span class="material-symbols-outlined">add_circle</span>
+      <span>Bitácora / nueva misión</span>
+    </a>
+  </div>
 </header>
 
-<nav class="pestañas">
-  <a href="/" aria-current="page">Control de jornada</a>
-  <a href="/historial.html">Historial y alertas</a>
-</nav>
+<!-- 4 TARJETAS KPI DE SEMÁFORO ESTRICTO -->
+<section class="kpis" id="kpis">
+  <div class="kpi">
+    <div class="superior">
+      <div style="display:flex;flex-direction:column">
+        <span class="etiqueta">Flota en operación</span>
+        <span class="dato" style="margin-top:4px"><span id="kf-valor">–</span>
+          <span class="unidad" id="kf-sub">unidades</span></span>
+      </div>
+      <div class="icono-kpi bg-neut"><span class="material-symbols-outlined">hub</span></div>
+    </div>
+    <div class="pie-kpi">
+      <span style="display:flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:16px;color:var(--tertiary)">local_shipping</span> <b id="kf-enruta" style="color:var(--on-surface)">–</b> en ruta</span>
+      <span><b id="kf-entregadas" style="color:var(--on-surface)">–</b> entregadas hoy</span>
+    </div>
+    <div class="barra bar-neut"><i id="kf-barra" style="width:0%"></i></div>
+  </div>
 
-<section class="kpis" id="kpis" style="margin-bottom:1rem">
-  <div class="kpi tvig">
-    <span class="label-caps">Flota en operación</span>
-    <span class="valor">–</span>
-    <span class="sub">unidades reportando GPS</span>
+  <div class="kpi clicable" onclick="setEstado('normal', null)" title="Filtrar unidades normales">
+    <div class="superior">
+      <div style="display:flex;flex-direction:column">
+        <span class="etiqueta"><span class="punto" style="background:var(--ok)"></span>En ruta / a tiempo</span>
+        <span class="dato" style="margin-top:4px;color:var(--on-surface)"><span id="ke-valor">–</span>
+          <span class="pct pct-verde" id="ke-pct">–</span></span>
+      </div>
+      <div class="icono-kpi bg-ok"><span class="material-symbols-outlined">verified</span></div>
+    </div>
+    <div class="pie-kpi">
+      <span>Entregas en la calle</span><b class="verde" id="ke-sub">–</b>
+    </div>
+    <div class="barra bar-ok"><i id="ke-barra" style="width:0%"></i></div>
   </div>
-  <div class="kpi tok">
-    <span class="label-caps"><span class="dot ok"></span>Entregadas</span>
-    <span class="valor">–</span>
-    <span class="sub">sin entregas</span>
+
+  <div class="kpi clicable" onclick="setEstado('alerta', null)" title="Filtrar unidades sin señal">
+    <div class="superior">
+      <div style="display:flex;flex-direction:column">
+        <span class="etiqueta"><span class="punto" style="background:var(--warn)"></span>Alerta / sin señal GPS</span>
+        <span class="dato" style="margin-top:4px;color:var(--on-surface)"><span id="ka-valor">–</span>
+          <span class="pct pct-ambar" id="ka-pct">–</span></span>
+      </div>
+      <div class="icono-kpi bg-warn"><span class="material-symbols-outlined">speed</span></div>
+    </div>
+    <div class="pie-kpi"><span>Retraso medio</span><b class="ambar" id="ka-sub">–</b></div>
+    <div class="barra bar-warn"><i id="ka-barra" style="width:0%"></i></div>
   </div>
-  <div class="kpi tvig">
-    <span class="label-caps"><span class="dot" style="background:var(--primary)"></span>En la calle</span>
-    <span class="valor">–</span>
-    <span class="sub">pendientes en cola</span>
-  </div>
-  <div class="kpi tcr">
-    <span class="label-caps"><span class="dot crit"></span>Fallidas</span>
-    <span class="valor">–</span>
-    <span class="sub">cliente ausente</span>
-  </div>
-  <div class="kpi twar">
-    <span class="label-caps"><span class="dot warn"></span>Con alerta</span>
-    <span class="valor">–</span>
-    <span class="sub">unidades con alerta</span>
+
+  <div class="kpi clicable" style="box-shadow:0 0 0 2px rgba(186,26,26,.2)"
+       onclick="setEstado('critico', null)" title="Filtrar unidades críticas">
+    <div class="superior">
+      <div style="display:flex;flex-direction:column">
+        <span class="etiqueta rojo"><span class="punto anim-pulso" style="background:var(--error)"></span>Crítico / avería / SOS</span>
+        <span class="dato rojo" style="margin-top:4px"><span id="kc-valor">–</span>
+          <span class="pct pct-rojo" id="kc-pct">–</span></span>
+      </div>
+      <div class="icono-kpi bg-crit"><span class="material-symbols-outlined">crisis_alert</span></div>
+    </div>
+    <div class="pie-kpi">
+      <span style="color:var(--on-variant)">Intervención urgente</span>
+      <b class="rojo" style="text-decoration:underline">FILTRAR (<span id="kc-sub">–</span>)</b>
+    </div>
+    <div class="barra bar-crit"><i id="kc-barra" style="width:0%"></i></div>
   </div>
 </section>
 
-<div class="grid-principal">
-  <aside>
-    <div id="mapa">
-      <div class="cabeza">
-        <span class="label-caps">Rejilla 10×10 · GPS cada 10 s simulados</span>
-        <span class="telemetry" id="tick-reloj" style="display:none"></span>
-      </div>
-      <div class="celdas" id="mapa-celdas">
-        <!-- 100 celdas: la rejilla se dibuja por JS -->
-      </div>
-      <div class="leyenda">
-        <span><span class="dot ok"></span>en ruta</span>
-        <span><span class="dot warn"></span>sin señal</span>
-        <span><span class="dot crit"></span>averiado</span>
-      </div>
-    </div>
-  </aside>
+<!-- BARRA TÁCTIL DE FILTROS DE ESTADO -->
+<section class="barra-filtros">
+  <div class="grupo-filtros" id="filter-status-group">
+    <span class="caps">Estado:</span>
+    <button class="btn-filtro activo" data-estado="todos" onclick="setEstado('todos', this)">
+      TODAS (<span class="c-todas">–</span>)
+    </button>
+    <button class="btn-filtro" data-estado="normal" onclick="setEstado('normal', this)">
+      <span class="punto-filtro" style="background:var(--ok)"></span>NORMAL (<span class="c-normal">–</span>)
+    </button>
+    <button class="btn-filtro" data-estado="alerta" onclick="setEstado('alerta', this)">
+      <span class="punto-filtro" style="background:var(--warn)"></span>SIN SEÑAL (<span class="c-alerta">–</span>)
+    </button>
+    <button class="btn-filtro" data-estado="critico" onclick="setEstado('critico', this)" style="color:var(--error)">
+      <span class="punto-filtro anim-pulso" style="background:var(--error)"></span>CRÍTICOS (<span class="c-critico">–</span>)
+    </button>
+  </div>
+  <div class="grupo-filtros" id="filter-modality-group">
+    <span class="caps">Modo:</span>
+    <button class="btn-filtro activo" disabled style="opacity:.9">
+      <span class="material-symbols-outlined" style="font-size:18px">local_shipping</span>Terrestre / Flota
+    </button>
+  </div>
+</section>
 
-  <section class="bloques">
-    <div class="bloque">
-      <h2>Flota <span class="cuenta" id="cuenta-flota"></span></h2>
-      <table>
-        <thead><tr>
-          <th>Unidad</th><th>Estado</th><th>Último GPS</th><th>Carga</th>
-          <th>Entregadas</th><th>Pos</th><th></th>
-        </tr></thead>
-        <tbody id="tbody-flota"></tbody>
-      </table>
+<!-- VISTA CENTRAL: RADAR GPS (8 COLS) + ATENCIÓN REQUERIDA (4 COLS) -->
+<div class="layout-12">
+
+  <section class="mapa-tactico col-8">
+    <div class="mapa-cabeza">
+      <div class="titulo-mapa">
+        <span class="material-symbols-outlined">explore</span>
+        <div>
+          <h2>Sector Metrópoli · rejilla 10×10</h2>
+          <p class="sub-mapa" style="margin:2px 0 0">Proyección por sector · GPS cada 10 s simulados · 15 unidades</p>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:var(--sx)">
+        <button class="toggle-capa activo" id="tg-rejilla" onclick="toggleCapa(this,'rejilla')">
+          <span class="material-symbols-outlined" style="font-size:18px;color:var(--tertiary)">grid_4x4</span>
+          <span>Rejilla HUD</span>
+        </button>
+        <button class="toggle-capa activo" id="tg-velo" onclick="toggleCapa(this,'velo')">
+          <span class="material-symbols-outlined" style="font-size:18px">texture</span>
+          <span>Atenuación</span>
+        </button>
+      </div>
     </div>
-    <div class="bloque">
-      <h2>Manifiesto en ruta <span class="cuenta">(primeras entregas activas)</span></h2>
-      <table>
-        <thead><tr>
-          <th>ID</th><th>Colonia</th><th>Peso</th><th>Ventana</th>
-          <th>Estado</th><th>Unidad</th><th>Retraso</th>
-        </tr></thead>
-        <tbody id="tbody-manifiesto"></tbody>
-      </table>
+
+    <!-- canvas del mapa: fondo satelital + rejilla HUD + marcadores en vivo -->
+    <div class="mapa-canvas" id="mapa-canvas">
+      <div class="mapa-zoom" id="mapa-zoom">
+        <div class="mapa-fondo" style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuCobOtjmvUp6tqHv_ce5CXS5xjJ1zG-WNysSMTOo8cGqyE3ID46d3tnAg230BPbQ-pMC-SwVOfmWXvj5IKXGiFwKWP9jdNQIMFRBvqflWojY9tAA8ZUqGiD83bKK1UsiQJ4cmxVkbtfVyaEzNOKh3oh_kJJtNoYQA8qWnOGsLcDtSgraGakwkaY9dQ50uWVDatSRd61-KbNoNky2r-ATNVldbriyJo-O50utMH7ViI')"></div>
+        <svg class="mapa-svg" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern height="60" id="grid-pattern" patternunits="userSpaceOnUse" width="60">
+              <path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(0,97,148,.25)" stroke-dasharray="2 4" stroke-width="0.5"></path>
+            </pattern>
+          </defs>
+          <rect fill="url(#grid-pattern)" height="100%" width="100%"></rect>
+          <path d="M 120 540 Q 280 430 410 320 T 680 180 T 840 90" fill="none" opacity="0.6" stroke="#64748b" stroke-linecap="round" stroke-width="6"></path>
+          <path d="M 120 540 Q 280 430 410 320 T 680 180 T 840 90" fill="none" opacity="0.9" stroke="#f59e0b" stroke-dasharray="6 6" stroke-width="2"></path>
+          <path d="M 860 110 L 520 280 L 260 410" fill="none" stroke="#007cb1" stroke-dasharray="8 6" stroke-width="2.5"></path>
+        </svg>
+        <div class="hud-capa" id="capa-velo"></div>
+        <div id="marcadores"></div>
+      </div>
+
+      <div class="hud">
+        <span class="caps" style="color:var(--on-variant)">REJILLA 10×10 · 100 SECTORES</span>
+        <span class="telemetry" style="font-weight:700;color:var(--primary)">GPS 10 S · FL N/A</span>
+        <span class="caps telem" id="hud-tick" style="color:var(--on-variant)">TICK –</span>
+      </div>
+
+      <div class="controles-hud">
+        <div class="grupo-zoom">
+          <button onclick="mapZoom(1)" title="Acercar"><span class="material-symbols-outlined">add</span></button>
+          <div class="separador"></div>
+          <button onclick="mapZoom(-1)" title="Alejar"><span class="material-symbols-outlined">remove</span></button>
+        </div>
+        <button class="recentrar" onclick="recenterMap()" title="Centrar flota completa">
+          <span class="material-symbols-outlined">my_location</span>
+        </button>
+      </div>
+
+      <div class="leyenda-flotante">
+        <div class="item"><span class="punto" style="background:var(--ok)"></span><span>Nominal</span></div>
+        <div class="item"><span class="punto" style="background:var(--warn)"></span><span>Sin señal</span></div>
+        <div class="item"><span class="punto" style="background:var(--error)"></span><span>Crítico / fallo</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PANEL DERECHO: ATENCIÓN REQUERIDA -->
+  <section class="col-4" style="display:flex;flex-direction:column;gap:var(--sm)">
+    <div class="cabecera-panel">
+      <div class="titulo-panel">
+        <span class="material-symbols-outlined">pending_actions</span>
+        <h2>Atención requerida</h2>
+      </div>
+      <span class="badge-cuenta crit" id="badge-panel">– nodos</span>
+    </div>
+    <div class="lista-unidades" id="lista-unidades">
+      <div class="vacio-lista">Sincronizando telemetría de flota…</div>
     </div>
   </section>
 </div>
 
-<footer>
+<!-- SECCIÓN INFERIOR: BITÁCORA DE EVENTOS EN VIVO (3 COLUMNAS) -->
+<section class="seccion-bitacora">
+  <div class="cabecera-bitacora">
+    <div class="titulo-bitacora">
+      <span class="material-symbols-outlined">notifications_active</span>
+      <h2>Bitácora de eventos críticos &amp; telemetría en vivo</h2>
+    </div>
+    <div class="sincronia">
+      <span class="caps">Sincronizado por SSE</span>
+      <span class="punto"></span>
+    </div>
+  </div>
+  <div class="rejilla-alertas">
+    <div class="alerta-card critica" id="bit-critica">
+      <div class="cuerpo">
+        <div class="linea1">
+          <span class="clase"><span class="material-symbols-outlined" style="font-size:14px">report</span> Emergencia técnica</span>
+          <span class="cuando" id="bit-critica-cuando">--:--</span>
+        </div>
+        <p class="mensaje" id="bit-critica-mensaje" style="margin:0">Sin incidentes críticos detectados en la flota.</p>
+      </div>
+      <div class="pie-alerta">
+        <span class="fuente" id="bit-critica-fuente">flota nominal</span>
+        <button class="btn-alerta critica" onclick="setEstado('critico', null)">Intervenir</button>
+      </div>
+    </div>
+    <div class="alerta-card precaucion" id="bit-precaucion">
+      <div class="cuerpo">
+        <div class="linea1">
+          <span class="clase"><span class="material-symbols-outlined" style="font-size:14px">air</span> Alerta de señal GPS</span>
+          <span class="cuando" id="bit-pre-cuando">--:--</span>
+        </div>
+        <p class="mensaje" id="bit-pre-mensaje" style="margin:0">Unidades sinGPS no detectadas.</p>
+      </div>
+      <div class="pie-alerta">
+        <span class="fuente" id="bit-pre-fuente">rejilla 10×10</span>
+        <button class="btn-alerta precaucion" onclick="setEstado('alerta', null)">Ver unidades</button>
+      </div>
+    </div>
+    <div class="alerta-card info" id="bit-info">
+      <div class="cuerpo">
+        <div class="linea1">
+          <span class="clase"><span class="material-symbols-outlined" style="font-size:14px">traffic</span> Despacho &amp; retrasos</span>
+          <span class="cuando" id="bit-info-cuando">--:--</span>
+        </div>
+        <p class="mensaje" id="bit-info-mensaje" style="margin:0">Sincronizando resumen del despachador…</p>
+      </div>
+      <div class="pie-alerta">
+        <span class="fuente" id="bit-info-fuente">p29_despachador</span>
+        <a href="historial.html" style="text-decoration:none">
+          <button class="btn-alerta info">Bitácora</button>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MODAL DE ACCIONES DEL OPERADOR -->
+<div class="modal-degajo" id="modal-operador">
+  <div class="caja-modal">
+    <div class="cabecera-modal">
+      <div class="izq">
+        <div class="icono-modal"><span class="material-symbols-outlined">terminal</span></div>
+        <h3 id="modal-title">Gestión de misión</h3>
+      </div>
+      <button class="cerrar-modal" onclick="cerrarModal()"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <p class="desc-modal" id="modal-desc">Seleccione protocolo de asistencia para el activo en supervisión.</p>
+    <div class="detalles-modal" id="modal-details"></div>
+    <div class="pie-modal">
+      <button class="btn-modal neutro" onclick="cerrarModal()">Descartar</button>
+      <button class="btn-modal color" id="btn-ejecutar">
+        <span class="material-symbols-outlined" style="font-size:18px">bolt</span> Ejecutar orden de despacho
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="pie" style="margin-top:var(--ss)">
   <span class="item">Reasignaciones del día: <b id="dato-reasignaciones">–</b></span>
-  <span class="item">Retraso medio sobre ventana: <b id="dato-retraso">–</b></span>
+  <span class="item">Retraso medio: <b id="dato-retraso">–</b></span>
   <span class="item" id="badge-invariantes" data-valor=""><span class="pill off"><span class="dot off"></span>invariantes —</span></span>
   <span class="item"><a href="/metrics" target="_blank">/metrics</a></span>
-</footer>
-</main>
+</div>
+</div><!-- /contenedor -->
+
+<nav class="nav-inferior">
+  <a href="/" aria-current="page"><span class="material-symbols-outlined" style="font-size:22px">grid_view</span>Monitoreo</a>
+  <a href="unidad.html?id=1"><span class="material-symbols-outlined" style="font-size:22px">local_shipping</span>Despacho</a>
+  <a href="historial.html"><span class="material-symbols-outlined" style="font-size:22px">history_toggle_off</span>Bitácora</a>
+</nav>
 
 <script src="/app.js"></script>
 </body>

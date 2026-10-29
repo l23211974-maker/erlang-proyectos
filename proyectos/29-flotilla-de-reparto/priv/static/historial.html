@@ -6,58 +6,292 @@
 <title>Historial · Flotilla de Reparto #29</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
 <link rel="stylesheet" href="/app.css">
 </head>
 <body data-page="historial">
-<main>
-<header>
-  <h1>Historial y bitácora de alertas</h1>
-  <span class="hora telemetry" id="tick-hora">--:--</span>
+
+<!-- BANNER PERSISTENTE DE ALERTA -->
+<div class="banner-incidente" id="banner-incidente">
+  <span class="material-symbols-outlined icono">warning</span>
+  <div class="grupo">
+    <span class="punto anim-vivo" style="width:10px;height:10px;border-radius:9999px;background:var(--error);display:none" id="banner-punto"></span>
+    <span class="tag">Alerta en proceso</span>
+    <span class="texto" id="banner-texto">Flota nominal · sin incidencias activas en el canal.</span>
+  </div>
+  <button class="btn-banner" onclick="document.getElementById('timeline-container').scrollIntoView({behavior:'smooth'})">
+    Rastrear incidencia
+  </button>
+</div>
+
+<div class="contenedor">
+
+<header style="display:flex;flex-direction:column;gap:var(--sl)">
+  <div style="display:flex;flex-direction:column;gap:var(--sm)" class="cabecera-op-fila">
+    <div style="display:flex;flex-direction:column;gap:var(--sx)">
+      <div class="kicker">
+        <span class="caps" style="color:var(--tertiary)">Telemetría y control multimodal</span>
+        <span style="color:var(--outline-variant)">•</span>
+        <span class="telemetry" style="color:var(--on-variant);font-weight:500" id="kicker-ciclo">Ciclo activo #29-TX</span>
+      </div>
+      <h1 class="principal" style="margin:0">Bitácora central de operaciones y centro de alertas</h1>
+      <p style="font:var(--bmd);color:var(--on-variant);max-width:42rem;margin:0">
+        Registro cronológico de entregas fallidas, unidades con alerta y servicio nominal
+        del día de reparto (901 envíos, 15 unidades terrestres).
+      </p>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:var(--sx);background:var(--surface-low);padding:6px;border-radius:.75rem;box-shadow:0 1px 3px rgba(11,28,48,.08);align-self:flex-start">
+      <div style="display:inline-flex;border-radius:.5rem;padding:2px;background:var(--surface-c)">
+        <button style="padding:8px var(--ss);border:0;cursor:pointer;border-radius:.375rem;font:600 var(--tsm) var(--sans);background:var(--surface-lowest);color:var(--primary);box-shadow:0 1px 2px rgba(11,28,48,.1)" id="filter-btn-24h" onclick="setTimeframe('24h')">Jornada sim. completa</button>
+        <button style="padding:8px var(--ss);border:0;border-radius:.375rem;font:600 var(--tsm) var(--sans);background:transparent;color:var(--on-variant)" id="filter-btn-shift" onclick="setTimeframe('shift')">Hora del tick: <b class="telemetry" id="tick-hora">--:--</b></button>
+      </div>
+      <button style="display:flex;align-items:center;gap:var(--sx);padding:8px var(--sm);min-height:40px;border:0;cursor:pointer;border-radius:.5rem;background:var(--surface-lowest);color:var(--on-surface);font:600 var(--bsm) var(--sans);box-shadow:0 1px 2px rgba(11,28,48,.06)"
+        onclick="window.print()">
+        <span class="material-symbols-outlined" style="font-size:18px;color:var(--tertiary)">download</span>
+        <span>Exportar informe (impresión)</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- BENTO DE SEVERIDADES (semáforo) -->
+  <div style="display:grid;grid-template-columns:1fr;gap:var(--sm)">
+    <div style="display:grid;grid-template-columns:1fr;gap:var(--sm)">
+      <div class="bento critica" onclick="filterSeverity('critica')" style="display:block">
+        <div class="cuerpo-bento">
+          <div class="col-bento">
+            <span class="lb-bento">Alertas críticas (rojo)</span>
+            <div style="display:flex;align-items:baseline;gap:var(--sx)">
+              <span class="num-bento" id="bc-crit">–</span>
+              <span class="sub-bento">unidades averiadas + entregas fallidas</span>
+            </div>
+          </div>
+          <div class="icono-bento"><span class="material-symbols-outlined" style="font-size:24px">crisis_alert</span></div>
+        </div>
+        <div class="meta-bento">
+          <span>Prioridad máxima de despacho</span>
+          <span class="accion-bento" style="color:var(--error)">FILTRAR CRÍTICAS <span class="material-symbols-outlined">arrow_forward</span></span>
+        </div>
+        <div class="tira-bento"></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr;gap:var(--sm)">
+      <div class="bento precaucion" onclick="filterSeverity('precaucion')" style="display:block">
+        <div class="cuerpo-bento">
+          <div class="col-bento">
+            <span class="lb-bento">Avisos de precaución (amarillo)</span>
+            <div style="display:flex;align-items:baseline;gap:var(--sx)">
+              <span class="num-bento" style="color:var(--on-surface)" id="bc-pre">–</span>
+              <span class="sub-bento">unidades sin señal GPS en ruta</span>
+            </div>
+          </div>
+          <div class="icono-bento"><span class="material-symbols-outlined" style="font-size:24px">thermostat</span></div>
+        </div>
+        <div class="meta-bento">
+          <span>Señal perdida · watchdog del despachador</span>
+          <span class="accion-bento" style="color:var(--secondary)">FILTRAR AVISOS <span class="material-symbols-outlined">arrow_forward</span></span>
+        </div>
+        <div class="tira-bento"></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr;gap:var(--sm)">
+      <div class="bento nominal" onclick="filterSeverity('nominal')" style="display:block">
+        <div class="cuerpo-bento">
+          <div class="col-bento">
+            <span class="lb-bento">Registros normales (verde)</span>
+            <div style="display:flex;align-items:baseline;gap:var(--sx)">
+              <span class="num-bento" id="bc-nom">–</span>
+              <span class="sub-bento">entregas cerradas con acuse</span>
+            </div>
+          </div>
+          <div class="icono-bento"><span class="material-symbols-outlined" style="font-size:24px">verified</span></div>
+        </div>
+        <div class="meta-bento">
+          <span>Tasa objetivo del enunciado: 85–95 %</span>
+          <span class="accion-bento" style="color:var(--primary)">FILTRAR NOMINAL <span class="material-symbols-outlined">arrow_forward</span></span>
+        </div>
+        <div class="tira-bento"></div>
+      </div>
+    </div>
+  </div>
 </header>
 
-<nav class="pestañas">
-  <a href="/">Control de jornada</a>
-  <a href="/historial.html" aria-current="page">Historial y alertas</a>
+<!-- CONSOLA DE FILTROS Y BÚSQUEDA -->
+<div class="consola-filtros">
+  <div class="consola-fila">
+    <div class="buscador">
+      <span class="material-symbols-outlined">search</span>
+      <input id="timeline-search" type="text" oninput="applyFilters()"
+             placeholder="Buscar por envío, unidad o colonia (ej. U-07, colonia mtc-016)…">
+      <button class="limpiar oculto" id="clear-search-btn" onclick="clearSearch()">
+        <span class="material-symbols-outlined" style="font-size:18px">close</span>
+      </button>
+    </div>
+    <button class="btn-neutral" onclick="resetAllFilters()">
+      <span class="material-symbols-outlined" style="font-size:18px">filter_alt_off</span>
+      <span>Restablecer</span>
+    </button>
+  </div>
+  <div class="chips-cat" id="category-chips">
+    <button class="chip-cat activo" onclick="filterCategory('todas', this)">Todas las alertas</button>
+    <button class="chip-cat" onclick="filterCategory('sos', this)">Telemetría SOS / fallidas</button>
+    <button class="chip-cat" onclick="filterCategory('unidades', this)">Unidades con alerta</button>
+    <button class="chip-cat" onclick="filterCategory('servidas', this)">Entregas cerradas</button>
+  </div>
+</div>
+
+<div class="layout-12">
+
+  <!-- CRONOLOGÍA -->
+  <section class="col-8" style="display:flex;flex-direction:column;gap:var(--sm)">
+    <div class="cronologia-cabecera">
+      <div class="estado-cronologia">
+        <span style="font:var(--h2);color:var(--on-surface)">Secuencia cronológica de despacho</span>
+        <span class="caps" style="padding:2px 8px;border-radius:9999px;background:var(--surface-high);color:var(--primary);letter-spacing:.05em" id="active-event-count">– eventos visibles</span>
+      </div>
+      <div class="vivo-cronologia">
+        <span class="punto anim-vivo"></span>
+        <span>Sincronización automática al cargar</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:var(--sm)" id="timeline-container"></div>
+    <div class="estado-vacio oculto" id="empty-state">
+      <span class="material-symbols-outlined">search_off</span>
+      <h3>No se encontraron eventos</h3>
+      <p>No existen registros en la bitácora que coincidan con los criterios de filtrado seleccionados.</p>
+      <button onclick="resetAllFilters()">Restablecer filtros</button>
+    </div>
+  </section>
+
+  <!-- PANEL DE ACCIÓN + AUDITORÍA -->
+  <aside class="col-4" style="display:flex;flex-direction:column;gap:var(--sm)">
+
+    <div class="tarjeta-basica">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sx)">
+        <div class="titulo-panel">
+          <span class="material-symbols-outlined" style="color:var(--primary);font-size:22px">post_add</span>
+          <h2 style="font:var(--h2);margin:0">Anotación oficial</h2>
+        </div>
+        <span class="caps" style="padding:2px 8px;border-radius:.25rem;background:var(--surface-high);color:var(--primary);font-weight:700">Canal de caos</span>
+      </div>
+      <p style="font:var(--bsm);color:var(--on-variant);margin:0">
+        Registra una entrada de caos sobre la corrida: avería o urgencia firmada por el operador de turnos.
+      </p>
+      <form id="log-form" onsubmit="handleLogSubmit(event)" style="display:flex;flex-direction:column;gap:var(--ss)">
+        <div class="campo">
+          <label for="unit-select" class="caps" style="color:var(--on-variant)">Unidad involucrada</label>
+          <select id="unit-select" required style="width:100%;min-height:48px;padding:8px var(--ss);border:1px solid var(--outline-variant);border-radius:.5rem;background:var(--surface-low);color:var(--on-surface);font:var(--bsm)">
+            <option value="">Cargando flota…</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label class="caps" style="color:var(--on-variant)">Nivel de severidad operativa</label>
+          <div class="grid-prioridad">
+            <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;border-radius:.5rem;background:var(--surface-low);cursor:pointer;min-height:48px;gap:4px">
+              <input type="radio" name="severity-input" value="nominal" checked style="position:absolute;opacity:0">
+              <span class="punto-color ok"></span>
+              <span class="telemetry">Normal</span>
+            </label>
+            <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;border-radius:.5rem;background:var(--surface-low);cursor:pointer;min-height:48px;gap:4px">
+              <input type="radio" name="severity-input" value="precaucion" style="position:absolute;opacity:0">
+              <span class="punto-color warn"></span>
+              <span class="telemetry">Aviso</span>
+            </label>
+            <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;border-radius:.5rem;background:var(--surface-low);cursor:pointer;min-height:48px;gap:4px">
+              <input type="radio" name="severity-input" value="critica" style="position:absolute;opacity:0">
+              <span class="punto-color crit"></span>
+              <span class="telemetry">Crítica</span>
+            </label>
+          </div>
+        </div>
+        <div class="campo">
+          <label for="log-notes" class="caps" style="color:var(--on-variant)">Descripción de la incidencia / acción tomada</label>
+          <textarea id="log-notes" rows="3" required
+            style="width:100%;padding:var(--ss);border:1px solid var(--outline-variant);border-radius:.5rem;background:var(--surface-low);color:var(--on-surface);font:var(--bsm);resize:none"
+            placeholder="Detalle técnico del evento, autorizaciones y cuadrillas notificadas…"></textarea>
+        </div>
+        <label class="gcheck-firma">
+          <input type="checkbox" id="legal-sign" required>
+          <span>Certifico que los datos coinciden con la telemetría oficial y tomo responsabilidad operativa en turno.</span>
+        </label>
+        <button type="submit" style="width:100%;min-height:48px;border:0;cursor:pointer;border-radius:.5rem;background:var(--primary);color:var(--on-primary);font:600 var(--bmd) var(--sans);display:flex;align-items:center;justify-content:center;gap:var(--sx);box-shadow:0 1px 2px rgba(0,97,148,.3)">
+          <span class="material-symbols-outlined">assignment_turned_in</span>
+          <span id="log-submit-txt">Inyectar avería (media severidad)</span>
+        </button>
+      </form>
+      <div class="form-toast oculto" id="form-toast">
+        <span class="material-symbols-outlined" style="font-size:18px">verified</span>
+        <span id="form-toast-texto">Orden de caos aplicada y firmada en la bitácora.</span>
+      </div>
+    </div>
+
+    <div class="tarjeta-basica">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sx)">
+        <div class="titulo-panel">
+          <span class="material-symbols-outlined" style="color:var(--tertiary);font-size:20px">policy</span>
+          <h3 style="font:var(--h2);margin:0">Auditoría del dominio</h3>
+        </div>
+        <span class="telemetry" style="font-weight:600;color:var(--primary)">p29_despachador</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:var(--ss)">
+        <div class="fila-auditoria">
+          <div class="col">
+            <span class="lb">Invariantes del árbol</span>
+            <span class="sub">pendientes ↔ unidades asignadas vivas</span>
+          </div>
+          <span class="valor-aud" id="aud-invariantes">–</span>
+        </div>
+        <div class="fila-auditoria" style="align-items:flex-start">
+          <div class="col">
+            <span class="caps" style="color:var(--on-variant)">Sello de reasignación del turno</span>
+            <span class="telemetry" style="color:var(--on-surface);word-break:break-all" id="aud-sello">tick –</span>
+            <span style="font:var(--bsm);color:var(--on-variant)" id="aud-reasign-sub">reasignaciones hechas por greedy first-fit</span>
+          </div>
+          <span class="valor-aud" id="aud-reasign">–</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding-top:var(--sx)">
+          <div style="display:flex;align-items:center;gap:var(--sx);color:var(--on-variant)">
+            <span class="material-symbols-outlined" style="font-size:16px">schedule</span>
+            <span class="telemetry">Retraso medio: <b id="aud-retraso">–</b></span>
+          </div>
+          <a href="/metrics" class="caps" style="color:var(--primary);font-weight:700" target="_blank">/metrics</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="tarjeta-basica">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sx)">
+        <span class="caps" style="color:var(--on-variant)">Condición de corredores central</span>
+        <span class="telemetry" style="font-weight:700;color:var(--secondary)" id="met-estado">–</span>
+      </div>
+      <div class="fila-auditoria">
+        <div style="display:flex;align-items:center;gap:var(--sx)">
+          <span class="material-symbols-outlined" style="font-size:24px;color:var(--secondary)">thunderstorm</span>
+          <div style="display:flex;flex-direction:column">
+            <span style="font:600 var(--bsm);color:var(--on-surface)" id="met-corredor">Rejilla 10×10 · GPS cada 10 s</span>
+            <span class="telemetry" style="color:var(--on-variant)" id="met-sub">sin señal: watchdog devuelto por <b>sin_senal_ticks</b></span>
+          </div>
+        </div>
+        <svg class="mini-grafica" viewBox="0 0 64 32" fill="none">
+          <path d="M2 28L18 20L34 24L50 8L62 14" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+        </svg>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div class="pie">
+  <span class="item"><a href="/">← Volver al control de jornada</a></span>
+  <span class="item">Hora del tick: <b id="tick-hora2">--:--</b></span>
+  <span class="item">Reasignaciones: <b id="dato-reasignaciones">–</b></span>
+</div>
+</div><!-- /contenedor -->
+
+<nav class="nav-inferior">
+  <a href="/"><span class="material-symbols-outlined" style="font-size:22px">grid_view</span>Monitoreo</a>
+  <a href="unidad.html?id=1"><span class="material-symbols-outlined" style="font-size:22px">local_shipping</span>Despacho</a>
+  <a href="historial.html" aria-current="page"><span class="material-symbols-outlined" style="font-size:22px">history_toggle_off</span>Bitácora</a>
 </nav>
 
-<div class="bloques">
-  <section class="bloque">
-    <h2>Entregas falladas en el día
-        <span class="cuenta" id="cuenta-fallidas">–</span>
-        <span class="sub" style="font:400 12px/16px var(--sans);color:var(--on-variant)">
-          cliente ausente u otro motivo de la corrida
-        </span></h2>
-    <table>
-      <thead><tr>
-        <th>ID</th><th>Colonia</th><th>Peso</th><th>Ventana</th>
-        <th>Estado</th><th>Unidad</th><th>Retraso</th>
-      </tr></thead>
-      <tbody id="tbody-fallidas"></tbody>
-    </table>
-    <p style="font:400 12px/18px var(--sans);color:var(--on-variant);margin-top:.5rem">
-      Tasa objetivo del enunciado: 5–15 % del total. La <a href="/metrics" target="_blank">/metrics</a>
-      expone el conteo en tiempo real como <b>p29_flotilla_entregas{estado="fallida"}</b>.
-    </p>
-  </section>
-
-  <section class="bloque">
-    <h2>Unidades con alerta activa
-        <span class="cuenta" id="cuenta-alertas">–</span></h2>
-    <table>
-      <thead><tr>
-        <th>Unidad</th><th>Estado</th><th>Último GPS</th><th>Carga</th><th>Entregadas</th>
-      </tr></thead>
-      <tbody id="tbody-alertas"></tbody>
-    </table>
-    <p style="font:400 12px/18px var(--sans);color:var(--on-variant);margin-top:.5rem">
-      Sin señal: el watchdog del despachador marca la unidad a los
-      <b>sin_senal_ticks</b> sin GPS, devuelve su carga a pendiente y reasigna; la
-      señal de vuelta repone la unidad. Averiada: el monitor <b>'DOWN'</b> la
-      detecta y <b>p29_flota_sup</b> la relanza vacía.
-    </p>
-  </section>
-</div>
-</main>
 <script src="/app.js"></script>
 </body>
 </html>

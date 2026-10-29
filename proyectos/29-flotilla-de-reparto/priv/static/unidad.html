@@ -6,61 +6,380 @@
 <title>Unidad · Flotilla de Reparto #29</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
 <link rel="stylesheet" href="/app.css">
 </head>
 <body data-page="unidad">
-<main>
-<header>
-  <h1>Ficha de unidad</h1>
-  <span class="label-caps" style="color: var(--primary)">telemetría · detalle y reasignación</span>
-  <span class="hora telemetry" id="tick-hora">--:--</span>
-</header>
 
-<nav class="pestañas">
-  <a href="/">Control de jornada</a>
-  <a href="/historial.html">Historial y alertas</a>
+<!-- BANNER DE INCIDENTE (se activa si la unidad no está nominal) -->
+<div class="banner-incidente" id="banner-incidente">
+  <span class="material-symbols-outlined icono">warning</span>
+  <div class="grupo">
+    <span class="tag" id="banner-tag">Ficha operativa</span>
+    <span class="texto" id="banner-texto">Sin alertas para esta unidad.</span>
+  </div>
+  <button class="btn-banner" onclick="location.hash='modulo-reasignacion'">
+    Gestionar desvío <span class="material-symbols-outlined" style="font-size:16px">south</span>
+  </button>
+</div>
+
+<div class="contenedor">
+
+<!-- FICHA DE CABECERA -->
+<section class="ficha">
+  <div class="ornamento"></div>
+  <div class="fila-ficha">
+    <div class="identidad">
+      <div class="meta-fila">
+        <span class="chip-tipo" id="chip-tipo">Unidad de reparto</span>
+        <span class="meta-tec" id="meta-tec">Flota terrestre · Proyecto #29</span>
+        <span class="telem"><span class="punto anim-vivo"></span>
+          <span class="caps">Telemetry sync OK</span></span>
+      </div>
+      <h1 class="titulo-ficha" id="titulo">Unidad – <span class="tramo">/ cargando…</span></h1>
+      <p class="desc-tramo" id="tramo-unidad">Colonia de origen → destino de la misión por greedy first-fit.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:var(--sx)">
+      <div class="semforo-retraso ambar" id="estado-unidad">
+        <span class="material-symbols-outlined">schedule</span>
+        <div class="col">
+          <span class="lb">ESTADO: CONSULTANDO</span>
+          <span class="dato">–</span>
+        </div>
+      </div>
+      <span class="motivo-retraso" id="motivo-retraso">Último reporte GPS: —</span>
+    </div>
+  </div>
+
+  <div class="acciones-ficha">
+    <button type="button" class="btn-ficha primario" id="btn-radio" onclick="abrirRadio()">
+      <span class="material-symbols-outlined">campaign</span>
+      <span>Protocolo de asistencia / caos</span>
+    </button>
+    <a href="historial.html" style="text-decoration:none">
+      <button type="button" class="btn-ficha secundario">
+        <span class="material-symbols-outlined">assignment</span>
+        <span>Bitácora de jornada</span>
+      </button>
+    </a>
+    <button type="button" class="btn-ficha secundario" onclick="window.print()">
+      <span class="material-symbols-outlined">print</span>
+      <span>Imprimir hoja de despacho</span>
+    </button>
+  </div>
+
+  <div class="panel-radio oculto" id="panel-radio">
+    <div class="cabecera-radio">
+      <span class="material-symbols-outlined">cell_tower</span>
+      <div>
+        <div class="lb-radio">Canal abierto con el despachador</div>
+        <div class="txt-radio" id="radio-texto">p29_despachador a la escucha: selección de contingencia abajo.</div>
+      </div>
+    </div>
+    <button class="btn-cortar" onclick="cerrarRadio()">Cerrar</button>
+  </div>
+</section>
+
+<!-- 4 RESÚMENES -->
+<section class="tarjetas-ficha">
+  <div class="tarjeta-mini">
+    <div class="cabeza-mini">
+      <div class="lb-mini"><span class="material-symbols-outlined" style="font-size:20px;color:var(--primary)">local_shipping</span>
+        <span>Producción del día</span></div>
+    </div>
+    <div>
+      <div class="dato-grande"><span id="f1-entregadas">–</span>
+        <span class="unidad">entregadas servidas</span></div>
+      <div class="barra-mini" style="background:var(--surface-c)">
+        <i class="azul" id="f1-barra" style="width:0%"></i>
+      </div>
+    </div>
+    <div class="fila-mini">
+      <span>Vivos en su flota</span><b id="f1-vivas">–</b>
+    </div>
+  </div>
+
+  <div class="tarjeta-mini">
+    <div class="cabeza-mini">
+      <div class="lb-mini"><span class="material-symbols-outlined" style="font-size:20px;color:var(--primary)">explore</span>
+        <span>Telemetría GPS / rejilla</span></div>
+      <span class="chip-mini">SECTOR <span id="chip-sector">–</span></span>
+    </div>
+    <div>
+      <div class="dato-grande" style="font-family:var(--mono)" id="f2-xy">(–, –)</div>
+      <div class="sub-telemetry" style="font:var(--bsm);color:var(--on-variant)">Rejilla 10×10 · reporte cada 10 s simulados</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sx);text-align:center">
+      <div style="background:var(--surface-low);padding:var(--sx);border-radius:.25rem">
+        <span class="caps" style="color:var(--on-variant);display:block">Último GPS</span>
+        <span class="telemetry" style="font-weight:700" id="f2-ultimo">–</span>
+      </div>
+      <div style="background:var(--surface-low);padding:var(--sx);border-radius:.25rem">
+        <span class="caps" style="color:var(--on-variant);display:block">Posición</span>
+        <span class="telemetry" style="font-weight:700" id="f2-pos">—</span>
+      </div>
+      <div style="background:var(--surface-low);padding:var(--sx);border-radius:.25rem">
+        <span class="caps" style="color:var(--on-variant);display:block">Tick hora</span>
+        <span class="telemetry" style="font-weight:700" id="tick-hora">--:--</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tarjeta-mini">
+    <div class="cabeza-mini">
+      <div class="lb-mini"><span class="material-symbols-outlined" style="font-size:20px;color:var(--tertiary)">ac_unit</span>
+        <span>Carga a bordo</span></div>
+      <span class="chip-mini active" id="chip-carga">EN RUTA</span>
+    </div>
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:.5rem">
+        <span class="dato-grande" style="font-family:var(--mono)"><span id="f3-carga-kg">–</span>
+          <span class="unidad">/ <span id="f3-capacidad">–</span> kg</span></span>
+        <span class="telemetry" style="color:var(--on-variant)" id="f3-pct">0%</span>
+      </div>
+      <div class="barra-mini" style="margin-top:4px">
+        <i class="terc" id="f3-barra" style="width:0%"></i>
+      </div>
+    </div>
+    <div class="fila-mini">
+      <div style="display:flex;flex-direction:column">
+        <span class="caps" style="color:var(--on-variant)">Misión en curso</span>
+        <span style="font:600 var(--bsm) var(--sans)" id="f3-mision">—</span>
+      </div>
+      <div style="text-align:right">
+        <span class="caps" style="color:var(--on-variant);display:block">Bultos vivos</span>
+        <span class="telemetry" style="color:var(--primary);font-weight:700" id="f3-plan">–</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tarjeta-mini">
+    <div class="cabeza-mini">
+      <div class="lb-mini"><span class="material-symbols-outlined" style="font-size:20px;color:var(--primary)">bolt</span>
+        <span>Estado de la unidad</span></div>
+      <span class="chip-mini" id="chip-estado-mini">–</span>
+    </div>
+    <div>
+      <div class="dato-grande" id="f4-estado" style="font-family:var(--mono)">–</div>
+      <div style="font:var(--bsm);color:var(--on-variant)" id="f4-estado-sub">Sincronizando estado…</div>
+    </div>
+    <div class="fila-mini">
+      <span>Capacidad nominal</span><b id="f4-capacidad">–</b>
+    </div>
+  </div>
+</section>
+
+<div class="layout-12">
+
+  <!-- MAPA / REGISTRO DE DESTINO -->
+  <section class="col-5 tarjeta-basica" style="gap:var(--sm)">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--sx)">
+      <div class="titulo-seccion" style="align-items:center">
+        <span class="material-symbols-outlined" style="color:var(--primary);font-size:22px">hub</span>
+        <h2 style="font:var(--h2);margin:0">Vectorización &amp; monitoreo geoespacial</h2>
+      </div>
+      <span class="telemetry" style="color:var(--on-variant)">Rejilla 10×10</span>
+    </div>
+    <div class="mini-mapa">
+      <div class="fondo" style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuBwRxnpZdYgF6z2xlHKQ92LnKRTPG3hYHtRJRKqJ7d5b2R0Eb3UdW32ofiinZhDFXsajFjju7BVTODII9OVOXB4I5inJZDDdyYGRYIyKrexBKBAUSbzDgI9Si5q1YDtO6cyZgKgxdB61N5NfxLOzVAswo2AXyov_MYViXHoqGAjb748ACc1ns_owJlUSMu0lkUphZe51KCUxnNTR9MlTWZ1J5UiLqRQ9PKkUVwrPOI')"></div>
+      <div class="velo"></div>
+      <svg xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern height="40" id="radar-grid" patternunits="userSpaceOnUse" width="40">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="0.5"></path>
+          </pattern>
+        </defs>
+        <rect fill="url(#radar-grid)" height="100%" width="100%"></rect>
+        <circle cx="50%" cy="50%" r="18" fill="rgba(0,97,148,0.35)" class="anim-pulso"></circle>
+      </svg>
+      <div class="marcador" id="pin-unidad" style="z-index:10">
+        <div class="pin" style="background:var(--primary)">
+          <span class="material-symbols-outlined">local_shipping</span>
+        </div>
+      </div>
+      <div class="pie-mapita">
+        <div style="display:flex;align-items:center;gap:var(--ss)">
+          <span class="item"><span class="raja"></span>Posición de la unidad</span>
+        </div>
+        <span class="gps">GPS FIX · VIVO</span>
+      </div>
+    </div>
+    <div style="background:var(--surface-low);padding:var(--ss);border-radius:.5rem;display:flex;flex-direction:column;gap:var(--sx)">
+      <div style="display:flex;align-items:center;justify-content:space-between;font:var(--caps);color:var(--on-variant);text-transform:uppercase;letter-spacing:.05em">
+        <span>Registro operativo de destino</span>
+        <span style="color:var(--primary);font-weight:700" id="registro-estado">–</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:var(--ss)">
+        <div style="flex:1;min-width:0">
+          <span style="font:var(--bsm);color:var(--on-variant);display:block">Colonia(s) de la misión viva</span>
+          <span style="font:700 var(--bmd) var(--sans);color:var(--on-surface)" id="registro-destino">—</span>
+        </div>
+      </div>
+    </div>
+    <div style="padding:var(--ss);border-radius:.5rem;background:var(--surface-c);display:flex;align-items:center;gap:var(--ss)">
+      <div style="width:40px;height:40px;border-radius:.5rem;background:var(--surface-lowest);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <span class="material-symbols-outlined" style="color:var(--primary)">inventory_2</span>
+      </div>
+      <div style="display:flex;flex-direction:column;min-width:0">
+        <span style="font:600 var(--bsm);color:var(--on-surface)">Configuración de carga · flota #29</span>
+        <span style="font:var(--tsm);color:var(--on-variant)" id="detalle-carga">Capacidad nominal en kg · asignación por peso al vencer ventana.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- MÓDULO DE REASIGNACIÓN -->
+  <section class="col-7 tarjeta-basica" style="padding:var(--sm)" id="modulo-reasignacion">
+    <div class="titulo-seccion">
+      <div>
+        <div class="icono-titulo">
+          <span class="material-symbols-outlined">alt_route</span>
+          <h2 style="font:600 24px/32px var(--sans);margin:0">Módulo dinámico de reasignación</h2>
+        </div>
+        <p class="desc-titulo">Seleccione la contingencia para esta unidad: el despachador recalculará el manifiesto en el mismo tick.</p>
+      </div>
+      <span class="chip-caliente">Despacho en caliente</span>
+    </div>
+
+    <div class="seccion-opciones" role="radiogroup" style="margin-top:var(--ss)">
+      <span class="etiqueta-instruccion">1. Seleccionar opción de reasignación operacional:</span>
+      <label class="opcion elegida" id="opcion-a">
+        <div class="cuerpo-opcion">
+          <input type="radio" name="opcion-reasignacion" value="A" checked onchange="seleccionarOpcion('A')">
+          <div class="texto-opcion">
+            <div class="fila-nombre"><span class="nombre-op">Opción A [Caos controlado]:</span>
+              <span class="resumen-op">Inyectar avería en esta unidad</span></div>
+            <span class="detalle-op">La unidad queda inmovilizada: su carga vuelve a la cola y el despachador reasigna; p29_flota_sup la relanza vacía.</span>
+          </div>
+        </div>
+        <div class="entradilla">
+          <span class="eta-op">≈ mismo tick</span>
+          <span class="extra-op">reasignación automática</span>
+        </div>
+      </label>
+      <label class="opcion" id="opcion-b">
+        <div class="cuerpo-opcion">
+          <input type="radio" name="opcion-reasignacion" value="B" onchange="seleccionarOpcion('B')">
+          <div class="texto-opcion">
+            <div class="fila-nombre"><span class="nombre-op">Opción B [Prioridad]:</span>
+              <span class="resumen-op sec">Marcar entrega urgente</span></div>
+            <span class="detalle-op">Eleva la prioridad del despacho sobre la carga vivida de esta unidad sin detenerla.</span>
+          </div>
+        </div>
+        <div class="entradilla">
+          <span class="eta-op">sin paro</span>
+          <span class="extra-op">bandera urgente</span>
+        </div>
+      </label>
+      <label class="opcion" id="opcion-c">
+        <div class="cuerpo-opcion">
+          <input type="radio" name="opcion-reasignacion" value="C" onchange="seleccionarOpcion('C')">
+          <div class="texto-opcion">
+            <div class="fila-nombre"><span class="nombre-op">Opción C [Solo supervisión]:</span>
+              <span class="resumen-op ambar">Mantener sin cambios</span></div>
+            <span class="detalle-op">No se transmite ninguna orden: queda la observación por telemetría en vivo.</span>
+          </div>
+        </div>
+        <div class="entradilla">
+          <span class="eta-op ambar">0 min</span>
+          <span class="extra-op">observación</span>
+        </div>
+      </label>
+    </div>
+
+    <form class="formulario" onsubmit="transmitirReasignacion(event)" style="margin-top:var(--ss)">
+      <span class="etiqueta-instruccion">2. Formulario de instrucción de despacho operativo:</span>
+      <div class="grid-2-campos">
+        <div class="campo">
+          <label for="campo-unidad">Unidad supervisada</label>
+          <div class="campo-cubeta">
+            <span class="material-symbols-outlined">pin_drop</span>
+            <input type="text" id="campo-unidad" readonly value="–">
+          </div>
+        </div>
+        <div class="campo">
+          <label for="campo-resp">Respuesta del dominio</label>
+          <div class="campo-cubeta">
+            <span class="material-symbols-outlined">local_shipping</span>
+            <input type="text" id="campo-resp" readonly value="Se traslada por radio y la bitácora /eventos">
+          </div>
+        </div>
+      </div>
+      <div class="campo">
+        <label>Nivel de prioridad de transmisión</label>
+        <div class="grid-prioridad">
+          <button type="button" class="btn-prio" onclick="setPrioridad('Normal', this)">Normal</button>
+          <button type="button" class="btn-prio activo" onclick="setPrioridad('Urgente', this)">Urgente</button>
+          <button type="button" class="btn-prio" onclick="setPrioridad('Crítica', this)">Crítica (emergencia)</button>
+        </div>
+      </div>
+      <div class="campo">
+        <label for="instruccion">Texto de transmisión directa (registro de la orden)</label>
+        <textarea id="instruccion" rows="2" readonly></textarea>
+      </div>
+      <div class="pie-form">
+        <div class="seguridad">
+          <span class="material-symbols-outlined">security</span>
+          <span>Canal directo a p29_despachador (sin ETS desde el handler)</span>
+        </div>
+        <button class="btn-transmitir" id="btn-transmitir" type="submit">
+          <span class="material-symbols-outlined">send</span>
+          <span>Confirmar y transmitir requerimiento</span>
+        </button>
+      </div>
+    </form>
+
+    <div class="aviso-ficha" style="margin-top:var(--ss)">
+      <span class="material-symbols-outlined" style="color:var(--primary)">info</span>
+      <span>La reasignación tras avería la hace el despachador por <b>greedy first-fit</b>; la unidad muerta la relanza <b>p29_flota_sup</b> vacía. Las cifras de la conversa caen en la <a href="/metrics" target="_blank">/metrics</a>.</span>
+    </div>
+  </section>
+</div>
+
+<!-- CARGAS VIVAS + SERVIDAS -->
+<section class="tarjeta-basica">
+  <div style="display:flex;align-items:center;gap:var(--sx)">
+    <span class="material-symbols-outlined" style="color:var(--primary)">local_shipping</span>
+    <h2 style="font:var(--h2);margin:0">Cargas vivas de la unidad <span class="caps" style="color:var(--on-variant)">(en ruta ahora)</span></h2>
+  </div>
+  <div style="overflow-x:auto">
+    <table class="tabla-cargas tabla-degadao">
+      <thead><tr><th>ID</th><th>Colonia</th><th>Peso</th><th>Ventana</th><th>Estado</th><th>Retraso</th></tr></thead>
+      <tbody id="tbody-cargas"></tbody>
+    </table>
+  </div>
+  <div style="display:flex;align-items:center;gap:var(--sx);margin-top:var(--sm)">
+    <span class="material-symbols-outlined" style="color:var(--ok-deep)">task_alt</span>
+    <h2 style="font:var(--h2);margin:0">Servidas hoy <span class="caps" style="color:var(--on-variant)">(entregas cerradas)</span></h2>
+  </div>
+  <div style="overflow-x:auto">
+    <table class="tabla-cargas tabla-degadao">
+      <thead><tr><th>ID</th><th>Colonia</th><th>Peso</th><th>Ventana</th><th>Estado</th><th>Retraso</th></tr></thead>
+      <tbody id="tbody-servidas"></tbody>
+    </table>
+  </div>
+</section>
+
+<div class="pie">
+  <span class="item"><a href="/">← Volver al control de jornada</a></span>
+  <span class="item"><a href="/metrics" target="_blank">/metrics</a></span>
+  <span class="item">Hora del tick: <b id="tick-hora2">--:--</b></span>
+</div>
+</div><!-- /contenedor -->
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <div class="caja-toast">
+    <span class="material-symbols-outlined" id="toast-icono">check_circle</span>
+    <span id="toast-texto">Reasignación transmitida correctamente.</span>
+  </div>
+</div>
+
+<nav class="nav-inferior">
+  <a href="/"><span class="material-symbols-outlined" style="font-size:22px">grid_view</span>Monitoreo</a>
+  <a href="unidad.html?id=1" aria-current="page"><span class="material-symbols-outlined" style="font-size:22px">local_shipping</span>Despacho</a>
+  <a href="historial.html"><span class="material-symbols-outlined" style="font-size:22px">history_toggle_off</span>Bitácora</a>
 </nav>
 
-<section class="tarjeta-unidad">
-  <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
-    <h1 id="titulo">Unidad –</h1>
-    <span id="estado-unidad"><span class="pill off">cargando</span></span>
-  </div>
-  <div class="telemetria">
-    <span>Último GPS: <b id="tel-ultimo">—</b></span>
-    <span>Posición: <b id="tel-pos">—</b></span>
-    <span>Carga / capacidad: <b id="tel-capacidad">—</b></span>
-  </div>
-  <div class="acciones">
-    <a href="/"><button type="button">← Volver al control</button></a>
-    <button type="button" class="grave" id="btn-averiar">Inyectar avería (prueba de caos)</button>
-  </div>
-</section>
-
-<section class="bloque">
-  <h2>Cargas vivas de la unidad <span class="cuenta">(en ruta ahora)</span></h2>
-  <table style="margin-bottom:1rem">
-    <thead><tr>
-      <th>ID</th><th>Colonia</th><th>Peso</th><th>Ventana</th>
-      <th>Estado</th><th>Unidad</th><th>Retraso</th>
-    </tr></thead>
-    <tbody id="tbody-cargas"></tbody>
-  </table>
-  <h2>Servidas hoy <span class="cuenta">(entregadas por esta unidad)</span></h2>
-  <table>
-    <thead><tr>
-      <th>ID</th><th>Colonia</th><th>Peso</th><th>Ventana</th>
-      <th>Estado</th><th>Unidad</th><th>Retraso</th>
-    </tr></thead>
-    <tbody id="tbody-servidas"></tbody>
-  </table>
-</section>
-
-<footer>
-  <span class="item">La reasignación tras avería la hace el despachador por greedy first-fit; la unidad muerta la relanza <b>p29_flota_sup</b> vacía.</span>
-  <span class="item"><a href="/metrics" target="_blank">/metrics</a></span>
-</footer>
-</main>
 <script src="/app.js"></script>
 </body>
 </html>
