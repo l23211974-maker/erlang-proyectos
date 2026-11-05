@@ -24,7 +24,11 @@ init(Req0, _Estado) ->
          end,
   Body = evento(p29_json:instantanea(Tick)),
   _ = cowboy_req:stream_body(Body, nofin, Req),
-  {cowboy_loop, [], 15000}.
+  %% OJO al formato: el payload del handler loop es {cowboy_loop, Req, Estado
+  %% [, Timeout]}. Sin el Req en medio, cowboy decodifica el 3-tupla como
+  %% {Mod, Req, State} y el request muere en loop/5 con function_clause
+  %% (bug real visto en produccion: cada /eventos crasheaba al conectar).
+  {cowboy_loop, Req, [], 15000}.
 
 info({p29_estado, _N, JSON}, Req, Estado) ->
   _ = cowboy_req:stream_body(evento(JSON), nofin, Req),

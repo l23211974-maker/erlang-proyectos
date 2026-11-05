@@ -19,6 +19,7 @@ avería a ~11 a. m. y pedido urgente a media jornada.
 ```bash
 rebar3 compile   # dominio completo
 rebar3 eunit     # 11 casos en 9 escenarios (árbol, asignación, statem, avería, señal, caos, demo, web)
+rebar3 ct        # 3 casos de integración (app completa: estaticos, /api/*, regresión SSE)
 rebar3 shell     # web en :8080 + de aquí se corre p29_simulador:demo().
 ```
 
@@ -194,8 +195,10 @@ reparto.
 
 - [x] Diseño OTP y dominio completo (estados, supervisión, pero con diccionario ETS)
 - [x] Suite eunit: 11 casos en verde (`rebar3 compile` + `rebar3 eunit`), también en el Raspberry Pi
+- [x] Suite common_test: integración de la app completa con `rebar3 ct` (estáticos, `/api/*`, caos por HTTP y regresión del crash de `/eventos`)
 - [x] Demo productiva validada (averia + urgente + watchdog + invariantes), también en el Raspberry Pi 4
 - [x] Diseño visual en Stitch (`design/PROMPT_STITCH.md`) y export a `design/`; maquetas portadas a `priv/static/`
 - [x] Endpoints `/api/...` y mapa en vivo por SSE con cowboy
 - [x] Métricas `/metrics` (prometheus.erl 6.1.3) y diagnóstico con recon
-- [ ] Release + systemd en el Raspberry Pi (Debian 11, OTP 27, 4 schedulers)
+- [x] Release + systemd en el Raspberry Pi (Debian 11, OTP 27, 4 schedulers); la unidad va versionada en `deploy/p29-flotilla.service`
+- [x] Manual de uso del cliente en el gist (instalación, ejecución, API, solución de problemas): <https://gist.github.com/l23211974-maker/f754a5fa477b148f2cdc2f36a10a76a8>

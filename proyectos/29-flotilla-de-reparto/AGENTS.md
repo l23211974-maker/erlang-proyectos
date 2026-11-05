@@ -94,9 +94,16 @@ rebar3 release      # _build/prod/rel/p29_flotilla_de_reparto
 - **`ranch:listeners/0` no existe en ranch 2.x**, no lo uses; el stop defensivo con
   try/catch basta.
 - **SSE**: el handler `-behaviour(cowboy_loop)` debe exportar `init/2, info/3,
-  terminate/3` y devolver `{cowboy_loop, Estado, TimeoutMs}` (15000 → latidos);
-  en `terminate` desuscribirse del broadcaster. El broadcaster es el ÚNICO suscriptor
-  del reloj y no fabrica JSON si no hay watchers (el reloj tira a 33 ms).
+  terminate/3` y devolver **`{cowboy_loop, Req, Estado, TimeoutMs}`** (el `Req`
+  va en medio y el timeout hace que cowboy mande `info(timeout, ...)` cada
+  15 s para los latidos). Devolver `{cowboy_loop, Estado, TimeoutMs}` sin el
+  `Req` es una bomba: cowboy lo decodifica como `{Mod, Req, State}` (el
+  timeout queda como estado y el `Req` vacío) y cada conexión a `/eventos`
+  muere con `function_clause` en `cowboy_loop:loop` — bug real de producción
+  que dejó de actualizar el mapa en vivo; lo cubre `sse_regresion_y_vivos`
+  de la suite CT. En `terminate` desuscribirse del broadcaster. El
+  broadcaster es el ÚNICO suscriptor del reloj y no fabrica JSON si no hay
+  watchers (el reloj tira a 33 ms).
 - **El caos por HTTP pasa por la API del despachador** (`p29_despachador:averiar/1`,
   `urgente/1`), jamás escribiendo ETS desde el handler. Un cuerpo JSON no parseable
   → 400 con `try`, nunca un crash del request process.

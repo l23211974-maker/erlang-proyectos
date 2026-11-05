@@ -1,0 +1,31 @@
+# Unidad systemd del release de #29 Flotilla de reparto en la RPi del curso
+#
+# Instalacion en la Raspberry Pi (Debian 11, user pi, OTP 27.3.4.19 via asdf):
+#   sudo cp deploy/p29-flotilla.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now p29-flotilla
+# Verificacion:
+#   systemctl status p29-flotilla
+#   curl -s http://127.0.0.1:8080/api/estado
+# El release debe existir antes: rebar3 release (queda en
+# _build/default/rel/p29_flotilla_de_reparto, modo prod de relx).
+# Las rutas son absolutas por el usuario pi de ESTA VM; ajusta si cambias
+# usuario o carpeta.
+
+[Unit]
+Description=Flotilla de reparto #29 (OTP, cowboy web :8080)
+After=network.target
+
+[Service]
+Type=forking
+User=pi
+Environment=HOME=/home/pi
+Environment=PATH=/home/pi/.asdf/shims:/home/pi/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/bin/bash -lc '/home/pi/erlang-proyectos/proyectos/29-flotilla-de-reparto/_build/default/rel/p29_flotilla_de_reparto/bin/p29_flotilla_de_reparto daemon'
+ExecStop=/bin/bash -lc '/home/pi/erlang-proyectos/proyectos/29-flotilla-de-reparto/_build/default/rel/p29_flotilla_de_reparto/bin/p29_flotilla_de_reparto stop'
+Restart=on-failure
+RestartSec=10
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
