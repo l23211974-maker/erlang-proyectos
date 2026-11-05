@@ -10,9 +10,9 @@ avería a ~11 a. m. y pedido urgente a media jornada.
 
 | Rol | Integrante |
 |---|---|
-| Backend (OTP) | l23211974-maker |
-| Frontend (Stitch + cowboy) | l23211974-maker |
-| Ops/QA | l23211974-maker |
+| Backend (OTP) | GRANDE ORTEGA MAXIMILIANO ALBERTO |
+| Frontend (Stitch + cowboy) | GRANDE ORTEGA MAXIMILIANO ALBERTO |
+| Ops/QA | GRANDE ORTEGA MAXIMILIANO ALBERTO |
 
 ## Arranque
 
