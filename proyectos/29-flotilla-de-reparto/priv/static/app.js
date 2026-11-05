@@ -228,7 +228,7 @@ const pintarMapa = (r, unidades) => {
     `;
     marcador.onclick = (ev) => {
       if (ev.target.closest("button") === null)
-        location.href = `unidad.html?id=${u.id}`;
+        location.href = `/unidad.html?id=${u.id}`;
     };
     cont.appendChild(marcador);
   }
@@ -270,10 +270,8 @@ const pintarPanelUnidades = (unidades) => {
           <span class="valor-dato">${horaDeTick(u.ultimo_reporte)} · (${u.x},${u.y})</span></div>
       </div>
       <div class="acciones-unidad">
-        <a href="unidad.html?id=${u.id}" style="text-decoration:none">
-          <button class="btn-tarjeta neutro" style="width:100%">
-            <span class="material-symbols-outlined">visibility</span><span>Inspeccionar</span>
-          </button>
+        <a href="/unidad.html?id=${u.id}" class="btn-tarjeta neutro" style="text-decoration:none;width:100%;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px">
+          <span class="material-symbols-outlined">visibility</span><span>Inspeccionar</span>
         </a>
         <button class="btn-tarjeta ${sev === "normal" ? "neutro" : "grave"}" onclick="abrirModal(${u.id})">
           <span class="material-symbols-outlined">alt_route</span><span>Asistir / caos</span>
@@ -536,7 +534,7 @@ const itemsCrono = (unidades, entregas) => {
         ? "Unidad inmovilizada por avería inyectada (caos). Su carga vuelve a la cola y el despachador reasigna; p29_flota_sup la relanza vacía."
         : "Sin señal GPS: su carga pasa a pendiente si rebasa el umbral; la señal de vuelta repone la unidad.",
       estadoTxt: crit ? "ACTIVO" : "AVISO", estadoClase: crit ? "critica" : "precaucion",
-      accion: `unidad.html?id=${u.id}`, accionTxt: "Ver unidad",
+      accion: `/unidad.html?id=${u.id}`, accionTxt: "Ver unidad",
       telem: [["Último GPS", horaDeTick(u.ultimo_reporte)],
               ["Carga", `${u.carga} / ${u.capacidad} kg`],
               ["Entregadas", String(u.entregadas)],
@@ -607,7 +605,7 @@ const pintarHistorial = async () => {
         </div>
         <div class="btns-ev">
           <button class="btn-detalle" onclick="toggleCrono('tel-${i}')">Telemetría</button>
-          ${it.accion ? `<a href="${it.accion}" style="text-decoration:none"><button class="btn-ver">${it.accionTxt}</button></a>` : ""}
+          ${it.accion ? `<a href="${it.accion}" class="btn-ver" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center">${it.accionTxt}</a>` : ""}
         </div>
       </div>
       <div style="margin-left:0">
@@ -736,3 +734,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 });
+
+/* ---- handlers globales para onclick inline (const/let no crean window.*) ---- */
+window.setEstado = setEstado;
+window.toggleCapa = toggleCapa;
+window.mapZoom = mapZoom;
+window.recenterMap = recenterMap;
+window.abrirModal = abrirModal;
+window.cerrarModal = cerrarModal;
+window.ejecutarDespacho = ejecutarDespacho;
+window.seleccionarOpcion = seleccionarOpcion;
+window.setPrioridad = setPrioridad;
+window.transmitirReasignacion = transmitirReasignacion;
+window.abrirRadio = abrirRadio;
+window.cerrarRadio = cerrarRadio;
+window.toggleCrono = toggleCrono;
+window.applyFilters = applyFilters;
+window.clearSearch = clearSearch;
+window.resetAllFilters = resetAllFilters;
+window.filterCategory = filterCategory;
+window.filterSeverity = filterSeverity;
+window.setTimeframe = setTimeframe;
+window.handleLogSubmit = handleLogSubmit;
