@@ -37,8 +37,15 @@ init([]) ->
   %% test (start_link directo del supervisor, sin application:start) levanta
   %% ranch/cowboy antes del listener
   {ok, _} = application:ensure_all_started(cowboy),
-  case cowboy:start_clear(?LISTENER, [{port, Puerto}],
-                          #{env => #{dispatch => cowboy_router:compile(rutas())}}) of
+ 	case cowboy:start_clear(?LISTENER, [{port, Puerto}],
+                          %% p29_web_cache va entre router y handler: instala
+                          %% Cache-Control: no-cache en toda respuesta; sin
+                          %% eso los navegadores servian estaticos de cache
+                          %% (botones de la UI "muertos" por HTML/JS viejos)
+                          #{env => #{dispatch => cowboy_router:compile(rutas()),
+                                     middlewares =>
+                                       [cowboy_router, p29_web_cache,
+                                        cowboy_handler, cowboy_stream_h]}}) of
     {ok, _Pid} ->
       logger:info("web #29 escuchando en el puerto ~p (/, /api/*, /eventos, /metrics)",
                   [Puerto], #{dominio => flotilla}),

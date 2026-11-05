@@ -92,6 +92,15 @@ estaticos_del_dashboard(Config) ->
     {200, _} = pedir(Config, get, <<"/unidad.html">>),
     {200, _} = pedir(Config, get, <<"/historial.html">>),
     {200, _} = pedir(Config, get, <<"/app.css">>),
+
+    %% regresión de caché: el middleware instala Cache-Control: no-cache en
+    %% toda respuesta; sin eso el navegador servía HTML/JS viejos y los
+    %% botones (Inspeccionar / Asistir-caos) morían en silencio
+    {200, Cabeceras, _} = pedir_con_cabeceras(Config, <<"/app.js">>),
+    ct:pal("cabeceras de /app.js: ~p", [Cabeceras]),
+    Cache = proplists:get_value("cache-control", Cabeceras),
+    ct:pal("cache-control: ~p", [Cache]),
+    ?assertEqual("no-cache, must-revalidate", Cache),
     ok.
 
 %% ---- 3. regresion SSE: el handler sobrevive a los mensajes del broadcaster ------
@@ -141,6 +150,16 @@ pedir(Config, Verbo, Ruta, Cuerpo) when is_atom(Verbo) ->
                       [{timeout, 5000}], [{body_format, binary}]),
     {{_, Codigo, _}, _Cabezera, Body} = Respuesta,
     {Codigo, Body}.
+
+%% version con cabeceras: para verificar el Cache-Control anti-caché del
+%% middleware p29_web_cache (sin eso los navegadores pintaban HTML/JS viejos
+%% y los botones de la UI "morían")
+pedir_con_cabeceras(Config, Ruta) ->
+    {ok, Respuesta} =
+        httpc:request(get, {url(Config, Ruta), []},
+                      [{timeout, 5000}], [{body_format, binary}]),
+    {{_, Codigo, _}, Cabeceras, Body} = Respuesta,
+    {Codigo, Cabeceras, Body}.
 
 %% acumulacion de fragmentos hasta encontrar el patron (los entregados por
 %% tcp pueden llegar repartidos en pedazos cualquiera)
