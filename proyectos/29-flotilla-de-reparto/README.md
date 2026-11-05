@@ -10,9 +10,9 @@ avería a ~11 a. m. y pedido urgente a media jornada.
 
 | Rol | Integrante |
 |---|---|
-| Backend (OTP) | |
-| Frontend (Stitch + cowboy) | |
-| Ops/QA | |
+| Backend (OTP) | l23211974-maker |
+| Frontend (Stitch + cowboy) | l23211974-maker |
+| Ops/QA | l23211974-maker |
 
 ## Arranque
 
