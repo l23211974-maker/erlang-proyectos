@@ -185,10 +185,15 @@ esperar(Fun) -> esperar(Fun, 10000).
 esperar(_Fun, Restante) when Restante =< 0 ->
     error({timeout_esperando});
 esperar(Fun, Restante) ->
-    case catch Fun() of
+    try Fun() of
         ok ->
             ok;
         _ ->
             timer:sleep(50),
             esperar(Fun, Restante - 50)
+    catch
+        _:_ ->
+            timer:sleep(50),
+            esperar(Fun, Restante - 50)
     end.
+
