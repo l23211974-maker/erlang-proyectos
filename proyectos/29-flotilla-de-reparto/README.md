@@ -202,3 +202,4 @@ reparto.
 - [x] Métricas `/metrics` (prometheus.erl 6.1.3) y diagnóstico con recon
 - [x] Release + systemd en el Raspberry Pi (Debian 11, OTP 27, 4 schedulers); la unidad va versionada en `deploy/p29-flotilla.service`
 - [x] Manual de uso del cliente en el gist (instalación, ejecución, API, solución de problemas): <https://gist.github.com/l23211974-maker/f754a5fa477b148f2cdc2f36a10a76a8>
+- [x] Documento «Importancia de Erlang en el proyecto» en [docs/importancia-erlang.md](docs/importancia-erlang.md), también publicado como gist: <https://gist.github.com/l23211974-maker/7aa4a94d57b4eb7b17b89f21d18928cb>
