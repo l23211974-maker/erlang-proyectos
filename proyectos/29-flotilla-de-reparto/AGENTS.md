@@ -115,7 +115,9 @@ release ~3 s. El atasco es la UI acoplada al tick de simulación:
   jornada): `app.js` acumula el último evento SSE y pinta cada 160 ms con
   `requestAnimationFrame`, el mapa reusa divs por id, `unidad`/`historial`
   tienen guarda anti-solapado y el dashboard ya no pide `/api/entregas`.
-  Desplegado y verificado en el Pi el 2026-11-08.
+  Desplegado y verificado en el Pi el 2026-11-08. Unidad/historial además
+  refetchean cada 5 s con guarda (sin eso sus tablas/timeline quedaban
+  congeladas en la foto inicial).
 - Cobertura: `rebar3 ct` cubre estáticos, `/api/*`, caos por HTTP y regresión
   SSE (`sse_regresion_y_vivos`). No hay test de cadencia de pintado: si tocas
   `app.js`, pasa `node --check priv/static/app.js` y valida en navegador

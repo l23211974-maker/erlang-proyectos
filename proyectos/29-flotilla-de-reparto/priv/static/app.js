@@ -835,7 +835,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   else if (pagina === "historial") await pintarHistorial();
   // en vivo: el SSE llega por tick (~30 Hz) pero la UI pinta a ~6 Hz con
   // requestAnimationFrame; unidad/historial NO refetchean por tick (ver
-  // programarPintado/rellenarUnidad/rellenarHistorial).
+  // programarPintado/rellenarUnidad/rellenarHistorial). Refresco periódico
+  // acotado cada 5 s: sin esto las tablas/timeline de unidad e historial
+  // quedarían congeladas en la foto inicial (solo el SSE mueve el resumen
+  // y las posiciones); con guarda anti-solapado no se acumula tráfico.
+  if (pagina === "unidad" || pagina === "historial") {
+    setInterval(() => {
+      if (document.hidden) return;
+      if (pagina === "unidad") pintarUnidad();
+      else pintarHistorial();
+    }, 5000);
+  }
   const flujo = new EventSource("/eventos");
   flujo.addEventListener("estado", (m) => {
     ultimoSSE = JSON.parse(m.data);
