@@ -111,6 +111,11 @@ release ~3 s. El atasco es la UI acoplada al tick de simulación:
   5. Si se mantiene el refetch, pedir la entrega por unidad/estado en vez del
      listado completo de 206 KB (pasando por `p29_api`/`p29_despachador:*`,
      nunca ETS desde el handler).
+- **Implementado en `f1dd7b4`** (puntos 1, 2 y 4; falta el 3, SSE tras la
+  jornada): `app.js` acumula el último evento SSE y pinta cada 160 ms con
+  `requestAnimationFrame`, el mapa reusa divs por id, `unidad`/`historial`
+  tienen guarda anti-solapado y el dashboard ya no pide `/api/entregas`.
+  Desplegado y verificado en el Pi el 2026-11-08.
 - Cobertura: `rebar3 ct` cubre estáticos, `/api/*`, caos por HTTP y regresión
   SSE (`sse_regresion_y_vivos`). No hay test de cadencia de pintado: si tocas
   `app.js`, pasa `node --check priv/static/app.js` y valida en navegador
