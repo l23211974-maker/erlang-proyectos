@@ -1,16 +1,15 @@
 # 29 — Flotilla de reparto · notas para agentes
 
-Las reglas del curso (stack obligatorio, estilo, flujo de Stitch) están en el
-[`AGENTS.md` de la raíz](../../AGENTS.md). Este archivo solo recoge lo que se aprende
-trabajando aquí y que no se deduce leyendo el código.
+Solo recoge lo que no se deduce leyendo el código (no hay un `AGENTS.md` de raíz
+en este repo al que referirse; el de este proyecto es la fuente de reglas).
 
 ## Dónde se trabaja
 
 - Es una app rebar3 **independiente**: todos los comandos se corren desde esta carpeta,
   no desde la raíz del repo (allí no hay `rebar.config`).
 - El destino final es el **Raspberry Pi del estudiante**: Raspberry Pi 4 Model B, Debian 11
-  (bullseye), 4 cores, 3.8 GB, OTP 27.3.4.19 vía asdf. No es el CM5 con Debian 13 que
-  describe el `AGENTS.md` de la raíz, así que no des por hechas sus rutas ni versiones.
+  (bullseye), 4 cores, 3.8 GB, OTP 27.3.4.19 vía asdf. No des por hechas
+  rutas ni versiones de otras máquinas/docentes.
   Se entra con `ssh flotilla` (alias en `~/.ssh/config` que salta por el proxy de
   Corellium). El jump host, su token y la contraseña **no van al repo**; viven solo en la
   configuración SSH local.
@@ -23,7 +22,7 @@ trabajando aquí y que no se deduce leyendo el código.
 rebar3 compile      # warnings_as_errors: un solo warning rompe el build
 rebar3 eunit        # 11 casos, 0 fallos = verde
 rebar3 shell        # web en :8080 + dentro: p29_simulador:demo(). (jornada completa, ~72 s)
-rebar3 release      # _build/prod/rel/p29_flotilla_de_reparto
+rebar3 release      # _build/default/rel/p29_flotilla_de_reparto (NO prod: ver deploy/)
 ```
 
 - Un caso suelto: `rebar3 eunit --test=p29_flotilla_de_reparto_tests:arbol_despues_de_arrancar_test_`
@@ -66,6 +65,56 @@ rebar3 release      # _build/prod/rel/p29_flotilla_de_reparto
   `design/Plantilla Flotilla de Reparto/aeroterra_dispatch_telematics/DESIGN.md`; **no**
   en `design/DESIGN.md`, que no existe. Los `code.html` son Tailwind por CDN con
   `onclick` inline: se portan a estáticos de cowboy, no se sirven tal cual.
+
+## UI bajo carga: botones que parecen muertos (diagnóstico verificado 2026-11-08)
+
+Síntoma del cliente: con datos cargando, los botones tardan o no responden;
+sin carga, funcionan. **No es un bug del dominio**: en el Pi, con el servicio
+corriendo y sin navegador, el `load average` es ~0.00 y la CPU total del
+release ~3 s. El atasco es la UI acoplada al tick de simulación:
+
+- El reloj corre a **33 ms (~30 ticks/s)** y el broadcaster emite un evento SSE
+  `estado` por tick (`priv/static/app.js`: `EventSource("/eventos")`).
+  En `index` cada evento repinta KPIs, mapa (reconstruye 15 marcadores con
+  `innerHTML`), panel, bitácora y banner. En `unidad` e `historial` cada evento
+  dispara además **`pintarUnidad()/pintarHistorial()` = 3 `fetch` por tick**
+  (`/api/estado` + `/api/vehiculos` + **`/api/entregas`, 206 KB / 901 filas**)
+  y reconstruye tablas/timeline enteras con `innerHTML`. Eso es ~90 peticiones/s
+  y repintados completos a 30 Hz por el proxy de Corellium → hilo principal
+  saturado, clicks sin respuesta. Sin espectadores SSE no hay JSON (guardia en
+  el broadcaster) y todo vuela: por eso "sin carga funciona".
+- Medido en el Pi (localhost): `/api/entregas` tarda **12 ms / 206 KB** y
+  `/api/estado` es instantáneo: el backend no es el cuello; lo es el bucle
+  fetch+parse+DOM **en el navegador**, amplificado por cualquier proxy WAN.
+- **La jornada no frena el reloj**: con `reloj_auto=true` el tick sigue para
+  siempre tras el tick 2160 (observado: tick 13002) y el SSE sigue a 30 Hz
+  con la flota ya en `en_ruta` idle. No des por hecho que al terminar la demo
+  la UI se quieta.
+- Ante selects/clicks erráticos, primero **hard reload (Ctrl+F5)**: hay
+  middleware `no-cache` en cowboy (commit 73233d7/10790ab) y un JS viejo en
+  caché producía exactamente "botones muertos". Verificación: las respuestas
+  de estáticos llevan `cache-control: no-cache, must-revalidate`.
+- No se arregla reduciendo la carga simulada (no tocar `tick_interval_ms`,
+  `vehiculos`, `entregas`, `ticks_por_parada` de `sys.config` para "arreglar"
+  la UI). La dirección verificada/sin tocar dominio:
+  1. Desacoplar pintado del tick: acumular el último evento SSE y pintar a
+     4–10 Hz con `requestAnimationFrame` + bandera de "ya programado"; no
+     pintar si `document.hidden`.
+  2. En `unidad`/`historial`, **no refetchear `/api/entregas` por tick**:
+     entrar una vez, refrescar a 2–5 s o con botón manual; reusar lo que ya
+     trae el SSE (`resumen` + `unidades`), y guardar banderas anti-solapado
+     para que `pintarUnidad()` no se apile contra sí misma.
+  3. Detener o estrangular el SSE tras `ticks_jornada` (o bajar la cadencia
+     cuando no hay cambios) en vez de 30 Hz eternos.
+  4. No borrar/reconstruir el mapa entero por tick: reusar divs de marcadores
+     y moverlos con `transform` (posiciones X,Y ya vienen en el SSE).
+  5. Si se mantiene el refetch, pedir la entrega por unidad/estado en vez del
+     listado completo de 206 KB (pasando por `p29_api`/`p29_despachador:*`,
+     nunca ETS desde el handler).
+- Cobertura: `rebar3 ct` cubre estáticos, `/api/*`, caos por HTTP y regresión
+  SSE (`sse_regresion_y_vivos`). No hay test de cadencia de pintado: si tocas
+  `app.js`, pasa `node --check priv/static/app.js` y valida en navegador
+  contra el Pi con SSE abierto antes de darlo por hecho.
 
 ## Trampas que ya costaron tiempo (fase web)
 
@@ -161,3 +210,17 @@ rebar3 release      # _build/prod/rel/p29_flotilla_de_reparto
 - `config/vm.args` fija `+S 4:4`: nunca pongas más schedulers que cores físicos.
 - `config/sys.config` lleva los envs de la demo, no secretos; la cookie de `vm.args`
   (`cambiar_en_produccion`) es de ejemplo y se cambia al desplegar.
+- El servicio corre el release de **`_build/default/rel/`** (ver
+  `deploy/p29-flotilla.service`), no `_build/prod/rel/`: `rebar3 release` y
+  comprobar que el binario de esa ruta es el que está en `systemctl status`.
+  Reconstruir sin reiniciar el servicio deja en `:8080` el release viejo con
+  estáticos viejos.
+- Cotejo rápido Pi vs local (todo lectura, vía `ssh flotilla`):
+  `md5sum priv/static/app.js src/p29_json.erl config/sys.config` en ambos
+  lados; `git rev-parse HEAD` en ambos; en el Pi
+  `curl -s -o /dev/null -w '%{time_total}' http://127.0.0.1:8080/api/entregas`
+  para separar "lento en el navegador" (~12 ms en Pi) de "lento a través del
+  proxy de Corellium". Antes de desplegar: `git fetch` en Windows, comparar
+  HEAD local vs `origin/main`, editar y empujar desde Windows, y solo entonces
+  `git pull --ff-only` en el Pi (un clon viejo desplegado sirvió estáticos
+  con botones/hrefs rotos ya corregidos aguas arriba).

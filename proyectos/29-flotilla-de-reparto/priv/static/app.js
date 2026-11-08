@@ -40,6 +40,48 @@ const pctTxt = (x, total) => total ? `${Math.round(100 * x / total)}%` : "0%";
 /* estado global de la jornada para las páginas */
 const g = { resumen: null, unidades: [], entregas: [] };
 
+/* ---- schedulador anti atasco ----
+ * El SSE llega a ~30 Hz (un evento por tick de 33 ms). Pintar el DOM y, en
+ * unidad/historial, refetchear /api/entregas (206 KB) a esa cadencia satura
+ * el hilo principal y los botones parecen muertos. Se acumula el ÚLTIMO
+ * evento y se pinta a ~6 Hz (cada 160 ms), con rAF en medio para no pisar
+ * un frame en curso. El dominio no se toca: solo baja la cadencia de pintado. */
+const PINTURA_MS = 160;
+let ultimoSSE = null, sseProgramado = false;
+let ultimoRefetch = 0, refetchEnVuelo = false;
+const SSE_PAGINA = () => document.body.dataset.page;
+
+const programarPintado = () => {
+  if (sseProgramado) return;
+  sseProgramado = true;
+  const espera = Math.max(0, PINTURA_MS - (Date.now() - ultimaPintura));
+  setTimeout(() => {
+    sseProgramado = false;
+    if (document.hidden || !ultimoSSE) return;
+    ultimaPintura = Date.now();
+    const r = ultimoSSE, pagina = SSE_PAGINA();
+    pintarResumen(r);
+    const unidades = r.unidades || [];
+    if (pagina === "index") {
+      g.unidades = unidades;
+      pintarKpis(r, unidades);
+      pintarMapa(r, unidades);
+      pintarPanelUnidades(unidades);
+      pintarBitacora(r, unidades);
+      banner(unidades);
+    } else if (pagina === "unidad") {
+      rellenarUnidad(unidades, g.entregas, r);
+    } else if (pagina === "historial") {
+      // timeline + KPIs pesados: como máximo un rebuild cada 2 s
+      if (Date.now() - ultimoRefetch >= 2000) {
+        ultimoRefetch = Date.now();
+        rellenarHistorial(unidades, g.entregas, r);
+      }
+    }
+  }, espera);
+};
+let ultimaPintura = 0;
+
 /* estado del semaforo: normal / alerta / critico (para filtros y colores) */
 const severidadDe = (estado) =>
   estado === "averiado" ? "critico" : estado === "sin_senal" ? "alerta" : "normal";
@@ -186,51 +228,96 @@ const MARCA = {
 };
 const ET_CALLOUT = { en_ruta: "EN RUTA", sin_senal: "SIN SEÑAL", averiado: "DETENIDO" };
 
+/* Mapa con marcadores reutilizables: reconstruir 15 nodos con innerHTML a
+ * cada pintado fuerza relayout y es lo que más atasca el hilo principal.
+ * Aquí cada unidad conserva su div (Mapa por id) y por pintado solo se
+ * mueve (left/top) y se actualiza el callout; los nodos de unidades que
+ * desaparecen se ocultan. Sin cambios de diseño ni de datos. */
+const marcadores = new Map();
+const crearMarcador = (id) => {
+  const el = document.createElement("div");
+  el.className = "marcador";
+  el.innerHTML = `
+      <div class="pin-area">
+        <span class="pulso" style="display:none;background:transparent;width:40px;height:40px;left:0"></span>
+        <div class="pin"><span class="material-symbols-outlined"></span></div>
+      </div>
+      <div class="callout">
+        <div class="fila1">
+          <span class="id"></span>
+          <span class="badge-peque"></span>
+        </div>
+        <span class="detalle"></span>
+        <div class="datos"><span></span><span></span></div>
+      </div>`;
+  el.onclick = (ev) => {
+    if (ev.target.closest("button") === null) location.href = `/unidad.html?id=${id}`;
+  };
+  return el;
+};
+
 const pintarMapa = (r, unidades) => {
   const cont = $("marcadores");
   if (!cont) return;
-  cont.innerHTML = "";
+  const hud = $("hud-tick");
+  if (hud) hud.textContent = `TICK ${r.tick} · ${horaDeTick(r.tick)}`;
   let vivaMostradas = 0;
+  const vistas = new Set();
   const ordenadas = [...unidades].sort((a, b) =>
     severidadDe(b.estado).localeCompare(severidadDe(a.estado)));
-  $("hud-tick").textContent = `TICK ${r.tick} · ${horaDeTick(r.tick)}`;
   for (const u of ordenadas) {
     const m = MARCA[u.estado] || MARCA.en_ruta;
     const llamable = u.estado !== "en_ruta" || vivaMostradas < 3;
     if (u.estado === "en_ruta") vivaMostradas++;
-    const marcador = document.createElement("div");
+    let marcador = marcadores.get(u.id);
+    if (!marcador) {
+      marcador = crearMarcador(u.id);
+      marcadores.set(u.id, marcador);
+      cont.appendChild(marcador);
+    }
+    vistas.add(u.id);
+    marcador.style.display = "";
     marcador.className = `marcador ${m.clase}`;
     marcador.style.left = `${(u.x + 0.5) * 10}%`;
     marcador.style.top = `${(9.5 - u.y + 0.5) * 10}%`;
+
+    const pulso = marcador.querySelector(".pulso");
     const colorPulso = u.estado === "averiado" ? "var(--error)" :
       u.estado === "sin_senal" ? "var(--warn)" : "var(--ok)";
-    marcador.innerHTML = `
-      <div class="pin-area">
-        ${m.clase !== "" ? `<span class="pulso" style="background:transparent;box-shadow:0 0 0 1px ${colorPulso};width:40px;height:40px;left:0"></span>` : ""}
-        <div class="pin" style="background:${m.color}">
-          <span class="material-symbols-outlined">${m.icono}</span>
-        </div>
-      </div>
-      ${llamable ? `
-      <div class="callout ${u.estado === "averiado" ? "critico" : u.estado === "sin_senal" ? "ambar" : "verde"}">
-        <div class="fila1">
-          <span class="id">U-${pad(u.id)}${u.estado === "averiado" ? " [SOS]" : ""}</span>
-          <span class="badge-peque">${ET_CALLOUT[u.estado] || ""}</span>
-        </div>
-        <span class="detalle">Carga ${u.carga} / ${u.capacidad} kg · ${u.entregadas} entregadas</span>
-        <div class="datos">
-          <span>(${u.x}, ${u.y})</span>
-          <span>GPS ${horaDeTick(u.ultimo_reporte)}</span>
-        </div>
-        ${u.estado !== "en_ruta" ? `
-        <button class="btn-despacho" onclick="abrirModal(${u.id})">Despachar asistencia</button>` : ""}
-      </div>` : ""}
-    `;
-    marcador.onclick = (ev) => {
-      if (ev.target.closest("button") === null)
-        location.href = `/unidad.html?id=${u.id}`;
-    };
-    cont.appendChild(marcador);
+    pulso.style.display = m.clase !== "" ? "" : "none";
+    pulso.style.boxShadow = `0 0 0 1px ${colorPulso}`;
+
+    const pin = marcador.querySelector(".pin");
+    pin.style.background = m.color;
+    pin.querySelector(".material-symbols-outlined").textContent = m.icono;
+
+    const callout = marcador.querySelector(".callout");
+    callout.className = `callout ${u.estado === "averiado" ? "critico" : u.estado === "sin_senal" ? "ambar" : "verde"}`;
+    callout.style.display = llamable ? "" : "none";
+    if (llamable) {
+      callout.querySelector(".id").textContent = `U-${pad(u.id)}${u.estado === "averiado" ? " [SOS]" : ""}`;
+      callout.querySelector(".badge-peque").textContent = ET_CALLOUT[u.estado] || "";
+      callout.querySelector(".detalle").textContent =
+        `Carga ${u.carga} / ${u.capacidad} kg · ${u.entregadas} entregadas`;
+      const datos = callout.querySelectorAll(".datos span");
+      datos[0].textContent = `(${u.x}, ${u.y})`;
+      datos[1].textContent = `GPS ${horaDeTick(u.ultimo_reporte)}`;
+      let boton = callout.querySelector(".btn-despacho");
+      if (u.estado !== "en_ruta") {
+        if (!boton) {
+          boton = document.createElement("button");
+          boton.className = "btn-despacho";
+          boton.onclick = () => abrirModal(u.id);
+          callout.appendChild(boton);
+        }
+        boton.textContent = "Despachar asistencia";
+      } else if (boton) {
+        boton.remove();
+      }
+    }
+  }
+  for (const [id, el] of marcadores) {
+    if (!vistas.has(id)) el.style.display = "none";
   }
 };
 
@@ -350,11 +437,13 @@ const mostrarToast = (mensaje, tipo) => {
   toastTimer = setTimeout(() => t.classList.remove("abierto"), 4000);
 };
 
-/* ---- página index ---- */
+/* ---- página index ----
+ * El dashboard solo usa resumen + unidades: pedir también /api/entregas
+ * (206 KB) era trabajo inútil en cada carga y en cada refetch. */
 const pintarIndex = async () => {
-  const [resumen, unidades, entregas] = await Promise.all(
-    [getJSON("/api/estado"), getJSON("/api/vehiculos"), getJSON("/api/entregas")]);
-  g.unidades = unidades; g.entregas = entregas;
+  const [resumen, unidades] = await Promise.all(
+    [getJSON("/api/estado"), getJSON("/api/vehiculos")]);
+  g.unidades = unidades;
   pintarResumen(resumen);
   pintarKpis(resumen, unidades);
   pintarMapa(resumen, unidades);
@@ -372,10 +461,11 @@ const SEMAFORO = {
   averiado:  { clase: "rojo",  lb: "ESTADO: SEMÁFORO ROJO",  dato: "AVERIADA · SOS",
                chip: "DETENIDA", sub: "Inmovilizada por avería (caos). p29_flota_sup la relanza vacía en el relanzamiento." },
 };
-const pintarUnidad = async () => {
+/* Núcleo puro de pintado de la ficha: recibe datos ya cargados. Lo usa
+ * tanto el refetch (pintarUnidad) como el bucle SSE (con g.entregas
+ * cacheado), así se repinta a 6 Hz sin pedir /api/entregas (206 KB) por tick. */
+const rellenarUnidad = (unidades, entregas, resumen) => {
   const id = parseInt(new URLSearchParams(location.search).get("id"), 10) || 1;
-  const [unidades, entregas, resumen] = await Promise.all(
-    [getJSON("/api/vehiculos"), getJSON("/api/entregas"), getJSON("/api/estado")]);
   g.unidades = unidades; g.entregas = entregas;
   pintarResumen(resumen);
   const u = unidades.find((x) => x.id === id);
@@ -452,6 +542,21 @@ const pintarUnidad = async () => {
   $("campo-unidad").value = `U-${pad(id)} · carga ${u.carga}/${u.capacidad} kg · (${u.x},${u.y})`;
 };
 
+/* Refetch completo con guarda: si ya hay uno en vuelo se ignora (el bucle
+ * SSE llamaba a pintarUnidad por tick y las promesas se acumulaban).
+ * {forzar:true} tras una acción del usuario (avería/urgente) repinta ya. */
+const pintarUnidad = async (opts = {}) => {
+  if (refetchEnVuelo && !opts.forzar) return;
+  refetchEnVuelo = true;
+  try {
+    const [unidades, entregas, resumen] = await Promise.all(
+      [getJSON("/api/vehiculos"), getJSON("/api/entregas"), getJSON("/api/estado")]);
+    rellenarUnidad(unidades, entregas, resumen);
+  } finally {
+    refetchEnVuelo = false;
+  }
+};
+
 /* ---- módulo de reasignación (maqueta 2) ---- */
 const TEXTOS_OPCION = {
   A: "AVERIAR UNIDAD. LA CARGA VIVA VUELVE A PENDIENTE Y EL DESPACHADOR REASIGNA POR GREEDY FIRST-FIT EN EL MISMO TICK. CONFIRMAR CONDICIÓN DE FLOTA EN /METRICS.",
@@ -497,7 +602,7 @@ const transmitirReasignacion = async (ev) => {
     mostrarToast(opcionActual === "A"
       ? `¡Avería aplicada a U-${pad(id)}! La carga reasignada por el despachador.`
       : `¡Urgencia marcada para U-${pad(id)}! Atenderá con prioridad la entrega.`);
-    pintarUnidad();
+    pintarUnidad({ forzar: true });
   } else {
     mostrarToast(`Error: ${r.error || "la unidad no está disponible"}`, "error");
   }
@@ -555,9 +660,8 @@ const itemsCrono = (unidades, entregas) => {
   }
   return items;
 };
-const pintarHistorial = async () => {
-  const [entregas, unidades, resumen] = await Promise.all(
-    [getJSON("/api/entregas"), getJSON("/api/vehiculos"), getJSON("/api/estado")]);
+/* Núcleo puro de pintado del historial (ver rellenarUnidad). */
+const rellenarHistorial = (unidades, entregas, resumen) => {
   g.unidades = unidades; g.entregas = entregas;
   pintarResumen(resumen);
   const e = resumen.entregas || {}, v = resumen.vehiculos || {};
@@ -635,6 +739,20 @@ const pintarHistorial = async () => {
   sel.innerHTML =
     `<option value="">Seleccione activo…</option>` +
     unidades.map((u) => `<option value="${u.id}">U-${pad(u.id)} · carga ${u.carga}/${u.capacidad} kg</option>`).join("");
+};
+
+/* Refetch completo con guarda (ver pintarUnidad). */
+const pintarHistorial = async () => {
+  if (refetchEnVuelo) return;
+  refetchEnVuelo = true;
+  ultimoRefetch = Date.now();
+  try {
+    const [entregas, unidades, resumen] = await Promise.all(
+      [getJSON("/api/entregas"), getJSON("/api/vehiculos"), getJSON("/api/estado")]);
+    rellenarHistorial(unidades, entregas, resumen);
+  } finally {
+    refetchEnVuelo = false;
+  }
 };
 const toggleCrono = (id) => $(id)?.classList.toggle("oculto");
 const applyFilters = () => {
@@ -715,23 +833,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (pagina === "index") await pintarIndex();
   else if (pagina === "unidad") await pintarUnidad();
   else if (pagina === "historial") await pintarHistorial();
-  // en vivo: un evento "estado" por tick con resumen + instantánea de unidades
+  // en vivo: el SSE llega por tick (~30 Hz) pero la UI pinta a ~6 Hz con
+  // requestAnimationFrame; unidad/historial NO refetchean por tick (ver
+  // programarPintado/rellenarUnidad/rellenarHistorial).
   const flujo = new EventSource("/eventos");
   flujo.addEventListener("estado", (m) => {
-    const r = JSON.parse(m.data);
-    pintarResumen(r);
-    pintarKpis(r, r.unidades || []);
-    if (pagina === "index") {
-      g.unidades = r.unidades || [];
-      pintarMapa(r, g.unidades);
-      pintarPanelUnidades(g.unidades);
-      pintarBitacora(r, g.unidades);
-      banner(g.unidades);
-    } else if (pagina === "unidad") {
-      pintarUnidad();
-    } else if (pagina === "historial") {
-      pintarHistorial();
-    }
+    ultimoSSE = JSON.parse(m.data);
+    requestAnimationFrame(programarPintado);
   });
 });
 
