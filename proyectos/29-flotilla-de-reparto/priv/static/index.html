@@ -1,317 +1,403 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flotilla de Reparto #29 · Control</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
-<link rel="stylesheet" href="/app.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0B1120">
+  <title>AeroCargo · Monitoreo en Vivo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chivo:wght@600;700&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=local_shipping,airplanemode_active,radar,warning,check_circle,error,schedule,inventory_2,local_shipping,settings,menu,chevron_right,expand_more,chevron_left,refresh,flight_takeoff,flight_land,local_airport,directions_runway,speed,altitude,inventory,assignment,report_problem,chat,visibility,visibility_off,filter_list,delete,edit,content_copy,download,upload,print,fullscreen,close,more_vert,info,notifications,notifications_active,bolt,shield,lock,unlock,key,verified,pending_actions" rel="stylesheet">
+  <link rel="stylesheet" href="app.css">
 </head>
-<body data-page="index">
-
-<!-- BANNER DE INCIDENTE ACTIVO (idéntico a la maqueta; se llena con el vivo) -->
-<div class="banner-incidente" id="banner-incidente">
-  <span class="material-symbols-outlined icono">warning</span>
-  <div class="grupo">
-    <span class="tag">Incidente NV-1</span>
-    <span class="texto" id="banner-texto">Flota nominal · sin incidentes en el canal de GPS</span>
-  </div>
-  <button class="btn-banner" onclick="setEstado('critico', null)">
-    Atender incidente <span class="material-symbols-outlined" style="font-size:16px">arrow_forward</span>
-  </button>
-</div>
-
-<div class="contenedor">
-
-<header class="cabecera-op cabecera-op-fila">
-  <div style="display:flex;flex-direction:column;gap:var(--ss)">
-    <div class="kicker">
-      <span class="caps">Matriz táctica activa</span>
-      <span class="vivo anim-vivo"></span>
-      <span class="estado-radar">RADAR MULTIMODAL ACTIVO</span>
-    </div>
-    <h1 class="principal" style="margin:0">Monitoreo de enlace y telemetría central</h1>
-  </div>
-  <div style="display:flex;align-items:center;gap:var(--ss);flex-wrap:wrap">
-    <div class="refresco">
-      <div class="col">
-        <span class="caps" style="color:var(--on-variant)">Ciclo de refresco</span>
-        <span class="telemetry" style="font-weight:700">GPS cada 10 s (simulado)</span>
-      </div>
-      <span class="punto"></span>
-      <span class="telemetry" id="tick-hora" style="font-weight:700">--:--</span>
-    </div>
-    <a class="btn-primario" href="/historial.html">
-      <span class="material-symbols-outlined">add_circle</span>
-      <span>Bitácora / nueva misión</span>
-    </a>
-  </div>
-</header>
-
-<!-- 4 TARJETAS KPI DE SEMÁFORO ESTRICTO -->
-<section class="kpis" id="kpis">
-  <div class="kpi">
-    <div class="superior">
-      <div style="display:flex;flex-direction:column">
-        <span class="etiqueta">Flota en operación</span>
-        <span class="dato" style="margin-top:4px"><span id="kf-valor">–</span>
-          <span class="unidad" id="kf-sub">unidades</span></span>
-      </div>
-      <div class="icono-kpi bg-neut"><span class="material-symbols-outlined">hub</span></div>
-    </div>
-    <div class="pie-kpi">
-      <span style="display:flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:16px;color:var(--tertiary)">local_shipping</span> <b id="kf-enruta" style="color:var(--on-surface)">–</b> en ruta</span>
-      <span><b id="kf-entregadas" style="color:var(--on-surface)">–</b> entregadas hoy</span>
-    </div>
-    <div class="barra bar-neut"><i id="kf-barra" style="width:0%"></i></div>
-  </div>
-
-  <div class="kpi clicable" onclick="setEstado('normal', null)" title="Filtrar unidades normales">
-    <div class="superior">
-      <div style="display:flex;flex-direction:column">
-        <span class="etiqueta"><span class="punto" style="background:var(--ok)"></span>En ruta / a tiempo</span>
-        <span class="dato" style="margin-top:4px;color:var(--on-surface)"><span id="ke-valor">–</span>
-          <span class="pct pct-verde" id="ke-pct">–</span></span>
-      </div>
-      <div class="icono-kpi bg-ok"><span class="material-symbols-outlined">verified</span></div>
-    </div>
-    <div class="pie-kpi">
-      <span>Entregas en la calle</span><b class="verde" id="ke-sub">–</b>
-    </div>
-    <div class="barra bar-ok"><i id="ke-barra" style="width:0%"></i></div>
-  </div>
-
-  <div class="kpi clicable" onclick="setEstado('alerta', null)" title="Filtrar unidades sin señal">
-    <div class="superior">
-      <div style="display:flex;flex-direction:column">
-        <span class="etiqueta"><span class="punto" style="background:var(--warn)"></span>Alerta / sin señal GPS</span>
-        <span class="dato" style="margin-top:4px;color:var(--on-surface)"><span id="ka-valor">–</span>
-          <span class="pct pct-ambar" id="ka-pct">–</span></span>
-      </div>
-      <div class="icono-kpi bg-warn"><span class="material-symbols-outlined">speed</span></div>
-    </div>
-    <div class="pie-kpi"><span>Retraso medio</span><b class="ambar" id="ka-sub">–</b></div>
-    <div class="barra bar-warn"><i id="ka-barra" style="width:0%"></i></div>
-  </div>
-
-  <div class="kpi clicable" style="box-shadow:0 0 0 2px rgba(186,26,26,.2)"
-       onclick="setEstado('critico', null)" title="Filtrar unidades críticas">
-    <div class="superior">
-      <div style="display:flex;flex-direction:column">
-        <span class="etiqueta rojo"><span class="punto anim-pulso" style="background:var(--error)"></span>Crítico / avería / SOS</span>
-        <span class="dato rojo" style="margin-top:4px"><span id="kc-valor">–</span>
-          <span class="pct pct-rojo" id="kc-pct">–</span></span>
-      </div>
-      <div class="icono-kpi bg-crit"><span class="material-symbols-outlined">crisis_alert</span></div>
-    </div>
-    <div class="pie-kpi">
-      <span style="color:var(--on-variant)">Intervención urgente</span>
-      <b class="rojo" style="text-decoration:underline">FILTRAR (<span id="kc-sub">–</span>)</b>
-    </div>
-    <div class="barra bar-crit"><i id="kc-barra" style="width:0%"></i></div>
-  </div>
-</section>
-
-<!-- BARRA TÁCTIL DE FILTROS DE ESTADO -->
-<section class="barra-filtros">
-  <div class="grupo-filtros" id="filter-status-group">
-    <span class="caps">Estado:</span>
-    <button class="btn-filtro activo" data-estado="todos" onclick="setEstado('todos', this)">
-      TODAS (<span class="c-todas">–</span>)
-    </button>
-    <button class="btn-filtro" data-estado="normal" onclick="setEstado('normal', this)">
-      <span class="punto-filtro" style="background:var(--ok)"></span>NORMAL (<span class="c-normal">–</span>)
-    </button>
-    <button class="btn-filtro" data-estado="alerta" onclick="setEstado('alerta', this)">
-      <span class="punto-filtro" style="background:var(--warn)"></span>SIN SEÑAL (<span class="c-alerta">–</span>)
-    </button>
-    <button class="btn-filtro" data-estado="critico" onclick="setEstado('critico', this)" style="color:var(--error)">
-      <span class="punto-filtro anim-pulso" style="background:var(--error)"></span>CRÍTICOS (<span class="c-critico">–</span>)
-    </button>
-  </div>
-  <div class="grupo-filtros" id="filter-modality-group">
-    <span class="caps">Modo:</span>
-    <button class="btn-filtro activo" disabled style="opacity:.9">
-      <span class="material-symbols-outlined" style="font-size:18px">local_shipping</span>Terrestre / Flota
-    </button>
-  </div>
-</section>
-
-<!-- VISTA CENTRAL: RADAR GPS (8 COLS) + ATENCIÓN REQUERIDA (4 COLS) -->
-<div class="layout-12">
-
-  <section class="mapa-tactico col-8">
-    <div class="mapa-cabeza">
-      <div class="titulo-mapa">
-        <span class="material-symbols-outlined">explore</span>
-        <div>
-          <h2>Sector Metrópoli · rejilla 10×10</h2>
-          <p class="sub-mapa" style="margin:2px 0 0">Proyección por sector · GPS cada 10 s simulados · 15 unidades</p>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:var(--sx)">
-        <button class="toggle-capa activo" id="tg-rejilla" onclick="toggleCapa(this,'rejilla')">
-          <span class="material-symbols-outlined" style="font-size:18px;color:var(--tertiary)">grid_4x4</span>
-          <span>Rejilla HUD</span>
+<body>
+  <header class="fixed top-0 left-0 right-0 z-30 bg-surface-base border-b border-outline-variant" style="height: var(--header-h);" role="banner">
+    <div class="flex items-center justify-between px-gutter-desk h-full gap-md">
+      <div class="flex items-center gap-md xl:hidden">
+        <button class="btn-ghost" id="sidebarToggle" aria-label="Abrir panel de flota" aria-expanded="false">
+          <span class="material-symbols-outlined">menu</span>
         </button>
-        <button class="toggle-capa activo" id="tg-velo" onclick="toggleCapa(this,'velo')">
-          <span class="material-symbols-outlined" style="font-size:18px">texture</span>
-          <span>Atenuación</span>
+      </div>
+      <div class="flex items-center gap-sm">
+        <span class="material-symbols-outlined text-primary" style="font-size: 28px;">airplanemode_active</span>
+        <h1 class="font-display text-headline-lg">AeroCargo</h1>
+      </div>
+      <div class="flex-1 max-w-xl">
+        <nav class="tabs" aria-label="Navegación principal">
+          <a href="index.html" aria-current="page"><span class="material-symbols-outlined">radar</span> Monitoreo</a>
+          <a href="historial.html"><span class="material-symbols-outlined">inventory_2</span> Bitácora</a>
+        </nav>
+      </div>
+      <div class="flex items-center gap-sm">
+        <div class="hidden sm:flex items-center gap-xs px-sm py-xs bg-surface-elevated rounded border border-outline-variant">
+          <span class="material-symbols-outlined text-info" style="font-size: 14px;">schedule</span>
+          <span id="clockUtc" class="font-mono text-label-code">--:--:--</span>
+          <span class="text-secondary text-label-sm">Z</span>
+        </div>
+        <div class="hidden sm:flex items-center gap-xs px-sm py-xs bg-surface-elevated rounded border border-outline-variant">
+          <span class="material-symbols-outlined text-primary" style="font-size: 14px;">local_shipping</span>
+          <span id="fleetCount" class="font-mono text-label-code">0</span>
+        </div>
+        <button class="btn-secondary btn-sm" id="settingsBtn" aria-label="Configuración">
+          <span class="material-symbols-outlined">settings</span>
         </button>
       </div>
     </div>
+  </header>
 
-    <!-- canvas del mapa: fondo satelital + rejilla HUD + marcadores en vivo -->
-    <div class="mapa-canvas" id="mapa-canvas">
-      <div class="mapa-zoom" id="mapa-zoom">
-        <div class="mapa-fondo" style="background-image:url('https://lh3.googleusercontent.com/aida-public/AB6AXuCobOtjmvUp6tqHv_ce5CXS5xjJ1zG-WNysSMTOo8cGqyE3ID46d3tnAg230BPbQ-pMC-SwVOfmWXvj5IKXGiFwKWP9jdNQIMFRBvqflWojY9tAA8ZUqGiD83bKK1UsiQJ4cmxVkbtfVyaEzNOKh3oh_kJJtNoYQA8qWnOGsLcDtSgraGakwkaY9dQ50uWVDatSRd61-KbNoNky2r-ATNVldbriyJo-O50utMH7ViI')"></div>
-        <svg class="mapa-svg" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern height="60" id="grid-pattern" patternunits="userSpaceOnUse" width="60">
-              <path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(0,97,148,.25)" stroke-dasharray="2 4" stroke-width="0.5"></path>
-            </pattern>
-          </defs>
-          <rect fill="url(#grid-pattern)" height="100%" width="100%"></rect>
-          <path d="M 120 540 Q 280 430 410 320 T 680 180 T 840 90" fill="none" opacity="0.6" stroke="#64748b" stroke-linecap="round" stroke-width="6"></path>
-          <path d="M 120 540 Q 280 430 410 320 T 680 180 T 840 90" fill="none" opacity="0.9" stroke="#f59e0b" stroke-dasharray="6 6" stroke-width="2"></path>
-          <path d="M 860 110 L 520 280 L 260 410" fill="none" stroke="#007cb1" stroke-dasharray="8 6" stroke-width="2.5"></path>
-        </svg>
-        <div class="hud-capa" id="capa-velo"></div>
-        <div id="marcadores"></div>
-      </div>
-
-      <div class="hud">
-        <span class="caps" style="color:var(--on-variant)">REJILLA 10×10 · 100 SECTORES</span>
-        <span class="telemetry" style="font-weight:700;color:var(--primary)">GPS 10 S · FL N/A</span>
-        <span class="caps telem" id="hud-tick" style="color:var(--on-variant)">TICK –</span>
-      </div>
-
-      <div class="controles-hud">
-        <div class="grupo-zoom">
-          <button onclick="mapZoom(1)" title="Acercar"><span class="material-symbols-outlined">add</span></button>
-          <div class="separador"></div>
-          <button onclick="mapZoom(-1)" title="Alejar"><span class="material-symbols-outlined">remove</span></button>
-        </div>
-        <button class="recentrar" onclick="recenterMap()" title="Centrar flota completa">
-          <span class="material-symbols-outlined">my_location</span>
+  <aside id="sidebar" class="fixed top-0 left-0 bottom-0 z-40 w-64 bg-surface-base border-r border-outline-variant transform -translate-x-full transition-transform duration-300 lg:translate-x-0 lg:static lg:bottom-auto lg:h-auto" role="complementary" aria-label="Panel de flota y filtros">
+    <div class="h-full flex flex-col overflow-y-auto p-space-md gap-md">
+      <div class="flex items-center justify-between">
+        <h2 class="font-display text-headline-sm">Flota Activa</h2>
+        <button class="btn-ghost btn-sm xl:hidden" id="sidebarClose" aria-label="Cerrar panel">
+          <span class="material-symbols-outlined">chevron_left</span>
         </button>
       </div>
 
-      <div class="leyenda-flotante">
-        <div class="item"><span class="punto" style="background:var(--ok)"></span><span>Nominal</span></div>
-        <div class="item"><span class="punto" style="background:var(--warn)"></span><span>Sin señal</span></div>
-        <div class="item"><span class="punto" style="background:var(--error)"></span><span>Crítico / fallo</span></div>
+      <div class="input-wrapper">
+        <span class="material-symbols-outlined">filter_list</span>
+        <input type="search" id="fleetSearch" class="input" placeholder="Buscar aeronave, AWB, IATA..." aria-label="Filtrar flota">
+      </div>
+
+      <div class="space-xs">
+        <label class="flex items-center gap-sm cursor-pointer">
+          <input type="checkbox" class="filter-checkbox" name="filterSector" value="aereo" checked>
+          <span class="material-symbols-outlined text-primary">flight_takeoff</span>
+          <span class="font-medium text-body-sm">Aéreo Internacional</span>
+          <span id="countAereo" class="ml-auto font-mono text-label-badge text-info">0</span>
+        </label>
+        <label class="flex items-center gap-sm cursor-pointer">
+          <input type="checkbox" class="filter-checkbox" name="filterSector" value="troncal" checked>
+          <span class="material-symbols-outlined text-info">directions_runway</span>
+          <span class="font-medium text-body-sm">Troncal Terrestre</span>
+          <span id="countTroncal" class="ml-auto font-mono text-label-badge text-info">0</span>
+        </label>
+        <label class="flex items-center gap-sm cursor-pointer">
+          <input type="checkbox" class="filter-checkbox" name="filterSector" value="ultima" checked>
+          <span class="material-symbols-outlined text-secondary">local_shipping</span>
+          <span class="font-medium text-body-sm">Última Milla</span>
+          <span id="countUltima" class="ml-auto font-mono text-label-badge text-info">0</span>
+        </label>
+      </div>
+
+      <div class="border-t border-outline-variant pt-md">
+        <h3 class="font-display text-label-badge text-secondary mb-sm">Estados</h3>
+        <div class="space-xs">
+          <label class="flex items-center gap-sm cursor-pointer">
+            <input type="checkbox" class="filter-checkbox" name="filterStatus" value="nominal" checked>
+            <span class="w-2 h-2 rounded-full bg-status-ok"></span>
+            <span class="text-body-sm text-ok">Nominal</span>
+            <span id="countNominal" class="ml-auto font-mono text-label-badge text-ok">0</span>
+          </label>
+          <label class="flex items-center gap-sm cursor-pointer">
+            <input type="checkbox" class="filter-checkbox" name="filterStatus" value="alerta" checked>
+            <span class="w-2 h-2 rounded-full bg-status-warning animate-pulse-slow"></span>
+            <span class="text-body-sm text-warn">Alerta / Retraso</span>
+            <span id="countAlerta" class="ml-auto font-mono text-label-badge text-warn">0</span>
+          </label>
+          <label class="flex items-center gap-sm cursor-pointer">
+            <input type="checkbox" class="filter-checkbox" name="filterStatus" value="critico" checked>
+            <span class="w-2 h-2 rounded-full bg-status-critical animate-pulse"></span>
+            <span class="text-body-sm text-crit">Crítico</span>
+            <span id="countCritico" class="ml-auto font-mono text-label-badge text-crit">0</span>
+          </label>
+          <label class="flex items-center gap-sm cursor-pointer">
+            <input type="checkbox" class="filter-checkbox" name="filterStatus" value="tierra" checked>
+            <span class="w-2 h-2 rounded-full bg-status-info"></span>
+            <span class="text-body-sm text-info">En Tierra</span>
+            <span id="countTierra" class="ml-auto font-mono text-label-badge text-info">0</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="border-t border-outline-variant pt-md">
+        <h3 class="font-display text-label-badge text-secondary mb-sm">Prioridad</h3>
+        <div class="space-xs">
+          <label class="flex items-center gap-sm cursor-pointer">
+            <input type="checkbox" class="filter-checkbox" name="filterPriority" value="critica" checked>
+            <span class="material-symbols-outlined text-crit">report_problem</span>
+            <span class="text-body-sm">Crítica</span>
+            <span id="countPriCritica" class="ml-auto font-mono text-label-badge text-crit">0</span>
+          </label>
+          <label class="flex items-center gap-sm cursor-pointer">
+            <input type="checkbox" class="filter-checkbox" name="filterPriority" value="alta" checked>
+            <span class="material-symbols-outlined text-warn">warning</span>
+            <span class="text-body-sm">Alta</span>
+            <span id="countPriAlta" class="ml-auto font-mono text-label-badge text-warn">0</span>
+          </label>
+          <label class="flex items-center gap-sm cursor-pointer">
+            <input type="checkbox" class="filter-checkbox" name="filterPriority" value="normal" checked>
+            <span class="material-symbols-outlined text-ok">check_circle</span>
+            <span class="text-body-sm">Normal</span>
+            <span id="countPriNormal" class="ml-auto font-mono text-label-badge text-ok">0</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="mt-auto pt-md border-t border-outline-variant">
+        <button class="btn-secondary w-full justify-center gap-sm" id="refreshFleet">
+          <span class="material-symbols-outlined">refresh</span>
+          Actualizar flota
+        </button>
       </div>
     </div>
-  </section>
+  </aside>
 
-  <!-- PANEL DERECHO: ATENCIÓN REQUERIDA -->
-  <section class="col-4" style="display:flex;flex-direction:column;gap:var(--sm)">
-    <div class="cabecera-panel">
-      <div class="titulo-panel">
-        <span class="material-symbols-outlined">pending_actions</span>
-        <h2>Atención requerida</h2>
+  <div id="sidebarOverlay" class="fixed inset-0 z-35 bg-black/50 hidden lg:hidden" aria-hidden="true"></div>
+
+  <main class="pt-[calc(var(--header-h)+var(--space-gutter-desk))] pb-20 lg:pb-[calc(var(--space-gutter-desk)+4rem)] px-gutter-desk">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter-desk">
+      <section class="lg:col-span-5 xl:col-span-4 space-lg" aria-labelledby="fleetTitle" id="fleetPanel">
+        <header class="flex items-center justify-between">
+          <h2 id="fleetTitle" class="font-display text-headline-sm">Flota en Operaciones</h2>
+          <div class="flex items-center gap-xs">
+            <span id="liveBadge" class="badge badge-info hidden"><span class="dot animate-ping"></span> EN VIVO</span>
+            <span id="pausedBadge" class="badge badge-warn"><span class="dot"></span> PAUSADO</span>
+          </div>
+        </header>
+        <div id="fleetList" class="space-md overflow-y-auto max-h-[calc(100vh-200px)] lg:max-h-[calc(100vh-280px)]" role="list" aria-label="Lista de aeronaves">
+          <!-- Fleet cards injected here -->
+        </div>
+      </section>
+
+      <section class="lg:col-span-7 xl:col-span-8 space-lg" aria-labelledby="radarTitle">
+        <header class="flex items-center justify-between flex-wrap gap-sm">
+          <h2 id="radarTitle" class="font-display text-headline-sm">Radar Vectorial / Capa Meteorológica</h2>
+          <div class="flex items-center gap-sm">
+            <div class="flex items-center gap-xs bg-surface-elevated rounded border border-outline-variant p-xs">
+              <button type="button" class="btn-ghost btn-xs" id="layerFleet" aria-pressed="true"><span class="material-symbols-outlined">local_shipping</span></button>
+              <button type="button" class="btn-ghost btn-xs" id="layerWeather" aria-pressed="false"><span class="material-symbols-outlined">cloud</span></button>
+              <button type="button" class="btn-ghost btn-xs" id="layerRoutes" aria-pressed="true"><span class="material-symbols-outlined">directions_runway</span></button>
+              <button type="button" class="btn-ghost btn-xs" id="layerHubs" aria-pressed="true"><span class="material-symbols-outlined">local_airport</span></button>
+            </div>
+            <button class="btn-secondary btn-sm" id="fullscreenMap" aria-label="Pantalla completa">
+              <span class="material-symbols-outlined">fullscreen</span>
+            </button>
+          </div>
+        </header>
+        <div class="radar-container" id="radarContainer" role="img" aria-label="Mapa radar con posiciones de flota, rutas y meteorología">
+          <div class="radar-bg" id="radarBg"></div>
+          <div class="radar-grid"></div>
+          <div class="radar-rings" id="radarRings">
+            <div class="ring ring-1" aria-hidden="true"></div>
+            <div class="ring ring-2" aria-hidden="true"></div>
+            <div class="ring ring-3" aria-hidden="true"></div>
+          </div>
+          <svg class="radar-svg" id="radarSvg" aria-hidden="true"></svg>
+          <div id="radarPins" class="absolute inset-0 pointer-events-none"></div>
+          <div class="radar-hud">
+            <div class="item"><span class="dot" style="background: var(--status-ok);"></span><span>Aeronave nominal</span></div>
+            <div class="item"><span class="dot" style="background: var(--status-warning);"></span><span>Alerta / Meteo</span></div>
+            <div class="item"><span class="dot" style="background: var(--status-critical);"></span><span>Crítico / Emergencia</span></div>
+            <div class="item"><span class="dot" style="background: var(--status-info);"></span><span>En tierra</span></div>
+            <div class="item"><span class="dot" style="background: var(--primary);"></span><span>Waypoint activo</span></div>
+            <div class="item"><span class="material-symbols-outlined" style="font-size: 16px;">local_airport</span><span>Hub / Base</span></div>
+          </div>
+          <div class="radar-legend">
+            <div class="item"><span class="dot" style="background: var(--primary);"></span><span>Ruta planificada</span></div>
+            <div class="item"><span class="dot" style="background: var(--status-warning);"></span><span>Desvío / Hold</span></div>
+            <div class="item"><span class="dot" style="background: var(--status-critical);"></span><span>Vector emergencia</span></div>
+          </div>
+          <div class="radar-controls">
+            <button type="button" class="btn" id="zoomIn" aria-label="Acercar"><span class="material-symbols-outlined">add</span></button>
+            <button type="button" class="btn" id="zoomOut" aria-label="Alejar"><span class="material-symbols-outlined">remove</span></button>
+            <button type="button" class="btn" id="resetView" aria-label="Vista por defecto"><span class="material-symbols-outlined">center_focus_strong</span></button>
+            <button type="button" class="btn" id="centerFleet" aria-label="Centrar flota"><span class="material-symbols-outlined">my_location</span></button>
+          </div>
+        </div>
+      </section>
+
+      <section class="lg:col-span-12 xl:col-span-4 space-lg" aria-labelledby="telemetryTitle" id="telemetryPanel">
+        <header class="flex items-center justify-between">
+          <h2 id="telemetryTitle" class="font-display text-headline-sm">Telemetría y Despacho</h2>
+        </header>
+        <div id="telemetryContent" class="space-lg">
+          <div class="text-center py-xl text-secondary">
+            <span class="material-symbols-outlined text-muted" style="font-size: 48px;">radar</span>
+            <p class="mt-sm">Seleccione una aeronave para ver telemetría detallada, manifiesto de carga y opciones de reasignación.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="fixed bottom-0 left-0 right-0 z-30 bg-surface-base/95 backdrop-blur border-t border-outline-variant lg:hidden" role="contentinfo">
+    <nav class="nav-bottom" aria-label="Navegación móvil">
+      <a href="index.html" aria-current="page"><span class="material-symbols-outlined" style="font-size: 24px;">radar</span><span>Monitoreo</span></a>
+      <a href="historial.html"><span class="material-symbols-outlined" style="font-size: 24px;">inventory_2</span><span>Bitácora</span></a>
+    </nav>
+  </footer>
+
+  <div id="unitDetailDrawer" class="fixed inset-0 z-50 hidden lg:fixed lg:top-0 lg:right-0 lg:bottom-0 lg:inset-y-0 lg:inset-x-auto lg:w-[420px] lg:max-w-[90vw] bg-surface-base border-l border-outline-variant transform translate-x-full transition-transform duration-300 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="unitDetailTitle">
+    <div class="h-full flex flex-col p-space-md gap-md">
+      <header class="flex items-center justify-between border-b border-outline-variant pb-md flex-shrink-0">
+        <div class="flex items-center gap-sm">
+          <button class="btn-ghost" id="closeUnitDetail" aria-label="Cerrar detalle">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+          <div class="flex items-center gap-sm">
+            <div class="w-10 h-10 rounded bg-surface-elevated flex items-center justify-center" id="unitDetailIcon">
+              <span class="material-symbols-outlined text-primary">airplanemode_active</span>
+            </div>
+            <div>
+              <h3 id="unitDetailTitle" class="font-display text-headline-sm">AC-7402</h3>
+              <p id="unitDetailSub" class="text-secondary text-label-code">B767-300F · MEX → BOG</p>
+            </div>
+          </div>
+        </div>
+        <span id="unitDetailBadge" class="badge badge-ok"><span class="dot"></span> EN RUTA</span>
+      </header>
+
+      <div class="flex-1 overflow-y-auto space-lg" id="unitDetailContent">
+        <section aria-labelledby="gaugesTitle">
+          <h4 id="gaugesTitle" class="font-display text-label-badge text-secondary mb-md">Instrumentos de Vuelo</h4>
+          <div class="grid grid-cols-2 gap-md" id="gaugesGrid">
+            <div class="gauge-card">
+              <div class="gauge-header"><span>Altitud</span><span>FL</span></div>
+              <div class="gauge-value text-ok" id="gaugeAlt">--</div>
+              <div class="gauge-bar"><div id="gaugeAltBar" style="width: 0%;"></div></div>
+              <div class="gauge-footer" id="gaugeAltFooter">Techo: FL430</div>
+            </div>
+            <div class="gauge-card">
+              <div class="gauge-header"><span>Vel. Tierra</span><span>kts</span></div>
+              <div class="gauge-value" id="gaugeGs">--</div>
+              <div class="gauge-bar"><div id="gaugeGsBar" style="width: 0%;"></div></div>
+              <div class="gauge-footer" id="gaugeGsFooter">Máx: 530 kts</div>
+            </div>
+            <div class="gauge-card">
+              <div class="gauge-header"><span>Heading</span><span>° MAG</span></div>
+              <div class="gauge-value" id="gaugeHdg">--</div>
+              <div class="gauge-bar"><div id="gaugeHdgBar" style="width: 0%;"></div></div>
+              <div class="gauge-footer" id="gaugeHdgFooter">Rumbo magnético</div>
+            </div>
+            <div class="gauge-card">
+              <div class="gauge-header"><span>V/S</span><span>ft/min</span></div>
+              <div class="gauge-value" id="gaugeVs">--</div>
+              <div class="gauge-bar"><div id="gaugeVsBar" style="width: 0%;"></div></div>
+              <div class="gauge-footer" id="gaugeVsFooter">Vertical speed</div>
+            </div>
+            <div class="gauge-card lg:col-span-2">
+              <div class="gauge-header"><span>Carga Útil</span><span>kg</span></div>
+              <div class="gauge-value text-primary" id="gaugePayload">--</div>
+              <div class="gauge-bar"><div id="gaugePayloadBar" style="width: 0%;"></div></div>
+              <div class="gauge-footer" id="gaugePayloadFooter">MTOW: 186,880 kg</div>
+            </div>
+            <div class="gauge-card lg:col-span-2">
+              <div class="gauge-header"><span>Combustible</span><span>kg / %</span></div>
+              <div class="gauge-value" id="gaugeFuel">--</div>
+              <div class="gauge-bar"><div id="gaugeFuelBar" style="width: 0%;"></div></div>
+              <div class="gauge-footer" id="gaugeFuelFooter">Reserva: 30 min</div>
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="manifestTitle" class="border-t border-outline-variant pt-lg">
+          <header class="flex items-center justify-between mb-md">
+            <h4 id="manifestTitle" class="font-display text-label-badge text-secondary">Manifiesto de Carga</h4>
+            <span class="badge badge-info" id="manifestCount">0 AWB</span>
+          </header>
+          <div class="overflow-x-auto">
+            <table class="table" id="manifestTable">
+              <thead>
+                <tr>
+                  <th class="w-[80px]">AWB</th>
+                  <th>Descripción</th>
+                  <th class="w-[100px] text-right">Peso (kg)</th>
+                  <th class="w-[80px] text-right">Vol</th>
+                  <th class="w-[100px]">Prioridad</th>
+                  <th class="w-[120px]">Origen → Destino</th>
+                </tr>
+              </thead>
+              <tbody id="manifestBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section aria-labelledby="reassignTitle" class="border-t border-outline-variant pt-lg">
+          <header class="flex items-center justify-between mb-md">
+            <h4 id="reassignTitle" class="font-display text-label-badge text-secondary">Panel de Reasignación</h4>
+          </header>
+          <div id="reassignOptions" class="space-sm">
+            <p class="text-secondary text-body-sm text-center py-md">Seleccione una aeronave en ruta para ver opciones de reasignación.</p>
+          </div>
+        </section>
+
+        <section aria-labelledby="radarDetailTitle" class="border-t border-outline-variant pt-lg">
+          <header class="flex items-center justify-between mb-md">
+            <h4 id="radarDetailTitle" class="font-display text-label-badge text-secondary">Radar Táctico</h4>
+          </header>
+          <div class="radar-container" style="height: 220px; border-radius: var(--radius-lg);" id="unitRadarContainer">
+            <div class="radar-bg" style="opacity: 0.15;"></div>
+            <div class="radar-grid"></div>
+            <svg class="radar-svg" id="unitRadarSvg" aria-hidden="true"></svg>
+            <div id="unitRadarPins" class="absolute inset-0 pointer-events-none"></div>
+          </div>
+        </section>
+
+        <section aria-labelledby="acarsTitle" class="border-t border-outline-variant pt-lg">
+          <header class="flex items-center justify-between mb-md">
+            <h4 id="acarsTitle" class="font-display text-label-badge text-secondary">ACARS / Comunicaciones</h4>
+          </header>
+          <div class="acars-feed" id="acarsFeed" role="log" aria-live="polite" aria-label="Mensajes ACARS">
+            <div class="text-secondary text-body-sm text-center py-md">Sin mensajes recientes</div>
+          </div>
+          <div class="acars-input">
+            <input type="text" class="input" id="acarsInput" placeholder="Enviar mensaje ACARS..." aria-label="Mensaje ACARS saliente">
+            <button class="btn-primary btn-sm" id="acarsSend" aria-label="Enviar"><span class="material-symbols-outlined">send</span></button>
+          </div>
+        </section>
       </div>
-      <span class="badge-cuenta crit" id="badge-panel">– nodos</span>
-    </div>
-    <div class="lista-unidades" id="lista-unidades">
-      <div class="vacio-lista">Sincronizando telemetría de flota…</div>
-    </div>
-  </section>
-</div>
 
-<!-- SECCIÓN INFERIOR: BITÁCORA DE EVENTOS EN VIVO (3 COLUMNAS) -->
-<section class="seccion-bitacora">
-  <div class="cabecera-bitacora">
-    <div class="titulo-bitacora">
-      <span class="material-symbols-outlined">notifications_active</span>
-      <h2>Bitácora de eventos críticos &amp; telemetría en vivo</h2>
-    </div>
-    <div class="sincronia">
-      <span class="caps">Sincronizado por SSE</span>
-      <span class="punto"></span>
+      <footer class="border-t border-outline-variant pt-md flex-shrink-0">
+        <div class="flex flex-wrap gap-sm">
+          <button class="btn-primary flex-1 min-w-[140px]" id="btnReassign"><span class="material-symbols-outlined">flight_takeoff</span> Reasignar Ruta</button>
+          <button class="btn-critical flex-1 min-w-[140px]" id="btnDiversion"><span class="material-symbols-outlined">report_problem</span> Desvío Emergencia</button>
+          <button class="btn-secondary flex-1 min-w-[140px]" id="btnHold"><span class="material-symbols-outlined">schedule</span> Hold / Espera</button>
+          <button class="btn-secondary flex-1 min-w-[140px]" id="btnReturn"><span class="material-symbols-outlined">flight_land</span> Regresar Base</button>
+        </div>
+      </footer>
     </div>
   </div>
-  <div class="rejilla-alertas">
-    <div class="alerta-card critica" id="bit-critica">
-      <div class="cuerpo">
-        <div class="linea1">
-          <span class="clase"><span class="material-symbols-outlined" style="font-size:14px">report</span> Emergencia técnica</span>
-          <span class="cuando" id="bit-critica-cuando">--:--</span>
-        </div>
-        <p class="mensaje" id="bit-critica-mensaje" style="margin:0">Sin incidentes críticos detectados en la flota.</p>
-      </div>
-      <div class="pie-alerta">
-        <span class="fuente" id="bit-critica-fuente">flota nominal</span>
-        <button class="btn-alerta critica" onclick="setEstado('critico', null)">Intervenir</button>
-      </div>
-    </div>
-    <div class="alerta-card precaucion" id="bit-precaucion">
-      <div class="cuerpo">
-        <div class="linea1">
-          <span class="clase"><span class="material-symbols-outlined" style="font-size:14px">air</span> Alerta de señal GPS</span>
-          <span class="cuando" id="bit-pre-cuando">--:--</span>
-        </div>
-        <p class="mensaje" id="bit-pre-mensaje" style="margin:0">Unidades sinGPS no detectadas.</p>
-      </div>
-      <div class="pie-alerta">
-        <span class="fuente" id="bit-pre-fuente">rejilla 10×10</span>
-        <button class="btn-alerta precaucion" onclick="setEstado('alerta', null)">Ver unidades</button>
-      </div>
-    </div>
-    <div class="alerta-card info" id="bit-info">
-      <div class="cuerpo">
-        <div class="linea1">
-          <span class="clase"><span class="material-symbols-outlined" style="font-size:14px">traffic</span> Despacho &amp; retrasos</span>
-          <span class="cuando" id="bit-info-cuando">--:--</span>
-        </div>
-        <p class="mensaje" id="bit-info-mensaje" style="margin:0">Sincronizando resumen del despachador…</p>
-      </div>
-      <div class="pie-alerta">
-        <span class="fuente" id="bit-info-fuente">p29_despachador</span>
-        <a href="/historial.html" class="btn-alerta info" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px">Bitácora</a>
-      </div>
+
+  <div id="unitDetailOverlay" class="fixed inset-0 z-45 bg-black/50 hidden lg:hidden" aria-hidden="true"></div>
+
+  <div class="modal-overlay" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="modal-box">
+      <header class="modal-header">
+        <div class="icon" id="confirmIcon"><span class="material-symbols-outlined">warning</span></div>
+        <h3 id="confirmTitle" class="font-display text-headline-md">Confirmar Acción</h3>
+        <button class="modal-close" id="confirmClose" aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
+      </header>
+      <div class="modal-body" id="confirmBody"></div>
+      <footer class="modal-footer">
+        <button class="btn-secondary" id="confirmCancel">Cancelar</button>
+        <button class="btn-primary" id="confirmOk">Confirmar</button>
+      </footer>
     </div>
   </div>
-</section>
 
-<!-- MODAL DE ACCIONES DEL OPERADOR -->
-<div class="modal-degajo" id="modal-operador">
-  <div class="caja-modal">
-    <div class="cabecera-modal">
-      <div class="izq">
-        <div class="icono-modal"><span class="material-symbols-outlined">terminal</span></div>
-        <h3 id="modal-title">Gestión de misión</h3>
-      </div>
-      <button class="cerrar-modal" onclick="cerrarModal()"><span class="material-symbols-outlined">close</span></button>
-    </div>
-    <p class="desc-modal" id="modal-desc">Seleccione protocolo de asistencia para el activo en supervisión.</p>
-    <div class="detalles-modal" id="modal-details"></div>
-    <div class="pie-modal">
-      <button class="btn-modal neutro" onclick="cerrarModal()">Descartar</button>
-      <button class="btn-modal color" id="btn-ejecutar">
-        <span class="material-symbols-outlined" style="font-size:18px">bolt</span> Ejecutar orden de despacho
-      </button>
+  <div class="modal-overlay" id="infoModal" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+    <div class="modal-box" style="max-width: 480px;">
+      <header class="modal-header">
+        <div class="icon" id="infoIcon"><span class="material-symbols-outlined">info</span></div>
+        <h3 id="infoTitle" class="font-display text-headline-md">Información</h3>
+        <button class="modal-close" id="infoClose" aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
+      </header>
+      <div class="modal-body" id="infoBody"></div>
+      <footer class="modal-footer">
+        <button class="btn-primary" id="infoOk">Entendido</button>
+      </footer>
     </div>
   </div>
-</div>
 
-<div class="pie" style="margin-top:var(--ss)">
-  <span class="item">Reasignaciones del día: <b id="dato-reasignaciones">–</b></span>
-  <span class="item">Retraso medio: <b id="dato-retraso">–</b></span>
-  <span class="item" id="badge-invariantes" data-valor=""><span class="pill off"><span class="dot off"></span>invariantes —</span></span>
-  <span class="item"><a href="/metrics" target="_blank">/metrics</a></span>
-</div>
-</div><!-- /contenedor -->
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <div class="content">
+      <span class="icon material-symbols-outlined">check_circle</span>
+      <span id="toastMessage">Operación completada</span>
+    </div>
+  </div>
 
-<nav class="nav-inferior">
-  <a href="/" aria-current="page"><span class="material-symbols-outlined" style="font-size:22px">grid_view</span>Monitoreo</a>
-  <a href="/unidad.html?id=1"><span class="material-symbols-outlined" style="font-size:22px">local_shipping</span>Despacho</a>
-  <a href="/historial.html"><span class="material-symbols-outlined" style="font-size:22px">history_toggle_off</span>Bitácora</a>
-</nav>
-
-<script src="/app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

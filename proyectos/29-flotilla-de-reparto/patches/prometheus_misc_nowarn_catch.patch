@@ -1,0 +1,13 @@
+--- a/src/prometheus_misc.erl
++++ b/src/prometheus_misc.erl
+@@ -10,6 +10,8 @@
+ %%
+ %%
+
+ -module(prometheus_misc).
+
++-compile({nowarn_deprecated_catch}).
++
+ -export([behaviour_modules/1]).
+
+ %%====================================================================

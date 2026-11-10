@@ -5,117 +5,112 @@
 %% reales, true/false y null (el atomo null se codifica como JSON null; undefined
 %% se expone como string, por eso se convierte aqui). Los pids nunca se serializan.
 
--export([entregas/0, entrega/1, vehiculos/0, vehiculo/1, estado/2,
+-export([envios/0, envio/1, aeronaves/0, aeronave/1, estado/2,
          instantanea/1, tick_hora/1, json/1]).
 
 %% La hora simulada: 08:00 en el tick 0, 10 s reales de GPS por tick.
 -define(HORA_INI, 8 * 3600).
 -define(SEC_POR_TICK, 10).
 
-%% Destino de presentacion por colonia del despachador (el dominio interno usa
-%% la rejilla de colonias; la UI AeroCargo los presenta como redes aereas).
-%% MISMA cantidad de entradas que ?COLONIAS de p29_despachador, en el mismo
-%% orden: el codigo IATA sale por indice sin tocar el generador determinista.
--define(DESTINOS_CODIGO, [
-  <<"MEX">>, <<"GDL">>, <<"CUN">>, <<"MTY">>, <<"TIJ">>, <<"PVR">>,
-  <<"SJD">>, <<"QRO">>, <<"MZT">>, <<"LIM">>, <<"BOG">>, <<"SCL">>,
-  <<"PTY">>, <<"MGA">>, <<"GUA">>
-]).
+%% ---- envios ---------------------------------------------------------------
 
-%% ---- entregas ---------------------------------------------------------------
+envios() ->
+  json([envio(M) || M <- p29_datos:envios_todos()]).
 
-entregas() ->
-  json([entrega(M) || M <- p29_datos:entregas_todas()]).
-
-entrega(M) ->
+envio(M) ->
   {Desde, Hasta} = maps:get(ventana, M, {0, 0}),
   #{<<"id">> => num(maps:get(id, M)),
     <<"estado">> => bin(maps:get(estado, M)),
-    <<"colonia">> => bin(maps:get(colonia, M)),
-    <<"destino">> => codigo_destino(maps:get(colonia, M)),
-    <<"peso">> => num(maps:get(peso, M)),
+    <<"origen_iata">> => bin(maps:get(origen_iata, M)),
+    <<"destino_iata">> => bin(maps:get(destino_iata, M)),
+    <<"peso_kg">> => num(maps:get(peso_kg, M)),
+    <<"tipo_carga">> => bin(maps:get(tipo_carga, M)),
     <<"urgente">> => maps:get(urgente, M, false),
     <<"ventana_desde">> => tick_hora(Desde),
     <<"ventana_hasta">> => tick_hora(Hasta),
     <<"desde">> => num(Desde),
     <<"hasta">> => num(Hasta),
-    <<"vehiculo">> => num(maps:get(vehiculo, M, undefined)),
+    <<"aeronave">> => num(maps:get(aeronave, M, undefined)),
+    <<"ruta_id">> => bin(maps:get(ruta_id, M, <<>>)),
     <<"tick_asignado">> => num(maps:get(tick_asignado, M, undefined)),
     <<"tick_entregado">> => num(maps:get(tick_entregado, M, undefined)),
     <<"retraso">> => num(maps:get(retraso, M, undefined)),
     <<"motivo">> => motivo(maps:get(motivo, M, undefined))}.
 
-%% ---- vehiculos --------------------------------------------------------------
+%% ---- aeronaves --------------------------------------------------------------
 
-vehiculos() ->
-  Filas = p29_datos:vehiculos_todas(),
-  {Cargas, Entregadas} = cargas_por_unidad(),
-  json([vehiculo(M, maps:get(Id, Cargas, 0), maps:get(Id, Entregadas, 0))
+aeronaves() ->
+  Filas = p29_datos:aeronaves_todas(),
+  {Cargas, Entregadas} = cargas_por_aeronave(),
+  json([aeronave(M, maps:get(Id, Cargas, 0), maps:get(Id, Entregadas, 0))
         || M <- Filas, Id <- [maps:get(id, M)]]).
 
-vehiculo(M) ->
+aeronave(M) ->
   Id = maps:get(id, M),
-  {Cargas, Entregadas} = cargas_por_unidad(),
-  json(vehiculo(M, maps:get(Id, Cargas, 0), maps:get(Id, Entregadas, 0))).
+  {Cargas, Entregadas} = cargas_por_aeronave(),
+  json(aeronave(M, maps:get(Id, Cargas, 0), maps:get(Id, Entregadas, 0))).
 
-vehiculo(M, Carga, Entregadas) ->
-  {X, Y} = maps:get(pos, M, {0, 0}),
+aeronave(M, Carga, Entregadas) ->
+  Pos = maps:get(pos, M, {0, 0}),
+  {Lat, Lon} = Pos,
   Id = maps:get(id, M),
+  Tipo = maps:get(tipo, M),
   #{<<"id">> => num(Id),
-    %% AeroCargo: cada unidad lleva identificador de vuelo y telemetria
-    %% derivada determinista de la pos ( misma entrada -> misma salida,
-    %% sin rand: el determinismo del enunciado se conserva).
     <<"vuelo">> => vuelo(Id),
-    <<"altitud">> => 30 + (8 * X + 5 * Y) rem 10,
-    <<"velocidad">> => 405 + (3 * X + 2 * Y) rem 45,
+    <<"tipo">> => bin(Tipo),
+    <<"altitud_ft">> => num(maps:get(fl, M) * 100),
+    <<"velocidad_kts">> => num(maps:get(gs, M)),
     <<"estado">> => bin(maps:get(estado, M)),
-    <<"x">> => num(X),
-    <<"y">> => num(Y),
-    <<"ultimo_reporte">> => num(maps:get(ultimo_reporte, M, undefined)),
-    <<"capacidad">> => num(maps:get(capacidad, M, undefined)),
-    <<"carga">> => Carga,
-    <<"entregadas">> => Entregadas}.
+    <<"lat">> => num(Lat),
+    <<"lon">> => num(Lon),
+    <<"ultimo_reporte">> => num(maps:get(tick_ultimo_reporte, M, undefined)),
+    <<"capacidad_kg">> => num(maps:get(capacidad, M, undefined)),
+    <<"carga_kg">> => Carga,
+    <<"entregadas">> => Entregadas,
+    <<"combustible_pct">> => num(maps:get(combustible_pct, M, 100))}.
 
-%% por unidad: entregas en_ruta (su carga viva) y entregas entregadas del dia.
+%% por aeronave: envios en_ruta (su carga viva) y envios entregados del dia.
 %% Se recorre la tabla UNA vez para las 15 filas, no una pasada por unidad.
-cargas_por_unidad() ->
+cargas_por_aeronave() ->
   Func = fun(M, {Cargas, Entregadas}) ->
-             case maps:get(vehiculo, M, undefined) of
+             case maps:get(aeronave, M, undefined) of
                undefined -> {Cargas, Entregadas};
-               Vid ->
+               Aid ->
                  case maps:get(estado, M) of
-                   en_ruta -> {maps:update_with(Vid, fun(N) -> N + 1 end, 1, Cargas),
+                   en_ruta -> {maps:update_with(Aid, fun(N) -> N + maps:get(peso_kg, M, 0) end,
+                                                     maps:get(peso_kg, M, 0), Cargas),
                                Entregadas};
                    entregada -> {Cargas,
-                                 maps:update_with(Vid, fun(N) -> N + 1 end, 1, Entregadas)};
+                                 maps:update_with(Aid, fun(N) -> N + 1 end, 1, Entregadas)};
                    _ -> {Cargas, Entregadas}
                  end
              end
          end,
-  lists:foldl(Func, {#{}, #{}}, p29_datos:entregas_todas()).
+  lists:foldl(Func, {#{}, #{}}, p29_datos:envios_todos()).
 
 %% ---- resumen ----------------------------------------------------------------
 
 %% Consume el mapa de p29_despachador:estado/0. TickReal distingue el endpoint
 %% /api/estado (con tick) de la instantanea por tick del mapa.
 estado(Estado, TickReal) ->
-  #{<<"entregas">> => counters(maps:get(entregas, Estado, #{})),
-    <<"vehiculos">> => counters(maps:get(vehiculos, Estado, #{})),
+  #{<<"envios">> => counters(maps:get(envios, Estado, #{})),
+    <<"aeronaves">> => counters(maps:get(aeronaves, Estado, #{})),
     <<"retraso_medio">> => retraso(maps:get(retraso_medio, Estado, 0)),
     <<"reasignaciones">> => num(maps:get(reasignaciones, Estado, 0)),
+    <<"transbordos">> => num(maps:get(transbordos, Estado, 0)),
     <<"tick">> => num(TickReal)}.
 
 %% Instantanea por tick para /eventos (SSE): liviana, sin invariantes. La
 %% lista de unidades va con la llave "unidades" para no hilarla con el
-%% conteo "vehiculos" del resumen.
+%% conteo "aeronaves" del resumen.
 instantanea(N) ->
   Base = estado(p29_despachador:estado(), N),
-  json(Base#{<<"unidades">> => lista_vehiculos()}).
+  json(Base#{<<"unidades">> => lista_aeronaves()}).
 
-lista_vehiculos() ->
-  Filas = p29_datos:vehiculos_todas(),
-  {Cargas, Entregadas} = cargas_por_unidad(),
-  [vehiculo(M, maps:get(maps:get(id, M), Cargas, 0),
+lista_aeronaves() ->
+  Filas = p29_datos:aeronaves_todas(),
+  {Cargas, Entregadas} = cargas_por_aeronave(),
+  [aeronave(M, maps:get(maps:get(id, M), Cargas, 0),
             maps:get(maps:get(id, M), Entregadas, 0)) || M <- Filas].
 
 retraso(R) when is_number(R) -> R;
@@ -163,18 +158,3 @@ vuelo(Id) when is_integer(Id) ->
   <<"AC-", (integer_to_binary(V))/binary>>;  %% AC-701, AC-702, etc.
 vuelo(_) ->
   <<"AC-000">>.
-
-%% codigo_destino/1: mapea colonia (atom) -> codigo IATA (binario)
-%% usa persistent_term para cachear la tabla (se lee una vez por release).
-codigo_destino(Colonia) when is_atom(Colonia) ->
-  case persistent_term:get({p29_json, destinos}, undefined) of
-    undefined ->
-      Colonias = p29_despachador:colonias(),
-      Tabla = maps:from_list(lists:zip(Colonias, ?DESTINOS_CODIGO)),
-      ok = persistent_term:put({p29_json, destinos}, Tabla),
-      maps:get(Colonia, Tabla, <<"N/A">>);
-    Tabla ->
-      maps:get(Colonia, Tabla, <<"N/A">>)
-  end;
-codigo_destino(_) ->
-  <<"N/A">>.

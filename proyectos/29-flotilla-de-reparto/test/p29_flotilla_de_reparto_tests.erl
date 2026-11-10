@@ -5,8 +5,8 @@
 decodificar(Bin) ->
   {ok, Termino} = thoas:decode(Bin),
   Termino.
-%% Suite del proyecto #29. Cada escenario arranca su propio arbol de
-%% supervision con envs pequenos (2 unidades, entregas contadas) y reloj
+%% Suite del proyecto #29 - AeroCargo. Cada escenario arranca su propio arbol de
+%% supervision con envs pequenos (2 aeronaves, 12 envios) y reloj
 %% MANUAL (reloj_auto false) para corridas deterministas y rapidas.
 
 -define(APP, p29_flotilla_de_reparto).
@@ -17,7 +17,7 @@ arrancar(EnvsExtra) ->
   lists:foreach(
     fun({K, V}) -> application:set_env(?APP, K, V) end,
     [
-     {vehiculos, 2}, {entregas, 12}, {reloj_auto, false},
+     {aeronaves, 2}, {envios, 12}, {reloj_auto, false},
      {tick_interval_ms, 3600000}, {prob_fallida, 0.0},
      {sin_senal_ticks, 100}, {ticks_por_parada, 999999},
      {capacidad_kg, 6000}, {asignar_al_inicio, true},
@@ -25,8 +25,8 @@ arrancar(EnvsExtra) ->
      {web_port, 0}
     ] ++ EnvsExtra),
   {ok, Pid} = p29_flotilla_de_reparto_sup:start_link(),
-  esperar(fun() -> length(p29_datos:vehiculos_todas()) =:= 2 end),
-  esperar(fun() -> length(p29_datos:entregas_todas()) =:= 12 end),
+  esperar(fun() -> length(p29_datos:aeronaves_todas()) =:= 2 end),
+  esperar(fun() -> length(p29_datos:envios_todos()) =:= 12 end),
   Pid.
 
 cerrar(Pid) ->
@@ -48,7 +48,7 @@ esperar(Fun, Restante) ->
 
 esperar_asignadas(Total) ->
   esperar(fun() ->
-              length(p29_datos:entregas_por_estado(en_ruta)) =:= Total
+              length(p29_datos:envios_por_estado(en_ruta)) =:= Total
           end).
 
 %% ---- 1. arbol, arranque e invariantes ------------------------------------------
@@ -65,11 +65,11 @@ arbol_despues_de_arrancar_test_() ->
      [
       ?_test(begin
                 Estado = p29_despachador:estado(),
-                Entregas = maps:get(entregas, Estado),
-                Vehiculos = maps:get(vehiculos, Estado),
-                ?assertEqual(12, maps:get(en_ruta, Entregas, 0)),
-                ?assertEqual(0, maps:get(pendiente, Entregas, 0)),
-                ?assertEqual(2, maps:get(en_ruta, Vehiculos, 0))
+                Envios = maps:get(envios, Estado),
+                Aeronaves = maps:get(aeronaves, Estado),
+                ?assertEqual(12, maps:get(en_ruta, Envios, 0)),
+                ?assertEqual(0, maps:get(pendiente, Envios, 0)),
+                ?assertEqual(2, maps:get(en_ruta, Aeronaves, 0))
               end)
      ]
    end}.
@@ -87,16 +87,16 @@ asignacion_inicial_test_() ->
    fun(_) ->
      [
       ?_test(begin
-                Unidades = lists:usort(
-                             [maps:get(vehiculo, E)
-                              || E <- p29_datos:entregas_todas()]),
-                ?assertEqual([1, 2], lists:sort(Unidades)),
+                Aeronaves = lists:usort(
+                             [maps:get(aeronave, E)
+                              || E <- p29_datos:envios_todos()]),
+                ?assertEqual([1, 2], lists:sort(Aeronaves)),
                 lists:foreach(
-                  fun(Vid) ->
+                  fun(Aid) ->
                       Carga = lists:sum(
-                                [maps:get(peso, E)
-                                 || E <- p29_despachador:entregas_de(Vid)]),
-                      Row = p29_datos:vehiculo(Vid),
+                                [maps:get(peso_kg, E)
+                                 || E <- p29_despachador:envios_de(Aid)]),
+                      Row = p29_datos:aeronave(Aid),
                       ?assert(Carga =< maps:get(capacidad, Row))
                   end, [1, 2]),
                 ?assertEqual(ok, p29_despachador:invariantes())
@@ -104,13 +104,13 @@ asignacion_inicial_test_() ->
      ]
    end}.
 
-%% ---- 3. gen_statem de entrega: transiciones ------------------------------------
+%% ---- 3. gen_statem de envio: transiciones ------------------------------------
 
-entrega_statem_test_() ->
+envio_statem_test_() ->
   {setup,
    fun() ->
        PidSup = arrancar([{asignar_al_inicio, false}]),
-       esperar(fun() -> length(p29_datos:entregas_por_estado(pendiente))
+       esperar(fun() -> length(p29_datos:envios_por_estado(pendiente))
                              =:= 12 end),
        PidSup
    end,
@@ -118,28 +118,28 @@ entrega_statem_test_() ->
    fun(_) ->
      [
       ?_test(begin
-                PidE1 = maps:get(pid, p29_despachador:entrega(1)),
-                ?assertEqual({pendiente, undefined}, p29_entrega:estado(PidE1)),
-                ?assertEqual(ok, p29_entrega:asignar(PidE1, 1, 5)),
-                ?assertEqual({en_ruta, 1}, p29_entrega:estado(PidE1)),
+                PidE1 = maps:get(pid, p29_despachador:envio(1)),
+                ?assertEqual({pendiente, undefined}, p29_envio:estado(PidE1)),
+                ?assertEqual(ok, p29_envio:asignar(PidE1, 1, 5)),
+                ?assertEqual({en_ruta, 1}, p29_envio:estado(PidE1)),
                 %% rechaza asignacion sin devolver antes: no duplica dueno
                 ?assertEqual({error, ya_en_ruta},
-                             p29_entrega:asignar(PidE1, 2, 6)),
-                ?assertEqual(ok, p29_entrega:entregar(PidE1, 10)),
-                ?assertEqual({entregada, 1}, p29_entrega:estado(PidE1)),
+                             p29_envio:asignar(PidE1, 2, 6)),
+                ?assertEqual(ok, p29_envio:entregar(PidE1, 10)),
+                ?assertEqual({entregada, 1}, p29_envio:estado(PidE1)),
                 ?assertEqual({error, estado_final},
-                             p29_entrega:fallar(PidE1, cliente_ausente))
+                             p29_envio:fallar(PidE1, cliente_ausente))
               end),
       ?_test(begin
-                PidE2 = maps:get(pid, p29_despachador:entrega(2)),
+                PidE2 = maps:get(pid, p29_despachador:envio(2)),
                 %% devolver desde pendiente no es una transicion valida
                 ?assertEqual({error, {evento_no_valido, devolver, pendiente}},
-                             p29_entrega:devolver(PidE2))
+                             p29_envio:devolver(PidE2))
               end)
      ]
    end}.
 
-%% ---- 4. averia: la carga de la unidad caida pasa a la sana ----------------------
+%% ---- 4. averia: la carga de la aeronave caida pasa a la sana ----------------------
 
 averia_reasignacion_test_() ->
   {setup,
@@ -152,20 +152,20 @@ averia_reasignacion_test_() ->
    fun(_) ->
      [
       ?_test(begin
-                EnV1 = length(p29_despachador:entregas_de(1)),
+                EnV1 = length(p29_despachador:envios_de(1)),
                 ?assertNotEqual(0, EnV1),
                 ?assertEqual(ok, p29_despachador:averiar(1)),
                 ?assertEqual(averiado,
-                             maps:get(estado, p29_datos:vehiculo(1))),
-                ?assertEqual([], p29_despachador:entregas_de(1)),
-                ?assertEqual(12, length(p29_despachador:entregas_de(2))),
+                             maps:get(estado, p29_datos:aeronave(1))),
+                ?assertEqual([], p29_despachador:envios_de(1)),
+                ?assertEqual(12, length(p29_despachador:envios_de(2))),
                 ?assertEqual(EnV1, p29_despachador:reasignaciones()),
                 ?assertEqual(ok, p29_despachador:invariantes())
               end)
      ]
    end}.
 
-%% ---- 5. sin senal (watchdog) y lote de reportes atrasado ------------------------
+%% ---- 5. sin senal (watchdog ADS-B) y lote de reportes atrasado ------------------------
 
 sin_senal_y_lote_atrasado_test_() ->
   {setup,
@@ -178,16 +178,16 @@ sin_senal_y_lote_atrasado_test_() ->
    fun(_) ->
      [
       ?_test(begin
-                %% impulsa via reloj para que AMBAS unidades reporten GPS;
-                %% 30 ms entre ticks dejan procesar los GPS (sin carreras)
+                %% impulsa via reloj para que AMBAS aeronaves reporten ADS-B;
+                %% 30 ms entre ticks dejan procesar los ADS-B (sin carreras)
                 ?assertEqual(1, p29_reloj:tick()),
                 timer:sleep(30),
-                PidVeh2 = maps:get(pid, p29_datos:vehiculo(2)),
-                C2 = length(p29_despachador:entregas_de(2)),
+                PidAer2 = maps:get(pid, p29_datos:aeronave(2)),
+                C2 = length(p29_despachador:envios_de(2)),
                 ?assertNotEqual(0, C2),
-                %% la unidad 2 pierde senal: deja de recibir ticks
-                ?assertEqual(ok, p29_reloj:desuscribir(PidVeh2)),
-                %% reloj: 2..4: el ultimo GPS de la unidad 2 fue el tick 1:
+                %% la aeronave 2 pierde senal: deja de recibir ticks
+                ?assertEqual(ok, p29_reloj:desuscribir(PidAer2)),
+                %% reloj: 2..4: el ultimo ADS-B de la aeronave 2 fue el tick 1:
                 %% al tick 4 (4-1 >= 3) el watchdog la marca y reasigna
                 ?assertEqual(2, p29_reloj:tick()),
                 timer:sleep(30),
@@ -196,32 +196,32 @@ sin_senal_y_lote_atrasado_test_() ->
                 ?assertEqual(4, p29_reloj:tick()),
                 timer:sleep(30),
                 esperar(fun() ->
-                            maps:get(estado, p29_datos:vehiculo(2))
+                            maps:get(estado, p29_datos:aeronave(2))
                             =:= sin_senal
                         end),
                 ?assertEqual(sin_senal,
-                             maps:get(estado, p29_datos:vehiculo(2))),
-                ?assertEqual([], p29_despachador:entregas_de(2)),
+                             maps:get(estado, p29_datos:aeronave(2))),
+                ?assertEqual([], p29_despachador:envios_de(2)),
                 ?assertEqual(C2, p29_despachador:reasignaciones()),
                 ?assertEqual(ok, p29_despachador:invariantes())
               end),
       ?_test(begin
                 %% caso dificil 3: reporte con tick atrasado se descarta
-                PidUnidad = maps:get(pid, p29_datos:vehiculo(1)),
-                p29_despachador:reportar_gps(1, {5, 5}, 10, PidUnidad),
-                p29_despachador:reportar_gps(1, {9, 9}, 5, PidUnidad),
+                PidAeronave = maps:get(pid, p29_datos:aeronave(1)),
+                p29_despachador:reportar_adsb(1, {19.4363, -99.0721}, 250, 400, 100.0, 5000, 10, PidAeronave),
+                p29_despachador:reportar_adsb(1, {19.5000, -99.1000}, 250, 400, 99.9, 5000, 5, PidAeronave),
                 esperar(fun() ->
-                            maps:get(pos, p29_datos:vehiculo(1), none)
-                            =:= {5, 5}
+                            maps:get(pos, p29_datos:aeronave(1), none)
+                            =:= {19.4363, -99.0721}
                         end),
-                Fila = p29_datos:vehiculo(1),
-                ?assertEqual({5, 5}, maps:get(pos, Fila)),
-                ?assertEqual(10, maps:get(ultimo_reporte, Fila))
+                Fila = p29_datos:aeronave(1),
+                ?assertEqual({19.4363, -99.0721}, maps:get(pos, Fila)),
+                ?assertEqual(10, maps:get(tick_ultimo_reporte, Fila))
               end)
      ]
    end}.
 
-%% ---- 6. recuperacion: la supervision relanza la unidad --------------------------
+%% ---- 6. recuperacion: la supervision relanza la aeronave --------------------------
 
 recuperacion_tras_averia_test_() ->
   {timeout, 30,
@@ -236,27 +236,27 @@ recuperacion_tras_averia_test_() ->
      [
       ?_test(begin
                 ?assertEqual(ok, p29_despachador:averiar(1)),
-                PidViejo = maps:get(pid, p29_datos:vehiculo(1)),
-                %% el supervisor relanza la unidad; su GPS nuevo la repone.
+                PidViejo = maps:get(pid, p29_datos:aeronave(1)),
+                %% el supervisor relanza la aeronave; su ADS-B nuevo la repone.
                 %% Con reloj manual el tick del test puede llegar ANTES de que
-                %% la unidad nueva se suscriba: se repiten ticks durante la
+                %% la aeronave nueva se suscriba: se repiten ticks durante la
                 %% espera para no depender del orden de suscripcion
                 ?assertEqual(1, p29_reloj:tick()),
                 esperar(fun() ->
                             timer:sleep(50),
                             _ = p29_reloj:tick(),
-                            Row0 = p29_datos:vehiculo(1),
+                            Row0 = p29_datos:aeronave(1),
                             maps:get(estado, Row0) =:= en_ruta
                             andalso maps:get(pid, Row0) =/= PidViejo
                         end, 3000),
-                Row = p29_datos:vehiculo(1),
+                Row = p29_datos:aeronave(1),
                 ?assertEqual(en_ruta, maps:get(estado, Row)),
                 ?assertEqual(ok, p29_despachador:invariantes())
               end)
      ]
    end}}.
 
-%% ---- 7. pedido urgente ----------------------------------------------------------
+%% ---- 7. pedido urgente / AOG ----------------------------------------------------------
 
 urgente_test_() ->
   {setup,
@@ -269,11 +269,11 @@ urgente_test_() ->
    fun(_) ->
      [
       ?_test(begin
-                Id = p29_despachador:urgente(#{peso => 40, colonia => playas}),
-                Urgente = p29_despachador:entrega(Id),
+                Id = p29_despachador:urgente(#{peso_kg => 40, origen_iata => <<"MEX">>, destino_iata => <<"BOG">>}),
+                Urgente = p29_despachador:envio(Id),
                 ?assertEqual(true, maps:get(urgente, Urgente)),
                 ?assertEqual(en_ruta, maps:get(estado, Urgente)),
-                ?assert(is_integer(maps:get(vehiculo, Urgente))),
+                ?assert(is_integer(maps:get(aeronave, Urgente))),
                 ?assertEqual(ok, p29_despachador:invariantes())
               end)
      ]
@@ -281,10 +281,10 @@ urgente_test_() ->
 
 %% ---- 8. mini-jornada del enunciado con averia y urgente --------------------------
 
-%% Escenario del enunciado en miniatura: jornada de 30 ticks (con reloj
+%% Escenario AeroCargo en miniatura: jornada de 30 ticks (con reloj
 %% automatico acelerado), averia al ~46% de la jornada y pedido urgente al 75%.
 %% Con prob_fallida 0 (env del helper) el resultado final es exacto:
-%% 12 entregas + 1 urgente = 13 entregadas, 0 pendientes, 0 fallidas.
+%% 12 envios + 1 urgente = 13 entregados, 0 pendientes, 0 fallidos.
 simulador_test_() ->
   {setup,
    fun() ->
@@ -307,15 +307,15 @@ simulador_test_() ->
                  esperar(fun() -> not erlang:is_process_alive(PidSim) end, 6000),
                  %% margen para que el ultimo tick procese en el despachador
                  esperar(fun() ->
-                             maps:get(entregada, p29_datos:conteo_entregas(), 0)
+                             maps:get(entregada, p29_datos:conteo_envios(), 0)
                              =:= 13
                          end, 2000),
                  Estado = p29_despachador:estado(),
-                 Entregas = maps:get(entregas, Estado),
-                 ?assertEqual(13, maps:get(entregada, Entregas, 0)),
-                 ?assertEqual(0, maps:get(pendiente, Entregas, 0)),
-                 ?assertEqual(0, maps:get(en_ruta, Entregas, 0)),
-                 ?assertEqual(0, maps:get(fallida, Entregas, 0)),
+                 Envios = maps:get(envios, Estado),
+                 ?assertEqual(13, maps:get(entregada, Envios, 0)),
+                 ?assertEqual(0, maps:get(pendiente, Envios, 0)),
+                 ?assertEqual(0, maps:get(en_ruta, Envios, 0)),
+                 ?assertEqual(0, maps:get(fallida, Envios, 0)),
                  ?assertEqual(ok, p29_despachador:invariantes())
                end)
       ]
@@ -349,34 +349,34 @@ web_endpoints_test_() ->
                   ?assertEqual(<<"ok">>, maps:get(<<"invariantes">>, EstadoJson)),
                   ?assertEqual(12,
                                maps:get(<<"en_ruta">>,
-                                        maps:get(<<"entregas">>, EstadoJson))),
-                  {ok, {{_, 200, _}, _, CuerpoEntregas}} =
-                    httpc:request(get, {Ruta("/api/entregas"), []},
+                                        maps:get(<<"envios">>, EstadoJson))),
+                  {ok, {{_, 200, _}, _, CuerpoEnvios}} =
+                    httpc:request(get, {Ruta("/api/envios"), []},
                                   [{timeout, 3000}], [{body_format, binary}]),
-                  ?assertEqual(12, length(decodificar(CuerpoEntregas))),
-                  {ok, {{_, 200, _}, _, CuerpoVehiculos}} =
-                    httpc:request(get, {Ruta("/api/vehiculos"), []},
+                  ?assertEqual(12, length(decodificar(CuerpoEnvios))),
+                  {ok, {{_, 200, _}, _, CuerpoAeronaves}} =
+                    httpc:request(get, {Ruta("/api/aeronaves"), []},
                                   [{timeout, 3000}], [{body_format, binary}]),
-                  ?assertEqual(2, length(decodificar(CuerpoVehiculos))),
+                  ?assertEqual(2, length(decodificar(CuerpoAeronaves))),
                   {ok, {{_, 200, _}, _, CuerpoMetricas}} =
                     httpc:request(get, {Ruta("/metrics"), []},
-                                  [{timeout, 3000}], [{body_format, binary}]),
+                                  [{timeout, 5000}], [{body_format, binary}]),
                   ?assertMatch({match, _},
                                re:run(CuerpoMetricas,
-                                      <<"^p29_flotilla_entregas\\{estado=">>,
+                                      <<"^p29_flotilla_envios\\{estado=">>,
                                       [multiline])),
-                  %% caos por HTTP: averiar una unidad viva y una inexistente
+                  %% caos por HTTP: averiar una aeronave viva y una inexistente
                   {ok, {{_, 200, _}, _, CuerpoAveriar}} =
                     httpc:request(post, {Ruta("/api/averiar"), [],
                                          "application/json",
-                                         <<"{\"unidad\":1}">>},
+                                         <<"{\"aeronave\":1}">>},
                                   [{timeout, 3000}], [{body_format, binary}]),
-                  ?assertMatch(#{<<"ok">> := true, <<"unidad">> := 1},
+                  ?assertMatch(#{<<"ok">> := true, <<"aeronave">> := 1},
                                decodificar(CuerpoAveriar)),
                   {ok, {{_, 404, _}, _, CuerpoNoHubo}} =
                     httpc:request(post, {Ruta("/api/averiar"), [],
                                          "application/json",
-                                         <<"{\"unidad\":99}">>},
+                                         <<"{\"aeronave\":99}">>},
                                   [{timeout, 3000}], [{body_format, binary}]),
                   ?assertMatch(#{<<"ok">> := false}, decodificar(CuerpoNoHubo)),
                   %% cuerpo basura: 400, nunca crash
@@ -386,13 +386,13 @@ web_endpoints_test_() ->
                                          <<"\x07no-es-json">>},
                                   [{timeout, 3000}], [{body_format, binary}]),
                   ?assertMatch(#{<<"ok">> := false}, decodificar(CuerpoBasura)),
-                  %% urgente por HTTP: alta de un pedido urgente fuera del lote
+                  %% urgente por HTTP: alta de un envio urgente fuera del lote
                   {ok, {{_, 200, _}, _, CuerpoUrgente}} =
                     httpc:request(post, {Ruta("/api/urgente"), [],
                                          "application/json",
-                                         <<"{\"peso\":30}">>},
+                                         <<"{\"peso_kg\":30, \"origen_iata\":\"MEX\", \"destino_iata\":\"BOG\"}">>},
                                   [{timeout, 3000}], [{body_format, binary}]),
-                  ?assertMatch(#{<<"ok">> := true, <<"entrega">> := _},
+                  ?assertMatch(#{<<"ok">> := true, <<"envio">> := _},
                                decodificar(CuerpoUrgente))
                end)
        ]

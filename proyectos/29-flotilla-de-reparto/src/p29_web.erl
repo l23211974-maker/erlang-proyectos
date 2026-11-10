@@ -65,6 +65,8 @@ rutas() ->
    {"/historial.html", cowboy_static, {priv_file, ?APP, "static/historial.html"}},
    {"/app.css", cowboy_static, {priv_file, ?APP, "static/app.css"}},
    {"/app.js", cowboy_static, {priv_file, ?APP, "static/app.js"}},
+   {"/api/envios", p29_api, envios},
+   {"/api/aeronaves", p29_api, aeronaves},
    {"/api/entregas", p29_api, entregas},
    {"/api/vehiculos", p29_api, vehiculos},
    {"/api/estado", p29_api, estado},

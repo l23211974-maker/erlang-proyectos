@@ -1,876 +1,1646 @@
-/* Flotilla #29 — cliente de la API. Plano (sin frameworks): fetch para el
-   estado inicial y SSE (/eventos) para el estado en vivo. Cada página declara
-   su tipo en <body data-page="..."> y este módulo pinta lo que le corresponde.
-   Las clases/IDs replica las maquetas de Stitch (design/Plantilla Flotilla de
-   Reparto/); los datos vienen de /api/* y del evento "estado" del broadcaster. */
+/**
+ * AeroCargo Telematics & Dispatch Operations
+ * Main application module - handles Dashboard, Unit Detail, and Bitácora
+ * Design tokens from Stitch export DESIGN.md
+ */
 
-"use strict";
+// ============================================
+// CONFIGURATION & CONSTANTS
+// ============================================
 
-/* ---- utilerias ---- */
-const $ = (id) => document.getElementById(id);
-const pad = (n) => String(n).padStart(2, "0");
-const horaDeTick = (tick) => {
-  if (tick === null || tick === undefined || tick === "") return "--:--";
-  const seg = 8 * 3600 + tick * 10;         // 08:00 simulada, 10 s de GPS/tick
-  const h = Math.floor(seg / 3600) % 24, m = Math.floor((seg % 3600) / 60);
-  return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
-};
-const suma = (obj) => Object.values(obj || {}).reduce((a, b) => a + b, 0);
-const en = (obj, clave) => (obj || {})[clave] || 0;
-
-const PILL = { en_ruta: "ok", entregada: "ok", pendiente: "off", averiado: "crit",
-               sin_senal: "warn", fallida: "crit" };
-const pill = (estado) => {
-  const clase = PILL[estado] || "off";
-  return `<span class="pill ${clase}"><span class="dot ${clase}"></span>${estado.replaceAll("_", " ")}</span>`;
-};
-const filaEntrega = (e) => `
-  <tr>
-    <td class="id">ENV-#${e.id}${e.urgente ? " ⚠" : ""}</td>
-    <td>${e.colonia}</td>
-    <td>${e.peso} kg</td>
-    <td>${e.ventana_desde}–${e.ventana_hasta}</td>
-    <td>${pill(e.estado)}</td>
-    <td>${e.retraso > 0 ? "+" + e.retraso : "0"}</td>
-  </tr>`;
-const filaVacia = (cols, texto) =>
-  `<tr><td colspan="${cols}" class="tabla-vacia">${texto}</td></tr>`;
-const pctTxt = (x, total) => total ? `${Math.round(100 * x / total)}%` : "0%";
-
-/* estado global de la jornada para las páginas */
-const g = { resumen: null, unidades: [], entregas: [] };
-
-/* ---- schedulador anti atasco ----
- * El SSE llega a ~30 Hz (un evento por tick de 33 ms). Pintar el DOM y, en
- * unidad/historial, refetchear /api/entregas (206 KB) a esa cadencia satura
- * el hilo principal y los botones parecen muertos. Se acumula el ÚLTIMO
- * evento y se pinta a ~6 Hz (cada 160 ms), con rAF en medio para no pisar
- * un frame en curso. El dominio no se toca: solo baja la cadencia de pintado. */
-const PINTURA_MS = 160;
-let ultimoSSE = null, sseProgramado = false;
-let ultimoRefetch = 0, refetchEnVuelo = false;
-const SSE_PAGINA = () => document.body.dataset.page;
-
-const programarPintado = () => {
-  if (sseProgramado) return;
-  sseProgramado = true;
-  const espera = Math.max(0, PINTURA_MS - (Date.now() - ultimaPintura));
-  setTimeout(() => {
-    sseProgramado = false;
-    if (document.hidden || !ultimoSSE) return;
-    ultimaPintura = Date.now();
-    const r = ultimoSSE, pagina = SSE_PAGINA();
-    pintarResumen(r);
-    const unidades = r.unidades || [];
-    if (pagina === "index") {
-      g.unidades = unidades;
-      pintarKpis(r, unidades);
-      pintarMapa(r, unidades);
-      pintarPanelUnidades(unidades);
-      pintarBitacora(r, unidades);
-      banner(unidades);
-    } else if (pagina === "unidad") {
-      rellenarUnidad(unidades, g.entregas, r);
-    } else if (pagina === "historial") {
-      // timeline + KPIs pesados: como máximo un rebuild cada 2 s
-      if (Date.now() - ultimoRefetch >= 2000) {
-        ultimoRefetch = Date.now();
-        rellenarHistorial(unidades, g.entregas, r);
-      }
-    }
-  }, espera);
-};
-let ultimaPintura = 0;
-
-/* estado del semaforo: normal / alerta / critico (para filtros y colores) */
-const severidadDe = (estado) =>
-  estado === "averiado" ? "critico" : estado === "sin_senal" ? "alerta" : "normal";
-
-/* ---- pintar resumen (todas las páginas con datos de jornada) ---- */
-const pintarResumen = (r) => {
-  g.resumen = r;
-  if (!$("tick-hora")) return;
-  $("tick-hora").textContent = horaDeTick(r.tick);
-  if ($("tick-hora2")) $("tick-hora2").textContent = horaDeTick(r.tick);
-  if ($("dato-reasignaciones")) $("dato-reasignaciones").textContent = r.reasignaciones;
-  if ($("dato-retraso")) {
-    const min = (r.retraso_medio / 6).toFixed(0);
-    $("dato-retraso").textContent = `+${min} min`;
-  }
-  const inv = r.invariantes;
-  if (inv && $("badge-invariantes") && inv !== $("badge-invariantes").dataset.valor) {
-    $("badge-invariantes").outerHTML =
-      `<span id="badge-invariantes" class="pill ${inv === "ok" ? "ok" : "crit"}"
-        data-valor="${inv}"><span class="dot ${inv === "ok" ? "ok" : "crit"}"></span>
-        invariantes ${inv}</span>`;
+const CONFIG = {
+  apiBase: '',
+  sseEndpoint: '/eventos',
+  apiEndpoints: {
+    entregas: '/api/entregas',
+    vehiculos: '/api/vehiculos',
+    estado: '/api/estado',
+    averiar: '/api/averiar',
+    urgente: '/api/urgente'
+  },
+  refreshInterval: 5000,
+  sseReconnectDelay: 3000,
+  maxEvents: 500,
+  mapDefaults: {
+    center: { lat: 19.4326, lon: -99.1332 }, // MEX
+    zoom: 4,
+    minZoom: 2,
+    maxZoom: 10
+  },
+  statusColors: {
+    nominal: { bg: 'var(--ok-bg)', border: 'var(--ok-border)', text: 'var(--ok-text)', dot: 'var(--status-ok)', label: 'NOMINAL' },
+    alerta: { bg: 'var(--warn-bg)', border: 'var(--warn-border)', text: 'var(--warn-text)', dot: 'var(--status-warning)', label: 'ALERTA' },
+    critico: { bg: 'var(--crit-bg)', border: 'var(--crit-border)', text: 'var(--crit-text)', dot: 'var(--status-critical)', label: 'CRÍTICO' },
+    tierra: { bg: 'var(--info-bg)', border: 'var(--info-border)', text: 'var(--info-text)', dot: 'var(--status-info)', label: 'EN TIERRA' },
+    en_ruta: { bg: 'var(--info-bg)', border: 'var(--info-border)', text: 'var(--info-text)', dot: 'var(--status-info)', label: 'EN RUTA' },
+    entregada: { bg: 'var(--ok-bg)', border: 'var(--ok-border)', text: 'var(--ok-text)', dot: 'var(--status-ok)', label: 'ENTREGADA' },
+    fallida: { bg: 'var(--crit-bg)', border: 'var(--crit-border)', text: 'var(--crit-text)', dot: 'var(--status-critical)', label: 'FALLIDA' },
+    desviada: { bg: 'var(--warn-bg)', border: 'var(--warn-border)', text: 'var(--warn-text)', dot: 'var(--status-warning)', label: 'DESVIADA' },
+    pendiente: { bg: 'var(--surface-overlay)', border: 'var(--surface-overlay)', text: 'var(--text-secondary)', dot: 'var(--text-muted)', label: 'PENDIENTE' }
+  },
+  sectorLabels: {
+    aereo: 'Aéreo Internacional',
+    troncal: 'Troncal Terrestre',
+    ultima: 'Última Milla',
+    transbordo: 'Transbordo'
+  },
+  eventCodes: {
+    'WXR-ALERT': { label: 'Meteorología Adversa', severity: 'alerta' },
+    'ALT-CHG': { label: 'Cambio de Altitud', severity: 'info' },
+    'HDG-CHG': { label: 'Cambio de Rumbo', severity: 'info' },
+    'SPD-CHG': { label: 'Cambio de Velocidad', severity: 'info' },
+    'ETA-ADJ': { label: 'Ajuste ETA', severity: 'info' },
+    'RTE-DVRT': { label: 'Desvío de Ruta', severity: 'critica' },
+    'FUEL-LOW': { label: 'Combustible Bajo', severity: 'alerta' },
+    'PAY-SHFT': { label: 'Transbordo Carga', severity: 'alerta' },
+    'UNIT-DOWN': { label: 'Unidad Caída', severity: 'critica' },
+    'UNIT-UP': { label: 'Unidad Recuperada', severity: 'nominal' },
+    'URGENT-ADD': { label: 'Envío Urgente AOG', severity: 'critica' },
+    'CUSTOMS': { label: 'Retención Aduana', severity: 'alerta' },
+    'SLA-BREACH': { label: 'Incumplimiento SLA', severity: 'critica' },
+    'REASSIGN': { label: 'Reasignación', severity: 'alerta' },
+    'HOLD': { label: 'Hold / Espera', severity: 'alerta' },
+    'DIVERT': { label: 'Desvío Emergencia', severity: 'critica' },
+    'LANDED': { label: 'Aterrizaje', severity: 'nominal' },
+    'TAKEOFF': { label: 'Despegue', severity: 'nominal' }
   }
 };
 
-/* ---- KPIs del control (index) ---- */
-const pintarKpis = (r, unidades) => {
-  if (!$("kf-valor")) return;
-  const e = r.entregas || {}, v = r.vehiculos || {};
-  const vivas = unidades.filter((u) => u.estado === "en_ruta").length;
-  const alertadas = unidades.filter((u) => u.estado === "sin_senal").length;
-  const criticas = unidades.filter((u) => u.estado === "averiado").length;
-  const total = suma(e);
-  $("kf-valor").textContent = `${vivas} / ${unidades.length}`;
-  $("kf-sub").textContent = "unidades";
-  $("kf-enruta").textContent = en(e, "en_ruta");
-  $("kf-entregadas").textContent = en(e, "entregada");
-  $("kf-barra").style.width = pctTxt(vivas, unidades.length);
+// ============================================
+// UTILITIES
+// ============================================
 
-  $("ke-valor").textContent = en(e, "en_ruta");
-  $("ke-pct").textContent = pctTxt(en(e, "en_ruta"), en(e, "en_ruta") + en(e, "pendiente"));
-  $("ke-sub").textContent = `${en(e, "pendiente")} en cola`;
-  $("ke-barra").style.width = pctTxt(en(e, "en_ruta"), en(e, "en_ruta") + en(e, "pendiente"));
+const $ = (sel, ctx = document) => ctx.querySelector(sel);
+const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
 
-  $("ka-valor").textContent = alertadas;
-  $("ka-pct").textContent = pctTxt(alertadas, unidades.length);
-  $("ka-sub").textContent = `+${(r.retraso_medio / 6).toFixed(0)} min`;
-  $("ka-barra").style.width = pctTxt(alertadas, unidades.length);
-
-  $("kc-valor").textContent = criticas;
-  $("kc-pct").textContent = pctTxt(criticas, unidades.length);
-  $("kc-sub").textContent = criticas;
-  $("kc-barra").style.width = pctTxt(criticas, unidades.length);
-  $("kc-sub").textContent = String(criticas);
-  // barra minima para que la tarjeta critica nunca quede sin tira
-  if (criticas > 0 && parseFloat($("kc-barra").style.width) < 6)
-    $("kc-barra").style.width = "6%";
-
-  const fb = { todas: unidades.length, normal: vivas, alerta: alertadas, critico: criticas };
-  for (const [num, valor] of Object.entries(fb)) {
-    const span = document.querySelector(`.c-${num}`);
-    if (span) span.textContent = valor;
+const fmt = {
+  utc: () => new Date().toISOString().slice(11, 19),
+  local: () => new Date().toLocaleTimeString('es-MX', { hour12: false }),
+  number: (n, dec = 0) => Number(n).toLocaleString('es-MX', { minimumFractionDigits: dec, maximumFractionDigits: dec }),
+  fixed: (n, dec = 1) => Number(n).toFixed(dec),
+  coord: (lat, lon) => `${fmt.fixed(lat, 4)}° / ${fmt.fixed(lon, 4)}°`,
+  distance: (km) => km >= 1000 ? `${fmt.fixed(km / 1000)} Mkm` : `${fmt.number(km)} km`,
+  payload: (kg) => kg >= 1000 ? `${fmt.fixed(kg / 1000)} T` : `${fmt.number(kg)} kg`,
+  altitude: (fl) => `FL${fl}`,
+  speed: (kts) => `${fmt.number(kts)} kts`,
+  percent: (p) => `${fmt.fixed(p)}%`,
+  timeAgo: (ts) => {
+    const diff = Date.now() - new Date(ts).getTime();
+    const mins = Math.floor(diff / 60000);
+    const hours = Math.floor(mins / 60);
+    const days = Math.floor(hours / 24);
+    if (mins < 1) return 'ahora';
+    if (mins < 60) return `hace ${mins}m`;
+    if (hours < 24) return `hace ${hours}h`;
+    return `hace ${days}d`;
   }
 };
 
-/* ---- banner de incidente (index) ---- */
-const banner = (unidades) => {
-  const b = $("banner-incidente"), t = $("banner-texto");
-  if (!b || !t) return;
-  const alertadas = unidades.filter((u) => u.estado !== "en_ruta");
-  if (alertadas.length === 0) {
-    b.classList.remove("activo");
-    t.textContent = "Flota nominal · sin incidentes en el canal de GPS";
-    return;
-  }
-  b.classList.add("activo");
-  t.innerHTML = alertadas
-    .map((u) => `Unidad ${u.id}: <b>${u.estado.replaceAll("_", " ")}</b>, último GPS ${horaDeTick(u.ultimo_reporte)}`)
-    .join(" · ");
-};
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+const lerp = (a, b, t) => a + (b - a) * t;
 
-/* ---- bitácora de eventos (index, 3 tarjetas) ---- */
-const pintarBitacora = (r, unidades) => {
-  const av = unidades.filter((u) => u.estado === "averiado");
-  const ss = unidades.filter((u) => u.estado === "sin_senal");
-  const hora = horaDeTick(r.tick);
-  if ($("bit-critica-cuando")) {
-    const m = $("bit-critica-mensaje");
-    if (av.length === 0) {
-      m.textContent = "Sin incidentes críticos detectados en la flota.";
-      $("bit-critica-fuente").textContent = "flota nominal";
-    } else {
-      m.innerHTML = av
-        .map((u) => `Unidad ${u.id} inmovilizada por avería (caos). Carga devuelta a la cola y reasignada por el despachador.`)
-        .join(" ");
-      $("bit-critica-fuente").textContent =
-        `coord: (${av[0].x},${av[0].y}) · ${av.length} unidad(es)`;
-    }
-    $("bit-critica-cuando").textContent = hora;
-  }
-  if ($("bit-pre-mensaje")) {
-    const m = $("bit-pre-mensaje");
-    if (ss.length === 0) {
-      m.textContent = "Unidades sinGPS no detectadas: el watchdog de la señal está en silencio.";
-    } else {
-      m.innerHTML = ss
-        .map((u) => `Unidad ${u.id} sin señal GPS desde ${horaDeTick(u.ultimo_reporte)}; su carga queda en cola hasta el umbral sin_senal_ticks.`)
-        .join(" ");
-      $("bit-pre-fuente").textContent = `(${ss.length} unidad(es) · flota #29)`;
-    }
-    $("bit-pre-cuando").textContent = hora;
-  }
-  if ($("bit-info-mensaje")) {
-    $("bit-info-mensaje").innerHTML =
-      `Del despachador: <b>${r.reasignaciones}</b> reasignaciones hoy · retraso medio ` +
-      `<b>+${(r.retraso_medio / 6).toFixed(0)} min</b> · ${en(r.entregas, "pendiente")} envíos pendientes en cola.`;
-    $("bit-info-cuando").textContent = hora;
-    $("bit-info-fuente").textContent = "p29_despachador · greedy first-fit";
-  }
-};
-
-/* ---- mapa táctico (index) ---- */
-const NIVEL_ZOOM = [1, 1.35, 1.8];
-let nivelZoom = 0;
-const mapZoom = (dir) => {
-  nivelZoom = Math.min(NIVEL_ZOOM.length - 1, Math.max(0, nivelZoom + dir));
-  const z = $("mapa-zoom");
-  if (z) z.style.transform = `scale(${NIVEL_ZOOM[nivelZoom]})`;
-};
-const recenterMap = () => {
-  nivelZoom = 0;
-  const z = $("mapa-zoom");
-  if (z) z.style.transform = "scale(1)";
-};
-const toggleCapa = (btn, cual) => {
-  btn.classList.toggle("activo");
-  const objetivo = cual === "rejilla"
-    ? document.querySelector(".mapa-svg") : $("capa-velo");
-  if (objetivo) objetivo.classList.toggle("oculto");
-};
-const MARCA = {
-  en_ruta:    { clase: "",         icono: "local_shipping", color: "var(--ok)" },
-  sin_senal:  { clase: "",         icono: "wifi_off",       color: "var(--warn)" },
-  averiado:   { clase: "critico",  icono: "car_crash",      color: "var(--error)" },
-};
-const ET_CALLOUT = { en_ruta: "EN RUTA", sin_senal: "SIN SEÑAL", averiado: "DETENIDO" };
-
-/* Mapa con marcadores reutilizables: reconstruir 15 nodos con innerHTML a
- * cada pintado fuerza relayout y es lo que más atasca el hilo principal.
- * Aquí cada unidad conserva su div (Mapa por id) y por pintado solo se
- * mueve (left/top) y se actualiza el callout; los nodos de unidades que
- * desaparecen se ocultan. Sin cambios de diseño ni de datos. */
-const marcadores = new Map();
-const crearMarcador = (id) => {
-  const el = document.createElement("div");
-  el.className = "marcador";
-  el.innerHTML = `
-      <div class="pin-area">
-        <span class="pulso" style="display:none;background:transparent;width:40px;height:40px;left:0"></span>
-        <div class="pin"><span class="material-symbols-outlined"></span></div>
-      </div>
-      <div class="callout">
-        <div class="fila1">
-          <span class="id"></span>
-          <span class="badge-peque"></span>
-        </div>
-        <span class="detalle"></span>
-        <div class="datos"><span></span><span></span></div>
-      </div>`;
-  el.onclick = (ev) => {
-    if (ev.target.closest("button") === null) location.href = `/unidad.html?id=${id}`;
-  };
-  return el;
-};
-
-const pintarMapa = (r, unidades) => {
-  const cont = $("marcadores");
-  if (!cont) return;
-  const hud = $("hud-tick");
-  if (hud) hud.textContent = `TICK ${r.tick} · ${horaDeTick(r.tick)}`;
-  let vivaMostradas = 0;
-  const vistas = new Set();
-  const ordenadas = [...unidades].sort((a, b) =>
-    severidadDe(b.estado).localeCompare(severidadDe(a.estado)));
-  for (const u of ordenadas) {
-    const m = MARCA[u.estado] || MARCA.en_ruta;
-    const llamable = u.estado !== "en_ruta" || vivaMostradas < 3;
-    if (u.estado === "en_ruta") vivaMostradas++;
-    let marcador = marcadores.get(u.id);
-    if (!marcador) {
-      marcador = crearMarcador(u.id);
-      marcadores.set(u.id, marcador);
-      cont.appendChild(marcador);
-    }
-    vistas.add(u.id);
-    marcador.style.display = "";
-    marcador.className = `marcador ${m.clase}`;
-    marcador.style.left = `${(u.x + 0.5) * 10}%`;
-    marcador.style.top = `${(9.5 - u.y + 0.5) * 10}%`;
-
-    const pulso = marcador.querySelector(".pulso");
-    const colorPulso = u.estado === "averiado" ? "var(--error)" :
-      u.estado === "sin_senal" ? "var(--warn)" : "var(--ok)";
-    pulso.style.display = m.clase !== "" ? "" : "none";
-    pulso.style.boxShadow = `0 0 0 1px ${colorPulso}`;
-
-    const pin = marcador.querySelector(".pin");
-    pin.style.background = m.color;
-    pin.querySelector(".material-symbols-outlined").textContent = m.icono;
-
-    const callout = marcador.querySelector(".callout");
-    callout.className = `callout ${u.estado === "averiado" ? "critico" : u.estado === "sin_senal" ? "ambar" : "verde"}`;
-    callout.style.display = llamable ? "" : "none";
-    if (llamable) {
-      callout.querySelector(".id").textContent = `U-${pad(u.id)}${u.estado === "averiado" ? " [SOS]" : ""}`;
-      callout.querySelector(".badge-peque").textContent = ET_CALLOUT[u.estado] || "";
-      callout.querySelector(".detalle").textContent =
-        `Carga ${u.carga} / ${u.capacidad} kg · ${u.entregadas} entregadas`;
-      const datos = callout.querySelectorAll(".datos span");
-      datos[0].textContent = `(${u.x}, ${u.y})`;
-      datos[1].textContent = `GPS ${horaDeTick(u.ultimo_reporte)}`;
-      let boton = callout.querySelector(".btn-despacho");
-      if (u.estado !== "en_ruta") {
-        if (!boton) {
-          boton = document.createElement("button");
-          boton.className = "btn-despacho";
-          boton.onclick = () => abrirModal(u.id);
-          callout.appendChild(boton);
-        }
-        boton.textContent = "Despachar asistencia";
-      } else if (boton) {
-        boton.remove();
-      }
-    }
-  }
-  for (const [id, el] of marcadores) {
-    if (!vistas.has(id)) el.style.display = "none";
-  }
-};
-
-/* ---- panel de atención requerida (index) ---- */
-const pintarPanelUnidades = (unidades) => {
-  const lista = $("lista-unidades");
-  if (!lista) return;
-  const ETIQUETA = { averiado: "SOS", sin_senal: "SIN SEÑAL", en_ruta: "NOMINAL" };
-  const orden = { averiado: 0, sin_senal: 1, en_ruta: 2 };
-  const lista2 = [...unidades].sort((a, b) => (orden[a.estado] ?? 3) - (orden[b.estado] ?? 3));
-  lista.innerHTML = lista2.map((u) => {
-    const sev = severidadDe(u.estado);
-    return `
-    <article class="unidad-card ${sev}" data-status="${sev}">
-      <div class="cabezal">
-        <div class="unidad-id">
-          <div class="icono-unidad ${u.estado === "averiado" ? "crit" : u.estado === "sin_senal" ? "warn" : "ok"}">
-            <span class="material-symbols-outlined">local_shipping</span>
-          </div>
-          <div style="min-width:0">
-            <div style="display:flex;align-items:center;gap:4px">
-              <span class="unidad-nombre">U-${pad(u.id)}</span>
-              <span class="unidad-etiqueta ${u.estado === "averiado" ? "crit" : u.estado === "sin_senal" ? "warn" : "ok"}">${ETIQUETA[u.estado] || ""}</span>
-            </div>
-            <span class="unidad-sub">Unidad de reparto · flota #29</span>
-          </div>
-        </div>
-        <div class="unidad-telemetria">
-          <span class="vel ${sev}">${u.entregadas} ENTREGADAS</span>
-          <span class="lb">CARGA ${u.carga}/${u.capacidad} KG</span>
-        </div>
-      </div>
-      <div class="datos-mini">
-        <div class="fila"><span class="et">Estado telemetría:</span>
-          <span class="valor-dato ${sev}">${u.estado.replaceAll("_", " ")}</span></div>
-        <div class="fila"><span class="et">Último GPS:</span>
-          <span class="valor-dato">${horaDeTick(u.ultimo_reporte)} · (${u.x},${u.y})</span></div>
-      </div>
-      <div class="acciones-unidad">
-        <a href="/unidad.html?id=${u.id}" class="btn-tarjeta neutro" style="text-decoration:none;width:100%;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px">
-          <span class="material-symbols-outlined">visibility</span><span>Inspeccionar</span>
-        </a>
-        <button class="btn-tarjeta ${sev === "normal" ? "neutro" : "grave"}" onclick="abrirModal(${u.id})">
-          <span class="material-symbols-outlined">alt_route</span><span>Asistir / caos</span>
-        </button>
-      </div>
-    </article>`;
-  }).join("");
-  const criticas = unidades.filter((u) => u.estado === "averiado").length +
-    unidades.filter((u) => u.estado === "sin_senal").length;
-  $("badge-panel").textContent = criticas > 0 ? `${criticas} nodos` : "flota saludable";
-  $("badge-panel").className = `badge-cuenta ${criticas > 0 ? "crit" : "ok"}`;
-};
-
-/* ---- filtros de estado (index) ---- */
-const setEstado = (estado, btn) => {
-  if (btn) {
-    document.querySelectorAll("#filter-status-group .btn-filtro").forEach((b) => {
-      const es = b === btn;
-      b.classList.toggle("activo", es);
-      if (es) b.classList.remove("activo-v"); else b.classList.remove("activo-v");
-    });
-  } else {
-    const botón = document.querySelector(`#filter-status-group .btn-filtro[data-estado="${estado}"]`);
-    if (botón) { setEstado(estado, botón); return; }
-  }
-  document.querySelectorAll(".unidad-card").forEach((card) => {
-    const s = card.getAttribute("data-status");
-    const coincide = estado === "todos" || s === estado;
-    card.style.display = coincide ? "" : "none";
-  });
-};
-
-/* ---- modal operador (index) ---- */
-let modalUnidad = null;
-const abrirModal = (idUnidad) => {
-  modalUnidad = idUnidad;
-  const u = g.unidades.find((x) => x.id === idUnidad);
-  $("modal-title").textContent = `Gestión de misión · U-${pad(idUnidad)}`;
-  $("modal-desc").innerHTML =
-    "Ordene la asistencia / inyección de avería (caos): la carga viva de la unidad " +
-    "vuelve a la cola y el despachador reasigna en el mismo tick. Ideal para ver la " +
-    "reelección de rutas bajo fallo en el vivo.";
-  const detalles = u ? [
-    ["Estado", u.estado.replaceAll("_", " ")],
-    ["Carga vivida", `${u.carga} / ${u.capacidad} kg`],
-    ["Entregas servidas", String(u.entregadas)],
-    ["Último GPS", `${horaDeTick(u.ultimo_reporte)} · (${u.x},${u.y})`],
-  ] : [];
-  $("modal-details").innerHTML = detalles
-    .map(([et, valor]) => `<div class="fila"><span class="et">${et}:</span><span>${valor}</span></div>`)
-    .join("");
-  $("btn-ejecutar").onclick = ejecutarDespacho;
-  $("modal-operador").classList.add("abierto");
-};
-const cerrarModal = () => $("modal-operador").classList.remove("abierto");
-const ejecutarDespacho = async () => {
-  if (modalUnidad === null) return;
-  const r = await postJSON("/api/averiar", { unidad: modalUnidad });
-  cerrarModal();
-  if (r.ok) {
-    mostrarToast(`Orden de despacho aplicada a U-${pad(modalUnidad)}. Reasignando en el mismo tick…`);
-  } else {
-    mostrarToast(`Error: ${r.error || "unidad no disponible"}`, "error");
-  }
-};
-
-/* ---- toast ---- */
-let toastTimer = null;
-const mostrarToast = (mensaje, tipo) => {
-  const t = $("toast");
-  if (!t) return;
-  $("toast-texto").textContent = mensaje;
-  $("toast-icono").textContent = tipo === "error" ? "report" : "check_circle";
-  t.classList.add("abierto");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove("abierto"), 4000);
-};
-
-/* ---- página index ----
- * El dashboard solo usa resumen + unidades: pedir también /api/entregas
- * (206 KB) era trabajo inútil en cada carga y en cada refetch. */
-const pintarIndex = async () => {
-  const [resumen, unidades] = await Promise.all(
-    [getJSON("/api/estado"), getJSON("/api/vehiculos")]);
-  g.unidades = unidades;
-  pintarResumen(resumen);
-  pintarKpis(resumen, unidades);
-  pintarMapa(resumen, unidades);
-  pintarPanelUnidades(unidades);
-  pintarBitacora(resumen, unidades);
-  banner(unidades);
-};
-
-/* ---- página unidad ---- */
-const SEMAFORO = {
-  en_ruta:   { clase: "verde", lb: "ESTADO: SEMÁFORO VERDE", dato: "EN RUTA · NOMINAL",
-               chip: "EN RUTA", sub: "Reporte GPS al día · misión viva en curso." },
-  sin_senal: { clase: "ambar", lb: "ESTADO: SEMÁFORO AMBAR", dato: "SIN SEÑAL GPS",
-               chip: "SIN SEÑAL", sub: "El watchdog vigila el umbral sin_senal_ticks; si rebasa, reasigna la carga." },
-  averiado:  { clase: "rojo",  lb: "ESTADO: SEMÁFORO ROJO",  dato: "AVERIADA · SOS",
-               chip: "DETENIDA", sub: "Inmovilizada por avería (caos). p29_flota_sup la relanza vacía en el relanzamiento." },
-};
-/* Núcleo puro de pintado de la ficha: recibe datos ya cargados. Lo usa
- * tanto el refetch (pintarUnidad) como el bucle SSE (con g.entregas
- * cacheado), así se repinta a 6 Hz sin pedir /api/entregas (206 KB) por tick. */
-const rellenarUnidad = (unidades, entregas, resumen) => {
-  const id = parseInt(new URLSearchParams(location.search).get("id"), 10) || 1;
-  g.unidades = unidades; g.entregas = entregas;
-  pintarResumen(resumen);
-  const u = unidades.find((x) => x.id === id);
-  if (!u) { $("titulo").textContent = `Unidad ${id} no encontrada`; return; }
-  const servidas = entregas.filter((e) => e.vehiculo === id);
-  const cerradas = servidas.filter((e) => e.estado === "entregada");
-  const vivas = servidas.filter((e) => e.estado === "en_ruta");
-  const maxEntregas = Math.max(...unidades.map((x) => x.entregadas), 1);
-
-  $("titulo").innerHTML = `U-${pad(id)} <span class="tramo">/ producción ${cerradas.length} entregas</span>`;
-  $("chip-tipo").textContent = `Unidad de reparto #${id}`;
-  $("tramo-unidad").innerHTML = vivas.length
-    ? `Tramo vivo: ${vivas.map((e) => `${e.colonia} (ENV-#${e.id})`).join(" · ")}`
-    : "Sin tramo activo: la cola la reparte el despachador (greedy first-fit) en el siguiente tick.";
-
-  const sf = SEMAFORO[u.estado] || SEMAFORO.en_ruta;
-  const sem = $("estado-unidad");
-  sem.className = `semforo-retraso ${sf.clase}`;
-  sem.querySelector(".lb").textContent = sf.lb;
-  sem.querySelector(".dato").textContent =
-    `${sf.dato} · CARGA ${u.carga}/${u.capacidad} KG`;
-  $("motivo-retraso").innerHTML =
-    `Último reporte GPS: <b>${horaDeTick(u.ultimo_reporte)}</b> (tick ${resumen.tick}) · ${sf.sub}`;
-  $("banner-texto").textContent =
-    u.estado === "en_ruta"
-      ? `Unidad en operación nominal · último GPS ${horaDeTick(u.ultimo_reporte)}`
-      : `Alerta de unidad: ${u.estado.replaceAll("_", " ")} desde el GPS ${horaDeTick(u.ultimo_reporte)} · revisar módulo de reasignación`;
-  if (u.estado !== "en_ruta") $("banner-incidente").classList.add("activo");
-
-  $("f1-entregadas").textContent = cerradas.length;
-  $("f1-vivas").textContent = vivas.length;
-  $("f1-barra").style.width = `${Math.min(100, (100 * cerradas.length) / maxEntregas)}%`;
-
-  const b = $("banner-incidente"); void b;
-  $("chip-sector").textContent = `(${u.x},${u.y})`;
-  $("f2-xy").textContent = `(${u.x}, ${u.y})`;
-  $("f2-pos").textContent = `${u.x} / ${u.y}`;
-  $("f2-ultimo").textContent = horaDeTick(u.ultimo_reporte);
-  const pin = $("pin-unidad");
-  pin.style.left = `${(u.x + 0.5) * 10}%`;
-  pin.style.top = `${(9.5 - u.y + 0.5) * 10}%`;
-
-  const pctCarga = u.capacidad ? (100 * u.carga) / u.capacidad : 0;
-  $("chip-carga").textContent = `${u.carga} KG A BORDO`;
-  $("f3-carga-kg").textContent = u.carga;
-  $("f3-capacidad").textContent = u.capacidad;
-  $("f3-pct").textContent = `${Math.round(pctCarga)}%`;
-  $("f3-barra").style.width = `${Math.min(100, pctCarga)}%`;
-  $("f3-mision").textContent = vivas.length
-    ? `${vivas.length} envío(s) en ruta` : "sin envíos en ruta";
-  $("f3-plan").textContent = vivas.length;
-
-  $("chip-estado-mini").textContent = sf.chip;
-  $("f4-estado").textContent = sf.dato;
-  $("f4-estado-sub").textContent = sf.sub;
-  $("f4-capacidad").textContent = `${u.capacidad} kg`;
-
-  $("registro-destino").textContent = vivas.length
-    ? vivas.map((e) => e.colonia).slice(0, 2).join(" · ") +
-      (vivas.length > 2 ? ` +${vivas.length - 2}` : "")
-    : "— (cola vacía)";
-  $("registro-estado").textContent =
-    u.estado === "en_ruta" ? "RUTA ACTIVA" :
-    u.estado === "sin_senal" ? "SEÑAL PERDIDA" : "UNIDAD DETENIDA";
-  $("registro-estado").style.color =
-    u.estado === "en_ruta" ? "var(--primary)" : "var(--error)";
-  $("detalle-carga").textContent =
-    `Capacidad ${u.capacidad} kg · ${vivas.length} envío(s) en ruta · ${cerradas.length} servidas hoy.`;
-
-  $("tbody-cargas").innerHTML = vivas.map(filaEntrega).join("") || filaVacia(6, "sin cargas asignadas ahora");
-  $("tbody-servidas").innerHTML =
-    cerradas.slice(0, 30).map(filaEntrega).join("") || filaVacia(6, "aún no cierra entregas este día");
-
-  $("campo-unidad").value = `U-${pad(id)} · carga ${u.carga}/${u.capacidad} kg · (${u.x},${u.y})`;
-};
-
-/* Refetch completo con guarda: si ya hay uno en vuelo se ignora (el bucle
- * SSE llamaba a pintarUnidad por tick y las promesas se acumulaban).
- * {forzar:true} tras una acción del usuario (avería/urgente) repinta ya. */
-const pintarUnidad = async (opts = {}) => {
-  if (refetchEnVuelo && !opts.forzar) return;
-  refetchEnVuelo = true;
-  try {
-    const [unidades, entregas, resumen] = await Promise.all(
-      [getJSON("/api/vehiculos"), getJSON("/api/entregas"), getJSON("/api/estado")]);
-    rellenarUnidad(unidades, entregas, resumen);
-  } finally {
-    refetchEnVuelo = false;
-  }
-};
-
-/* ---- módulo de reasignación (maqueta 2) ---- */
-const TEXTOS_OPCION = {
-  A: "AVERIAR UNIDAD. LA CARGA VIVA VUELVE A PENDIENTE Y EL DESPACHADOR REASIGNA POR GREEDY FIRST-FIT EN EL MISMO TICK. CONFIRMAR CONDICIÓN DE FLOTA EN /METRICS.",
-  B: "MARCAR ENTREGA URGENTE PARA ESTA UNIDAD. EL DESPACHADOR LA ATENDERÁ CON PRIORIDAD AL VENCER SU VENTANA. MONITOREO POR SSE /EVENTOS.",
-  C: "SOLO SUPERVISIÓN: NO SE TRANSMITE NINGÚN CAMBIO AL DOMINIO. OBSERVE LA TELEMETRÍA EN VIVO DESDE EL CONTROL.",
-};
-let opcionActual = "A";
-const seleccionarOpcion = (tipo) => {
-  opcionActual = tipo;
-  for (const t of ["A", "B", "C"]) {
-    const el = $(`opcion-${t.toLowerCase()}`);
-    if (el) el.classList.toggle("elegida", t === tipo);
-  }
-  $("instruccion").value = TEXTOS_OPCION[tipo];
-};
-let prioridadActual = "Urgente";
-const setPrioridad = (nivel, boton) => {
-  prioridadActual = nivel;
-  document.querySelectorAll(".btn-prio").forEach((b) => {
-    b.classList.remove("activo", "grave");
-  });
-  boton.classList.add("activo");
-  if (nivel === "Crítica") boton.classList.add("grave");
-};
-const transmitirReasignacion = async (ev) => {
-  ev.preventDefault();
-  const id = parseInt(new URLSearchParams(location.search).get("id"), 10) || 1;
-  const btn = $("btn-transmitir");
-  btn.disabled = true;
-  if (opcionActual === "C") {
-    mostrarToast("Modo observación: no se transmitió ningún cambio al dominio.");
-    btn.disabled = false;
-    return;
-  }
-  btn.innerHTML = `<span class="material-symbols-outlined">autorenew</span>
-    <span>Transmitiendo a U-${pad(id)}…</span>`;
-  const ruta = opcionActual === "A" ? "/api/averiar" : "/api/urgente";
-  const r = await postJSON(ruta, { unidad: id });
-  btn.disabled = false;
-  btn.innerHTML = `<span class="material-symbols-outlined">send</span>
-    <span>Confirmar y transmitir requerimiento</span>`;
-  if (r.ok) {
-    mostrarToast(opcionActual === "A"
-      ? `¡Avería aplicada a U-${pad(id)}! La carga reasignada por el despachador.`
-      : `¡Urgencia marcada para U-${pad(id)}! Atenderá con prioridad la entrega.`);
-    pintarUnidad({ forzar: true });
-  } else {
-    mostrarToast(`Error: ${r.error || "la unidad no está disponible"}`, "error");
-  }
-};
-const abrirRadio = () => $("panel-radio").classList.remove("oculto");
-const cerrarRadio = () => $("panel-radio").classList.add("oculto");
-
-/* ---- página historial (maqueta 3) ---- */
-let filtroCat = "todas";
-let filtroSev = "todas";
-const itemsCrono = (unidades, entregas) => {
-  const items = [];
-  const fallidas = entregas.filter((e) => e.estado === "fallida");
-  for (const e of fallidas.slice(0, 20)) {
-    items.push({ sev: "critica", cat: "sos", icono: "report_problem",
-      titulo: `Entrega fallida · ENV-#${e.id}`, ref: `ENV-#${e.id} · ${e.colonia}`,
-      sub: `Peso ${e.peso} kg · ventana ${e.ventana_desde}–${e.ventana_hasta}` +
-        (e.vehiculo === null ? " · unidad: —" : ` · unidad U-${pad(e.vehiculo)}`),
-      mensaje: "Cliente ausente u otro motivo de la corrida: el envío queda fuera de la meta del día (5–15 % objetivo del enunciado).",
-      estadoTxt: "FALLIDA", estadoClase: "critica",
-      accion: null,
-      telem: [["Peso", `${e.peso} kg`], ["Ventana", `${e.ventana_desde}–${e.ventana_hasta}`],
-              ["Retraso", `+${e.retraso}`],
-              ["Unidad", e.vehiculo === null ? "sin asignar" : `U-${pad(e.vehiculo)}`]] });
-  }
-  for (const u of unidades.filter((x) => x.estado !== "en_ruta")) {
-    const crit = u.estado === "averiado";
-    items.push({ sev: crit ? "critica" : "precaucion", cat: "unidades",
-      icono: crit ? "car_crash" : "wifi_off",
-      titulo: `Unidad U-${pad(u.id)} — ${u.estado.replaceAll("_", " ")}`,
-      ref: crit ? "CAOS AVERIADO" : "SEÑAL GPS PERDIDA",
-      sub: `Último GPS ${horaDeTick(u.ultimo_reporte)} · carga ${u.carga}/${u.capacidad} kg · ${u.entregadas} entregadas`,
-      mensaje: crit
-        ? "Unidad inmovilizada por avería inyectada (caos). Su carga vuelve a la cola y el despachador reasigna; p29_flota_sup la relanza vacía."
-        : "Sin señal GPS: su carga pasa a pendiente si rebasa el umbral; la señal de vuelta repone la unidad.",
-      estadoTxt: crit ? "ACTIVO" : "AVISO", estadoClase: crit ? "critica" : "precaucion",
-      accion: `/unidad.html?id=${u.id}`, accionTxt: "Ver unidad",
-      telem: [["Último GPS", horaDeTick(u.ultimo_reporte)],
-              ["Carga", `${u.carga} / ${u.capacidad} kg`],
-              ["Entregadas", String(u.entregadas)],
-              ["Posición", `(${u.x}, ${u.y})`]] });
-  }
-  const cerradas = entregas.filter((e) => e.estado === "entregada");
-  for (const e of cerradas.slice(-14).reverse()) {
-    items.push({ sev: "nominal", cat: "servidas", icono: "task_alt",
-      titulo: `Entrega cerrada · ENV-#${e.id}`, ref: `ENV-#${e.id} · ${e.colonia}`,
-      sub: `Peso ${e.peso} kg · ventana ${e.ventana_desde}–${e.ventana_hasta}` +
-        (e.vehiculo === null ? "" : ` · unidad U-${pad(e.vehiculo)}`),
-      mensaje: "Servicio cerrado por la unidad terrestre asignada; el conteo va a /metrics como entregada.",
-      estadoTxt: "ENTREGA CERRADA", estadoClase: "nominal",
-      accion: null, accionTxt: null,
-      telem: [["Peso", `${e.peso} kg`], ["Ventana", `${e.ventana_desde}–${e.ventana_hasta}`],
-              ["Retraso", `+${e.retraso}`],
-              ["Unidad", e.vehiculo === null ? "—" : `U-${pad(e.vehiculo)}`]] });
-  }
-  return items;
-};
-/* Núcleo puro de pintado del historial (ver rellenarUnidad). */
-const rellenarHistorial = (unidades, entregas, resumen) => {
-  g.unidades = unidades; g.entregas = entregas;
-  pintarResumen(resumen);
-  const e = resumen.entregas || {}, v = resumen.vehiculos || {};
-  const averiadas = unidades.filter((u) => u.estado === "averiado").length;
-  const sinSenal = unidades.filter((u) => u.estado === "sin_senal").length;
-
-  $("kicker-ciclo").textContent = `Ciclo activo #29-TX · tick ${resumen.tick}`;
-  $("bc-crit").textContent = averiadas + en(e, "fallida");
-  $("bc-pre").textContent = sinSenal;
-  $("bc-nom").textContent = en(e, "entregada");
-
-  const b = $("banner-incidente"), t = $("banner-texto");
-  const det = unidades.find((u) => u.estado !== "en_ruta");
-  if (det) {
-    b.classList.add("activo");
-    $("banner-punto")?.classList.remove("oculto");
-    t.innerHTML = `Unidad ${det.id}: <b>${det.estado.replaceAll("_", " ")}</b>, último GPS ${horaDeTick(det.ultimo_reporte)}.`;
-  } else {
-    b.classList.remove("activo");
-    $("banner-punto")?.classList.add("oculto");
-    t.textContent = "Flota nominal · sin incidencias activas en el canal.";
-  }
-
-  const cont = $("timeline-container");
-  cont.innerHTML = itemsCrono(unidades, entregas).map((it, i) => `
-    <article class="item-crono icono-${it.sev} estado-${it.sev}"
-        data-category="${it.cat}" data-severity="${it.sev}" id="ev-${i}">
-      <div class="cabeza-ev">
-        <div class="badges-ev">
-          <span class="severidad ${it.sev}"><span class="punto"></span>${it.sev === "critica" ? "CRÍTICO" : it.sev === "precaucion" ? "PRECAUCIÓN" : "NORMAL"}</span>
-          <span class="chip-ev">${it.ref}</span>
-        </div>
-        <div class="estado-activo">
-          <span class="txt">${it.estadoTxt}</span>
-          <span class="material-symbols-outlined" style="font-size:18px">${it.icono}</span>
-        </div>
-      </div>
-      <div class="cuerpo-ev">
-        <div style="display:flex;align-items:flex-start;gap:var(--ss);min-width:0">
-          <div class="icono-ev"><span class="material-symbols-outlined" style="font-size:24px">${it.icono}</span></div>
-          <div class="detalle-ev">
-            <div class="id-ev"><h2 class="titulo-ev">${it.titulo}</h2></div>
-            <span class="sub-ev">${it.sub}</span>
-          </div>
-        </div>
-        <div class="btns-ev">
-          <button class="btn-detalle" onclick="toggleCrono('tel-${i}')">Telemetría</button>
-          ${it.accion ? `<a href="${it.accion}" class="btn-ver" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center">${it.accionTxt}</a>` : ""}
-        </div>
-      </div>
-      <div style="margin-left:0">
-        <p class="mensaje-ev">${it.mensaje}</p>
-      </div>
-      <div class="telemetria-ev oculto" id="tel-${i}">
-        ${it.telem.map(([lb, dato]) => `
-          <div class="col"><span class="lb">${lb}</span>
-          <span class="dato ${it.sev}">${dato}</span></div>`).join("")}
-      </div>
-    </article>`).join("") || "";
-  applyFilters();
-
-  $("aud-invariantes").textContent = resumen.invariantes === "ok" ? "OK" : "ERROR";
-  $("aud-invariantes").style.color =
-    resumen.invariantes === "ok" ? "var(--primary)" : "var(--error)";
-  $("aud-sello").textContent = `tick ${resumen.tick}`;
-  $("aud-reasign").textContent = resumen.reasignaciones;
-  $("aud-reasign-sub").textContent = "reasignaciones por greedy first-fit en el día";
-  $("aud-retraso").textContent = `+${(resumen.retraso_medio / 6).toFixed(0)} min`;
-  $("met-estado").textContent = sinSenal > 0 ? "Precaución parcial" : "Nominal";
-  $("met-sub").innerHTML = sinSenal > 0
-    ? `sin señal: <b>${sinSenal}</b> unidad(es) · reasignaciones: ${resumen.reasignaciones}`
-    : "sin señal vacía · watchdog en silencio";
-
-  const sel = $("unit-select");
-  sel.innerHTML =
-    `<option value="">Seleccione activo…</option>` +
-    unidades.map((u) => `<option value="${u.id}">U-${pad(u.id)} · carga ${u.carga}/${u.capacidad} kg</option>`).join("");
-};
-
-/* Refetch completo con guarda (ver pintarUnidad). */
-const pintarHistorial = async () => {
-  if (refetchEnVuelo) return;
-  refetchEnVuelo = true;
-  ultimoRefetch = Date.now();
-  try {
-    const [entregas, unidades, resumen] = await Promise.all(
-      [getJSON("/api/entregas"), getJSON("/api/vehiculos"), getJSON("/api/estado")]);
-    rellenarHistorial(unidades, entregas, resumen);
-  } finally {
-    refetchEnVuelo = false;
-  }
-};
-const toggleCrono = (id) => $(id)?.classList.toggle("oculto");
-const applyFilters = () => {
-  const q = ($("timeline-search")?.value || "").toLowerCase().trim();
-  $("clear-search-btn")?.classList.toggle("oculto", q.length === 0);
-  const items = document.querySelectorAll(".item-crono");
-  let visibles = 0;
-  items.forEach((item) => {
-    const cat = item.getAttribute("data-category") || "";
-    const sev = item.getAttribute("data-severity") || "";
-    const texto = item.textContent.toLowerCase();
-    const okQ = q === "" || texto.includes(q);
-    const okC = filtroCat === "todas" || cat.includes(filtroCat);
-    const okS = filtroSev === "todas" || sev === filtroSev;
-    const mostrar = okQ && okC && okS;
-    item.classList.toggle("oculto", !mostrar);
-    if (mostrar) visibles++;
-  });
-  $("active-event-count").textContent = `${visibles} eventos visibles`;
-  const vacio = $("empty-state");
-  if (vacio) vacio.classList.toggle("oculto", visibles > 0);
-};
-const clearSearch = () => { $("timeline-search").value = ""; applyFilters(); };
-const resetAllFilters = () => {
-  $("timeline-search").value = "";
-  filtroSev = "todas";
-  filterCategory("todas", document.querySelector(".chip-cat"));
-};
-const filterCategory = (cat, btn) => {
-  filtroCat = cat;
-  document.querySelectorAll(".chip-cat").forEach((c) => c.classList.remove("activo"));
-  if (btn) btn.classList.add("activo");
-  applyFilters();
-};
-const filterSeverity = (sev) => {
-  filtroSev = filtroSev === sev ? "todas" : sev;
-  applyFilters();
-};
-const setTimeframe = (f) => {
-  const b24 = $("filter-btn-24h"), bt = $("filter-btn-shift");
-  const activo = "padding:8px var(--ss);border:0;cursor:pointer;border-radius:.375rem;font:600 var(--tsm) var(--sans);background:var(--surface-lowest);color:var(--primary);box-shadow:0 1px 2px rgba(11,28,48,.1)";
-  const neutro = "padding:8px var(--ss);border:0;border-radius:.375rem;font:600 var(--tsm) var(--sans);background:transparent;color:var(--on-variant)";
-  b24.style.cssText = f === "24h" ? activo : neutro;
-  bt.style.cssText = f === "24h" ? neutro : activo;
-};
-const handleLogSubmit = async (ev) => {
-  ev.preventDefault();
-  const unidad = parseInt($("unit-select").value, 10);
-  if (Number.isNaN(unidad)) { alert("Seleccione una unidad."); return; }
-  const sev = document.querySelector("input[name='severity-input']:checked").value;
-  const btn = document.querySelector("#log-form button[type='submit']");
-  const original = btn.innerHTML;
-  btn.innerHTML = "<span>Aplicando…</span>";
-  const ruta = sev === "critica" ? "/api/averiar" : "/api/urgente";
-  const r = await postJSON(ruta, { unidad });
-  btn.innerHTML = original;
-  if (!r.ok) { mostrarToast(`Error: ${r.error || "unidad no disponible"}`, "error"); return; }
-  $("form-toast-texto").textContent = sev === "critica"
-    ? `Avería aplicada a U-${pad(unidad)} y firmada en la bitácora: la carga reasignada.`
-    : `Urgencia marcada para U-${pad(unidad)} y firmada en la bitácora.`;
-  $("form-toast").classList.remove("oculto");
-  $("log-form").reset?.();
-  pintarHistorial();
-};
-
-/* ---- red ---- */
-async function getJSON(ruta) { return (await fetch(ruta)).json(); }
-async function postJSON(ruta, cuerpo) {
-  const resp = await fetch(ruta, { method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(cuerpo || {}) });
-  return resp.json();
+function debounce(fn, ms) {
+  let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 }
 
-/* ---- arranque ---- */
-document.addEventListener("DOMContentLoaded", async () => {
-  const pagina = document.body.dataset.page;
-  if (pagina === "index") await pintarIndex();
-  else if (pagina === "unidad") await pintarUnidad();
-  else if (pagina === "historial") await pintarHistorial();
-  // en vivo: el SSE llega por tick (~30 Hz) pero la UI pinta a ~6 Hz con
-  // requestAnimationFrame; unidad/historial NO refetchean por tick (ver
-  // programarPintado/rellenarUnidad/rellenarHistorial). Refresco periódico
-  // acotado cada 5 s: sin esto las tablas/timeline de unidad e historial
-  // quedarían congeladas en la foto inicial (solo el SSE mueve el resumen
-  // y las posiciones); con guarda anti-solapado no se acumula tráfico.
-  if (pagina === "unidad" || pagina === "historial") {
-    setInterval(() => {
-      if (document.hidden) return;
-      if (pagina === "unidad") pintarUnidad();
-      else pintarHistorial();
-    }, 5000);
+function throttle(fn, ms) {
+  let last = 0; return (...args) => { const now = Date.now(); if (now - last >= ms) { last = now; fn(...args); } };
+}
+
+function showToast(message, type = 'ok') {
+  const toast = $('#toast');
+  const msg = $('#toastMessage');
+  const icon = toast.querySelector('.icon');
+  if (!toast || !msg) return;
+  msg.textContent = message;
+  icon.textContent = type === 'error' ? 'error' : type === 'warn' ? 'warning' : 'check_circle';
+  icon.style.color = type === 'error' ? 'var(--status-critical)' : type === 'warn' ? 'var(--status-warning)' : 'var(--status-ok)';
+  toast.classList.add('open');
+  setTimeout(() => toast.classList.remove('open'), 3000);
+}
+
+function openModal(id) { $(`#${id}`).classList.add('open'); }
+function closeModal(id) { $(`#${id}`).classList.remove('open'); }
+
+// ============================================
+// STATE MANAGEMENT
+// ============================================
+
+const State = {
+  fleet: [],
+  entregas: [],
+  eventos: [],
+  selectedUnit: null,
+  filters: {
+    search: '',
+    sectors: ['aereo', 'troncal', 'ultima'],
+    statuses: ['nominal', 'alerta', 'critico', 'tierra'],
+    priorities: ['critica', 'alta', 'normal'],
+    severity: '',
+    timeWindow: '6h',
+    segment: ''
+  },
+  sse: null,
+  sseReconnectTimer: null,
+  mapState: {
+    zoom: 4,
+    center: { x: 0.5, y: 0.5 },
+    layers: { fleet: true, weather: false, routes: true, hubs: true },
+    pinnedUnit: null
+  },
+  paused: false,
+  lastTick: 0,
+  renderScheduled: false
+};
+
+// ============================================
+// API CLIENT
+// ============================================
+
+async function apiGet(endpoint) {
+  try {
+    const res = await fetch(endpoint, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    return await res.json();
+  } catch (e) {
+    console.error(`API GET ${endpoint}:`, e);
+    throw e;
   }
-  const flujo = new EventSource("/eventos");
-  flujo.addEventListener("estado", (m) => {
-    ultimoSSE = JSON.parse(m.data);
-    requestAnimationFrame(programarPintado);
+}
+
+async function apiPost(endpoint, body) {
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `${res.status} ${res.statusText}`);
+    return data;
+  } catch (e) {
+    console.error(`API POST ${endpoint}:`, e);
+    throw e;
+  }
+}
+
+// ============================================
+// SSE HANDLER
+// ============================================
+
+function connectSSE() {
+  if (State.sse) { State.sse.close(); State.sse = null; }
+  const url = new URL(CONFIG.sseEndpoint, window.location.origin);
+  const es = new EventSource(url);
+  State.sse = es;
+
+  es.onopen = () => {
+    console.log('[SSE] Connected');
+    updateLiveBadge(true);
+    clearTimeout(State.sseReconnectTimer);
+  };
+
+  es.onerror = () => {
+    console.warn('[SSE] Error, reconnecting...');
+    updateLiveBadge(false);
+    es.close();
+    State.sseReconnectTimer = setTimeout(connectSSE, CONFIG.sseReconnectDelay);
+  };
+
+  es.addEventListener('estado', (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      handleSSEData(data);
+    } catch (err) {
+      console.error('[SSE] Parse error:', err);
+    }
   });
+
+  return es;
+}
+
+function updateLiveBadge(connected) {
+  const live = $('#liveBadge');
+  const paused = $('#pausedBadge');
+  if (live && paused) {
+    live.classList.toggle('hidden', !connected);
+    paused.classList.toggle('hidden', connected);
+  }
+}
+
+function handleSSEData(data) {
+  if (data.tick !== undefined) State.lastTick = data.tick;
+
+  if (data.unidades) {
+    State.fleet = data.unidades;
+    updateFleetUI();
+  }
+
+  if (data.resumen) {
+    updateKPIs(data.resumen);
+    updateSidebarCounts(data.resumen);
+  }
+
+  if (data.eventos) {
+    data.eventos.forEach(ev => addEvent(ev));
+    updateEventCounts();
+  }
+
+  if (State.selectedUnit) {
+    const unit = State.fleet.find(u => u.id === State.selectedUnit);
+    if (unit) updateUnitDetail(unit);
+  }
+
+  updateClock();
+}
+
+function addEvent(event) {
+  State.eventos.unshift({ ...event, _id: Date.now() + Math.random() });
+  if (State.eventos.length > CONFIG.maxEvents) State.eventos = State.eventos.slice(0, CONFIG.maxEvents);
+  if (!State.paused) renderEvents();
+}
+
+// ============================================
+// DATA TRANSFORMATION
+// ============================================
+
+function normalizeFleet(raw) {
+  return (raw || []).map(u => ({
+    id: u.id || u.unidad || u.aeronave,
+    pid: u.pid,
+    tipo: u.tipo || u.modelo || 'Desconocido',
+    sector: u.sector || 'aereo',
+    estado: u.estado || u.status || 'tierra',
+    prioridad: u.prioridad || 'normal',
+    lat: u.lat ?? u.latitude,
+    lon: u.lon ?? u.longitude,
+    altitud: u.altitud ?? u.altitude ?? u.fl,
+    velocidad: u.velocidad ?? u.gs ?? u.ground_speed,
+    heading: u.heading ?? u.hdg,
+    vs: u.vs ?? u.vertical_speed,
+    combustible: u.combustible ?? u.fuel_pct ?? u.fuel,
+    combustible_kg: u.combustible_kg,
+    payload: u.payload ?? u.carga_util ?? u.cargo_kg,
+    max_payload: u.max_payload ?? u.mtow,
+    ruta: u.ruta || [],
+    ruta_idx: u.ruta_idx ?? u.waypoint_idx ?? 0,
+    progreso: u.progreso ?? u.progress ?? 0,
+    eta: u.eta,
+    awb_count: u.awb_count ?? (u.envios?.length ?? 0),
+    envios: u.envios || [],
+    next_fix: u.next_fix,
+    distancia_restante: u.distancia_restante
+  }));
+}
+
+function normalizeEntregas(raw) {
+  return (raw || []).map(e => ({
+    awb: e.awb || e.id,
+    descripcion: e.descripcion || e.desc || 'Carga general',
+    peso: e.peso ?? e.weight_kg ?? 0,
+    volumen: e.volumen ?? e.volume ?? 0,
+    prioridad: e.prioridad || e.priority || 'normal',
+    origen: e.origen || e.origin_iata || e.origen_iata,
+    destino: e.destino || e.dest_iata || e.destino_iata,
+    estado: e.estado || e.status || 'pendiente',
+    unidad: e.unidad || u.aeronave || e.assigned_unit,
+    sla_ventana: e.sla_ventana || e.sla_window,
+    retraso: e.retraso ?? e.delay ?? 0
+  }));
+}
+
+// ============================================
+// PAGE DETECTION & ROUTING
+// ============================================
+
+const Page = {
+  current: null,
+  init() {
+    const path = window.location.pathname;
+    if (path.includes('unidad.html')) this.current = 'unidad';
+    else if (path.includes('historial.html')) this.current = 'historial';
+    else this.current = 'dashboard';
+    this[this.current]?.init?.();
+  }
+};
+
+// ============================================
+// DASHBOARD PAGE (index.html)
+// ============================================
+
+Page.dashboard = {
+  async init() {
+    await this.loadInitialData();
+    this.setupUI();
+    connectSSE();
+    this.startClock();
+  },
+
+  async loadInitialData() {
+    try {
+      const [fleetRes, entregasRes, estadoRes] = await Promise.all([
+        apiGet(CONFIG.apiEndpoints.vehiculos),
+        apiGet(CONFIG.apiEndpoints.entregas),
+        apiGet(CONFIG.apiEndpoints.estado)
+      ]);
+      State.fleet = normalizeFleet(fleetRes);
+      State.entregas = normalizeEntregas(entregasRes);
+      if (estadoRes?.resumen) {
+        updateKPIs(estadoRes.resumen);
+        updateSidebarCounts(estadoRes.resumen);
+      }
+      updateFleetUI();
+      renderRadar();
+    } catch (e) {
+      showToast('Error cargando datos iniciales', 'error');
+    }
+  },
+
+  setupUI() {
+    // Sidebar toggle
+    $('#sidebarToggle')?.addEventListener('click', () => {
+      $('#sidebar').classList.remove('-translate-x-full');
+      $('#sidebarOverlay').classList.remove('hidden');
+    });
+    $('#sidebarClose')?.addEventListener('click', closeSidebar);
+    $('#sidebarOverlay')?.addEventListener('click', closeSidebar);
+
+    // Fleet search
+    $('#fleetSearch')?.addEventListener('input', debounce(() => {
+      State.filters.search = $('#fleetSearch').value.toLowerCase();
+      updateFleetUI();
+    }, 150));
+
+    // Filter checkboxes
+    $$('.filter-checkbox').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const name = cb.name.replace('filter', '').toLowerCase();
+        const vals = State.filters[name + 's'] || State.filters[name];
+        if (cb.checked) { if (!vals.includes(cb.value)) vals.push(cb.value); }
+        else { const i = vals.indexOf(cb.value); if (i >= 0) vals.splice(i, 1); }
+        updateFleetUI();
+        updateSidebarCounts();
+      });
+    });
+
+    // Refresh
+    $('#refreshFleet')?.addEventListener('click', () => loadInitialData());
+
+    // Map layers
+    $('#layerFleet')?.addEventListener('click', toggleLayer.bind(null, 'fleet', '#layerFleet'));
+    $('#layerWeather')?.addEventListener('click', toggleLayer.bind(null, 'weather', '#layerWeather'));
+    $('#layerRoutes')?.addEventListener('click', toggleLayer.bind(null, 'routes', '#layerRoutes'));
+    $('#layerHubs')?.addEventListener('click', toggleLayer.bind(null, 'hubs', '#layerHubs'));
+
+    // Map controls
+    $('#zoomIn')?.addEventListener('click', () => adjustZoom(1));
+    $('#zoomOut')?.addEventListener('click', () => adjustZoom(-1));
+    $('#resetView')?.addEventListener('click', resetMapView);
+    $('#centerFleet')?.addEventListener('click', centerOnFleet);
+    $('#fullscreenMap')?.addEventListener('click', toggleFullscreen);
+
+    // Settings
+    $('#settingsBtn')?.addEventListener('click', () => showInfoModal('Configuración', 'Panel de configuración en desarrollo.'));
+
+    // Close unit detail drawer on mobile
+    $('#closeUnitDetail')?.addEventListener('click', closeUnitDrawer);
+    $('#unitDetailOverlay')?.addEventListener('click', closeUnitDrawer);
+  },
+
+  startClock() {
+    updateClock();
+    setInterval(updateClock, 1000);
+  }
+};
+
+function closeSidebar() {
+  $('#sidebar')?.classList.add('-translate-x-full');
+  $('#sidebarOverlay')?.classList.add('hidden');
+}
+
+function toggleLayer(layer, btnSel) {
+  State.mapState.layers[layer] = !State.mapState.layers[layer];
+  const btn = $(btnSel);
+  if (btn) btn.setAttribute('aria-pressed', State.mapState.layers[layer]);
+  renderRadar();
+}
+
+function adjustZoom(delta) {
+  State.mapState.zoom = clamp(State.mapState.zoom + delta, CONFIG.mapDefaults.minZoom, CONFIG.mapDefaults.maxZoom);
+  renderRadar();
+}
+
+function resetMapView() {
+  State.mapState.zoom = CONFIG.mapDefaults.zoom;
+  State.mapState.center = { x: 0.5, y: 0.5 };
+  renderRadar();
+}
+
+function centerOnFleet() {
+  const airborne = State.fleet.filter(u => u.estado !== 'tierra' && u.lat != null && u.lon != null);
+  if (airborne.length) {
+    const avgLat = airborne.reduce((s, u) => s + u.lat, 0) / airborne.length;
+    const avgLon = airborne.reduce((s, u) => s + u.lon, 0) / airborne.length;
+    State.mapState.center = latLonToMap(avgLat, avgLon);
+    State.mapState.zoom = 5;
+    renderRadar();
+  }
+}
+
+function toggleFullscreen() {
+  const container = $('#radarContainer');
+  if (!container) return;
+  if (!document.fullscreenElement) container.requestFullscreen();
+  else document.exitFullscreen();
+}
+
+// ============================================
+// FLEET UI UPDATES
+// ============================================
+
+function updateFleetUI() {
+  const list = $('#fleetList');
+  if (!list) return;
+
+  let filtered = State.fleet.filter(u => {
+    if (State.filters.search) {
+      const s = State.filters.search;
+      const match = u.id.toLowerCase().includes(s) ||
+        u.tipo.toLowerCase().includes(s) ||
+        u.envios?.some(e => e.awb?.toLowerCase().includes(s));
+      if (!match) return false;
+    }
+    if (!State.filters.sectors.includes(u.sector)) return false;
+    if (!State.filters.statuses.includes(u.estado)) return false;
+    if (!State.filters.priorities.includes(u.prioridad)) return false;
+    return true;
+  });
+
+  // Sort: airborne first, then by priority, then by ID
+  filtered.sort((a, b) => {
+    const aAir = a.estado !== 'tierra' ? 0 : 1;
+    const bAir = b.estado !== 'tierra' ? 0 : 1;
+    if (aAir !== bAir) return aAir - bAir;
+    const prioOrder = { critica: 0, alta: 1, normal: 2 };
+    return (prioOrder[a.prioridad] ?? 2) - (prioOrder[b.prioridad] ?? 2);
+  });
+
+  list.innerHTML = filtered.map(renderFleetCard).join('');
+
+  // Click handlers
+  $$('.fleet-card', list).forEach((card, i) => {
+    card.addEventListener('click', () => openUnitDetail(filtered[i]));
+  });
+}
+
+function renderFleetCard(u) {
+  const status = CONFIG.statusColors[u.estado] || CONFIG.statusColors.tierra;
+  const cardClass = u.estado === 'critico' ? 'critical' : u.estado === 'alerta' ? 'alert' : 'nominal';
+  const iconType = u.sector === 'aereo' ? 'flight_takeoff' : u.sector === 'troncal' ? 'directions_runway' : 'local_shipping';
+  const iconClass = u.estado === 'critico' ? 'crit' : u.estado === 'alerta' ? 'warn' : u.estado === 'tierra' ? 'info' : 'ok';
+
+  const alt = u.altitud ? fmt.altitude(u.altitud) : '—';
+  const gs = u.velocidad ? fmt.speed(u.velocidad) : '—';
+  const payload = u.payload != null ? fmt.payload(u.payload) : '—';
+
+  return `
+    <article class="fleet-card ${cardClass}" role="listitem" tabindex="0" data-id="${u.id}" aria-label="${u.id}, ${u.tipo}, ${status.label}">
+      <header class="fleet-card-header">
+        <div class="fleet-card-id flex items-center gap-sm min-w-0">
+          <div class="fleet-icon ${iconClass}">
+            <span class="material-symbols-outlined">${iconType}</span>
+          </div>
+          <div class="min-w-0">
+            <h3 class="fleet-name truncate">${u.id}</h3>
+            <p class="fleet-sub truncate">${u.tipo} · ${u.sectorLabel || CONFIG.sectorLabels[u.sector]}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-sm">
+          <span class="badge ${u.estado === 'critico' ? 'badge-crit' : u.estado === 'alerta' ? 'badge-warn' : u.estado === 'tierra' ? 'badge-info' : 'badge-ok'}">
+            <span class="dot" style="background: ${status.dot};"></span>
+            ${status.label}
+          </span>
+        </div>
+      </header>
+      <div class="fleet-telemetry">
+        <div class="metric ${u.altitud && u.altitud > 410 ? 'warn' : ''}">${alt}</div>
+        <div class="label">ALTITUD</div>
+        <div class="metric ${u.velocidad && u.velocidad > 500 ? 'warn' : ''}">${gs}</div>
+        <div class="label">VEL. TIERRA</div>
+        <div class="metric ${u.payload && u.max_payload && u.payload / u.max_payload > 0.9 ? 'warn' : ''}">${payload}</div>
+        <div class="label">CARGA ÚTIL</div>
+      </div>
+      <div class="fleet-mini">
+        <div class="row"><span class="key">Combustible</span><span class="val ${u.combustible != null && u.combustible < 20 ? 'crit' : u.combustible != null && u.combustible < 35 ? 'warn' : 'ok'}">${u.combustible != null ? fmt.percent(u.combustible) : '—'}</span></div>
+        <div class="row"><span class="key">Envíos</span><span class="val">${u.awb_count || 0}</span></div>
+        <div class="row"><span class="key">Próx. FIX</span><span class="val">${u.next_fix || '—'}</span></div>
+        <div class="row"><span class="key">Progreso</span><span class="val">${u.progreso != null ? fmt.fixed(u.progreso * 100) + '%' : '—'}</span></div>
+      </div>
+    </article>
+  `;
+}
+
+function updateSidebarCounts(resumen) {
+  if (resumen) {
+    const bySector = resumen.por_sector || {};
+    $('#countAereo').textContent = bySector.aereo || 0;
+    $('#countTroncal').textContent = bySector.troncal || 0;
+    $('#countUltima').textContent = bySector.ultima || 0;
+  }
+  const byStatus = { nominal: 0, alerta: 0, critico: 0, tierra: 0 };
+  const byPriority = { critica: 0, alta: 0, normal: 0 };
+  State.fleet.forEach(u => {
+    if (byStatus[u.estado] !== undefined) byStatus[u.estado]++;
+    if (byPriority[u.prioridad] !== undefined) byPriority[u.prioridad]++;
+  });
+  $('#countNominal').textContent = byStatus.nominal;
+  $('#countAlerta').textContent = byStatus.alerta;
+  $('#countCritico').textContent = byStatus.critico;
+  $('#countTierra').textContent = byStatus.tierra;
+  $('#countPriCritica').textContent = byPriority.critica;
+  $('#countPriAlta').textContent = byPriority.alta;
+  $('#countPriNormal').textContent = byPriority.normal;
+  $('#fleetCount').textContent = State.fleet.length;
+}
+
+// ============================================
+// KPI UPDATES
+// ============================================
+
+function updateKPIs(resumen) {
+  // Dashboard KPIs would go here if we had them in index.html
+  // For now, historial.html has its own KPI section
+  if (Page.current === 'historial') Page.historial.updateKPIs(resumen);
+}
+
+// ============================================
+// CLOCK
+// ============================================
+
+function updateClock() {
+  const utc = $('#clockUtc');
+  if (utc) utc.textContent = fmt.utc();
+}
+
+// ============================================
+// RADAR MAP (Canvas/SVG)
+// ============================================
+
+const HUBS = [
+  { id: 'MEX', name: 'AICM', lat: 19.4363, lon: -99.0721, type: 'hub' },
+  { id: 'BOG', name: 'El Dorado', lat: 4.7016, lon: -74.1469, type: 'hub' },
+  { id: 'CUN', name: 'Cancún', lat: 21.0365, lon: -86.8775, type: 'major' },
+  { id: 'GDL', name: 'Guadalajara', lat: 20.5218, lon: -103.3112, type: 'major' },
+  { id: 'MTY', name: 'Monterrey', lat: 25.7783, lon: -100.1069, type: 'major' },
+  { id: 'LIM', name: 'Jorge Chávez', lat: -12.0219, lon: -77.1143, type: 'hub' },
+  { id: 'SCL', name: 'Arturo Merino', lat: -33.3930, lon: -70.7858, type: 'hub' },
+  { id: 'GRU', name: 'Guarulhos', lat: -23.4356, lon: -46.4731, type: 'hub' },
+  { id: 'EZE', name: 'Ezeiza', lat: -34.8222, lon: -58.5358, type: 'hub' },
+  { id: 'PTY', name: 'Tocumen', lat: 9.0714, lon: -79.3834, type: 'major' },
+  { id: 'SAL', name: 'El Salvador', lat: 13.4409, lon: -89.0557, type: 'major' },
+  { id: 'UIO', name: 'Mariscal Sucre', lat: -0.1292, lon: -78.3575, type: 'major' }
+];
+
+const FIXES = [
+  { id: 'VAKUD', lat: 20.1234, lon: -98.5678 },
+  { id: 'OTUBA', lat: 19.8765, lon: -97.4321 },
+  { id: 'GIRAR', lat: 18.5432, lon: -96.1234 },
+  { id: 'ULQ', lat: 17.2345, lon: -94.5678 },
+  { id: 'TOL', lat: 16.7890, lon: -93.2345 },
+  { id: 'PAL', lat: 15.4321, lon: -92.1234 },
+  { id: 'IBG', lat: 14.2345, lon: -90.5678 },
+  { id: 'DAG', lat: 12.8765, lon: -88.2345 },
+  { id: 'BOK', lat: 10.1234, lon: -85.4321 },
+  { id: 'RUM', lat: 8.5678, lon: -82.1234 },
+  { id: 'XAM', lat: 6.2345, lon: -78.5678 },
+  { id: 'AVI', lat: 4.8901, lon: -75.4321 }
+];
+
+function latLonToMap(lat, lon) {
+  // Simple equirectangular projection for the radar view
+  // World bounds approx: lat -60 to 60, lon -130 to -30 for Americas focus
+  const x = (lon + 130) / 100; // 0 to 1
+  const y = 1 - (lat + 60) / 120; // 0 to 1 (inverted for screen coords)
+  return { x: clamp(x, 0, 1), y: clamp(y, 0, 1) };
+}
+
+function mapToLatLon(x, y) {
+  const lon = x * 100 - 130;
+  const lat = (1 - y) * 120 - 60;
+  return { lat, lon };
+}
+
+function renderRadar() {
+  const container = $('#radarContainer');
+  const pins = $('#radarPins');
+  const svg = $('#radarSvg');
+  if (!container || !pins || !svg) return;
+
+  const rect = container.getBoundingClientRect();
+  const w = rect.width;
+  const h = rect.height;
+
+  // Set SVG size
+  svg.setAttribute('width', w);
+  svg.setAttribute('height', h);
+  svg.innerHTML = '';
+
+  // Draw routes
+  if (State.mapState.layers.routes) {
+    State.fleet.filter(u => u.ruta?.length && u.estado !== 'tierra').forEach(u => {
+      const points = u.ruta.map(wp => latLonToMap(wp.lat, wp.lon));
+      if (points.length < 2) return;
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x * w} ${p.y * h}`).join(' ');
+      path.setAttribute('d', d);
+      path.setAttribute('stroke', u.estado === 'critico' ? 'var(--status-critical)' : u.estado === 'alerta' ? 'var(--status-warning)' : 'var(--primary)');
+      path.setAttribute('stroke-width', '2');
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke-dasharray', u.estado === 'critico' ? '8,4' : u.estado === 'alerta' ? '6,6' : 'none');
+      path.setAttribute('opacity', '0.7');
+      svg.appendChild(path);
+
+      // Progress indicator
+      if (u.progreso > 0 && u.progreso < 1) {
+        const progIdx = Math.floor(u.progreso * (points.length - 1));
+        const p = points[progIdx];
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', p.x * w);
+        circle.setAttribute('cy', p.y * h);
+        circle.setAttribute('r', '6');
+        circle.setAttribute('fill', 'var(--status-warning)');
+        circle.setAttribute('stroke', 'var(--canvas-default)');
+        circle.setAttribute('stroke-width', '2');
+        svg.appendChild(circle);
+      }
+    });
+  }
+
+  // Draw hubs
+  if (State.mapState.layers.hubs) {
+    HUBS.forEach(hub => {
+      const p = latLonToMap(hub.lat, hub.lon);
+      const pin = document.createElement('div');
+      pin.className = 'radar-pin';
+      pin.style.left = `${p.x * 100}%`;
+      pin.style.top = `${p.y * 100}%`;
+      pin.innerHTML = `
+        <div class="icon">
+          <span class="material-symbols-outlined">local_airport</span>
+        </div>
+        <div class="radar-tooltip">
+          <div class="header">
+            <span class="title">${hub.id} — ${hub.name}</span>
+          </div>
+          <div class="grid">
+            <span class="key">Tipo</span><span class="val">${hub.type === 'hub' ? 'Hub Principal' : 'Aeropuerto Mayor'}</span>
+            <span class="key">Coords</span><span class="val">${fmt.coord(hub.lat, hub.lon)}</span>
+          </div>
+        </div>
+      `;
+      pins.appendChild(pin);
+    });
+  }
+
+  // Draw fixes (waypoints)
+  FIXES.forEach(fix => {
+    const p = latLonToMap(fix.lat, fix.lon);
+    const el = document.createElement('div');
+    el.className = 'waypoint fix';
+    el.style.left = `${p.x * 100}%`;
+    el.style.top = `${p.y * 100}%`;
+    el.innerHTML = `<div class="dot" style="background: var(--surface-overlay); width: 6px; height: 6px;"></div><span class="label" style="font-size: 8px; color: var(--text-muted);">${fix.id}</span>`;
+    pins.appendChild(el);
+  });
+
+  // Draw fleet pins
+  if (State.mapState.layers.fleet) {
+    State.fleet.filter(u => u.lat != null && u.lon != null).forEach(u => {
+      const p = latLonToMap(u.lat, u.lon);
+      const status = CONFIG.statusColors[u.estado] || CONFIG.statusColors.tierra;
+      const pinClass = u.estado === 'critico' ? 'crit' : u.estado === 'alerta' ? 'alert' : u.estado === 'tierra' ? 'info' : 'nominal';
+      const icon = u.sector === 'aereo' ? 'flight_takeoff' : u.sector === 'troncal' ? 'directions_runway' : 'local_shipping';
+
+      const pin = document.createElement('div');
+      pin.className = `radar-pin ${pinClass}`;
+      pin.style.left = `${p.x * 100}%`;
+      pin.style.top = `${p.y * 100}%`;
+      pin.dataset.id = u.id;
+
+      const tooltipHtml = `
+        <div class="header">
+          <span class="title">${u.id} · ${u.tipo}</span>
+          <span class="badge ${u.estado === 'critico' ? 'badge-crit' : u.estado === 'alerta' ? 'badge-warn' : 'badge-ok'}"><span class="dot" style="background:${status.dot}"></span>${status.label}</span>
+        </div>
+        <div class="grid">
+          <span class="key">Posición</span><span class="val">${fmt.coord(u.lat, u.lon)}</span>
+          <span class="key">Altitud</span><span class="val">${u.altitud ? fmt.altitude(u.altitud) : '—'}</span>
+          <span class="key">Velocidad</span><span class="val">${u.velocidad ? fmt.speed(u.velocidad) : '—'}</span>
+          <span class="key">Heading</span><span class="val">${u.heading != null ? u.heading + '°' : '—'}</span>
+          <span class="key">Combustible</span><span class="val">${u.combustible != null ? fmt.percent(u.combustible) : '—'}</span>
+          <span class="key">Carga</span><span class="val">${u.payload != null ? fmt.payload(u.payload) : '—'}</span>
+          <span class="key">Envíos</span><span class="val">${u.awb_count || 0}</span>
+          <span class="key">Próx. FIX</span><span class="val">${u.next_fix || '—'}</span>
+        </div>
+        <div class="footer">
+          <span>PID: ${u.pid || '—'}</span>
+          <span>${u.progreso != null ? fmt.fixed(u.progreso * 100) + '% ruta' : ''}</span>
+        </div>
+      `;
+
+      pin.innerHTML = `
+        <div class="icon">
+          <span class="material-symbols-outlined">${icon}</span>
+        </div>
+        <div class="pulse" style="box-shadow: 0 0 0 1px ${status.dot};"></div>
+        <div class="radar-tooltip">${tooltipHtml}</div>
+      `;
+
+      pin.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openUnitDetail(u);
+      });
+      pins.appendChild(pin);
+    });
+  }
+
+  // Update unit radar if open
+  if (Page.current === 'unidad' && State.selectedUnit) {
+    renderUnitRadar();
+  }
+}
+
+function renderUnitRadar() {
+  const svg = $('#unitRadarSvg');
+  const pins = $('#unitRadarPins');
+  if (!svg || !pins) return;
+
+  const container = $('#unitRadarContainer');
+  const rect = container.getBoundingClientRect();
+  const w = rect.width;
+  const h = rect.height;
+
+  svg.setAttribute('width', w);
+  svg.setAttribute('height', h);
+  svg.innerHTML = '';
+  pins.innerHTML = '';
+
+  const unit = State.fleet.find(u => u.id === State.selectedUnit);
+  if (!unit) return;
+
+  // Draw route
+  if (unit.ruta?.length) {
+    const points = unit.ruta.map(wp => latLonToMap(wp.lat, wp.lon));
+    if (points.length >= 2) {
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x * w} ${p.y * h}`).join(' ');
+      path.setAttribute('d', d);
+      path.setAttribute('stroke', 'var(--primary)');
+      path.setAttribute('stroke-width', '3');
+      path.setAttribute('fill', 'none');
+      path.setAttribute('opacity', '0.5');
+      svg.appendChild(path);
+
+      // Waypoints
+      unit.ruta.forEach((wp, i) => {
+        const p = latLonToMap(wp.lat, wp.lon);
+        const isCurrent = i === unit.ruta_idx;
+        const isNext = i === unit.ruta_idx + 1;
+
+        const pin = document.createElement('div');
+        pin.className = `waypoint ${isCurrent ? 'current' : ''} ${wp.type === 'hub' ? 'hub' : wp.type === 'major' ? 'major' : 'minor'}`;
+        pin.style.left = `${p.x * 100}%`;
+        pin.style.top = `${p.y * 100}%`;
+
+        let dotColor = 'var(--surface-overlay)';
+        let dotSize = 12;
+        if (isCurrent) { dotColor = 'var(--status-warning)'; dotSize = 16; }
+        else if (isNext) { dotColor = 'var(--primary)'; dotSize = 14; }
+        else if (wp.type === 'hub') { dotColor = 'var(--status-ok)'; dotSize = 18; }
+        else if (wp.type === 'major') { dotColor = 'var(--primary)'; dotSize = 14; }
+
+        pin.innerHTML = `
+          <div class="dot" style="background: ${dotColor}; width: ${dotSize}px; height: ${dotSize}px;${wp.type === 'hub' ? ' box-shadow: 0 0 0 6px rgba(16,185,129,0.25);' : ''}"></div>
+          <span class="label" style="font-size: 9px;">${wp.id}${isCurrent ? ' ◄' : ''}</span>
+        `;
+        pins.appendChild(pin);
+      });
+    }
+  }
+
+  // Current position pin
+  if (unit.lat != null && unit.lon != null) {
+    const p = latLonToMap(unit.lat, unit.lon);
+    const pin = document.createElement('div');
+    pin.className = 'radar-pin nominal';
+    pin.style.left = `${p.x * 100}%`;
+    pin.style.top = `${p.y * 100}%`;
+    pin.innerHTML = `
+      <div class="icon" style="background: var(--ok-bg); color: var(--status-ok); box-shadow: 0 6px 14px rgba(16,185,129,0.35), 0 0 0 4px var(--ok-bg);">
+        <span class="material-symbols-outlined">airplanemode_active</span>
+      </div>
+      <div class="pulse" style="box-shadow: 0 0 0 1px var(--status-ok);"></div>
+    `;
+    pins.appendChild(pin);
+  }
+}
+
+// ============================================
+// UNIT DETAIL PAGE (unidad.html)
+// ============================================
+
+Page.unidad = {
+  async init() {
+    this.unitId = new URLSearchParams(window.location.search).get('id');
+    if (!this.unitId) {
+      showToast('ID de aeronave requerido', 'error');
+      setTimeout(() => window.location.href = 'index.html', 1500);
+      return;
+    }
+
+    await this.loadUnit();
+    this.setupUI();
+    connectSSE();
+    this.startClock();
+  },
+
+  async loadUnit() {
+    $('#loadingState')?.classList.remove('hidden');
+    try {
+      const [fleetRes, entregasRes] = await Promise.all([
+        apiGet(CONFIG.apiEndpoints.vehiculos),
+        apiGet(CONFIG.apiEndpoints.entregas)
+      ]);
+      State.fleet = normalizeFleet(fleetRes);
+      State.entregas = normalizeEntregas(entregasRes);
+      const unit = State.fleet.find(u => u.id === this.unitId);
+      if (unit) {
+        State.selectedUnit = this.unitId;
+        updateUnitDetail(unit);
+        renderUnitRadar();
+      } else {
+        showToast('Aeronave no encontrada', 'error');
+      }
+    } catch (e) {
+      showToast('Error cargando aeronave', 'error');
+    } finally {
+      $('#loadingState')?.classList.add('hidden');
+      $('#unitContent')?.classList.remove('hidden');
+    }
+  },
+
+  setupUI() {
+    $('#closeUnitDetail')?.addEventListener('click', closeUnitDrawer);
+    $('#unitDetailOverlay')?.addEventListener('click', closeUnitDrawer);
+
+    // Action buttons
+    $('#btnReassign')?.addEventListener('click', () => showReassignModal());
+    $('#btnDiversion')?.addEventListener('click', () => showDiversionModal());
+    $('#btnHold')?.addEventListener('click', () => showHoldModal());
+    $('#btnReturn')?.addEventListener('click', () => showReturnModal());
+
+    // ACARS
+    $('#acarsSend')?.addEventListener('click', sendAcars);
+    $('#acarsInput')?.addEventListener('keydown', e => e.key === 'Enter' && sendAcars());
+
+    // Modals
+    setupModal('confirmModal', '#confirmClose', '#confirmCancel', '#confirmOk');
+    setupModal('infoModal', '#infoClose', null, '#infoOk');
+    setupModal('reassignModal', '#reassignModalClose', '#reassignModalCancel', '#reassignModalOk');
+  },
+
+  startClock() {
+    updateClock();
+    setInterval(updateClock, 1000);
+  }
+};
+
+function openUnitDetail(unit) {
+  State.selectedUnit = unit.id;
+  if (Page.current === 'dashboard') {
+    // Open drawer on desktop, navigate on mobile
+    if (window.innerWidth >= 1024) {
+      $('#unitDetailDrawer')?.classList.remove('translate-x-full');
+      updateUnitDetail(unit);
+      renderUnitRadar();
+    } else {
+      window.location.href = `unidad.html?id=${unit.id}`;
+    }
+  } else if (Page.current === 'unidad') {
+    updateUnitDetail(unit);
+    renderUnitRadar();
+  }
+}
+
+function closeUnitDrawer() {
+  $('#unitDetailDrawer')?.classList.add('translate-x-full');
+  $('#unitDetailOverlay')?.classList.add('hidden');
+  State.selectedUnit = null;
+}
+
+function updateUnitDetail(unit) {
+  if (!unit) return;
+
+  // Header
+  $('#unitTitle').textContent = unit.id;
+  $('#unitSub').textContent = `${unit.tipo} · ${unit.ruta?.[0]?.id || '—'} → ${unit.ruta?.[unit.ruta.length - 1]?.id || '—'}`;
+  $('#unitBadge').className = `badge ${unit.estado === 'critico' ? 'badge-crit' : unit.estado === 'alerta' ? 'badge-warn' : unit.estado === 'tierra' ? 'badge-info' : 'badge-ok'}`;
+  $('#unitBadge').innerHTML = `<span class="dot" style="background: ${CONFIG.statusColors[unit.estado]?.dot || 'var(--status-info)'};"></span> ${CONFIG.statusColors[unit.estado]?.label || 'EN TIERRA'}`;
+  $('#unitPid').textContent = `PID: ${unit.pid || '—'}`;
+
+  // Gauges
+  updateGauge('Alt', unit.altitud, 0, 430, 'FL', val => `FL${val}`, v => v > 410 ? 'warn' : 'ok');
+  updateGauge('Gs', unit.velocidad, 0, 530, 'kts', val => fmt.speed(val), v => v > 500 ? 'warn' : '');
+  updateGauge('Hdg', unit.heading, 0, 360, '°', val => val + '°', () => '');
+  updateGauge('Vs', unit.vs, -6000, 6000, 'ft/min', val => val >= 0 ? '+' + val : val, v => v > 2000 || v < -2000 ? 'warn' : '');
+  updateGauge('Fuel', unit.combustible, 0, 100, '%', val => fmt.percent(val), v => v < 20 ? 'crit' : v < 35 ? 'warn' : 'ok');
+  updateGauge('Payload', unit.payload, 0, unit.max_payload || 186880, 'kg', val => fmt.payload(val), v => v && unit.max_payload && v / unit.max_payload > 0.9 ? 'warn' : '');
+
+  // Manifest
+  renderManifest(unit.envios || []);
+
+  // Reassignment options
+  renderReassignOptions(unit);
+
+  // Route info
+  $('#routeProgress').textContent = `Progreso: ${unit.progreso != null ? fmt.fixed(unit.progreso * 100) + '%' : '—'}`;
+  $('#routeEta').textContent = `ETA: ${unit.eta ? new Date(unit.eta).toLocaleTimeString('es-MX', { hour12: false }) + ' Z' : '—'}`;
+  $('#routeNextFix').textContent = `Próximo FIX: ${unit.next_fix || '—'}`;
+
+  // ACARS - simulate some messages
+  renderAcars(unit);
+}
+
+function updateGauge(prefix, value, min, max, unit, fmtFn, statusFn) {
+  const valEl = $(`#gauge${prefix}`);
+  const barEl = $(`#gauge${prefix}Bar`);
+  const footerEl = $(`#gauge${prefix}Footer`);
+  if (!valEl || !barEl) return;
+
+  if (value == null) {
+    valEl.textContent = '—';
+    barEl.style.width = '0%';
+    return;
+  }
+
+  valEl.textContent = fmtFn(value);
+  valEl.className = 'gauge-value text-telemetry ' + (statusFn(value) || '');
+  const pct = clamp((value - min) / (max - min) * 100, 0, 100);
+  barEl.style.width = `${pct}%`;
+
+  // Color the bar based on status
+  const status = statusFn(value);
+  barEl.style.background = status === 'crit' ? 'var(--status-critical)' : status === 'warn' ? 'var(--status-warning)' : 'var(--status-ok)';
+}
+
+function renderManifest(envios) {
+  const tbody = $('#manifestBody');
+  const countEl = $('#manifestCount');
+  if (!tbody || !countEl) return;
+
+  countEl.textContent = `${envios.length} AWB`;
+
+  if (!envios.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="table-empty">Sin carga asignada</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = envios.map(e => {
+    const status = CONFIG.statusColors[e.estado] || CONFIG.statusColors.pendiente;
+    return `
+      <tr>
+        <td class="font-mono text-label-code text-primary">${e.awb}</td>
+        <td>${e.descripcion}</td>
+        <td class="text-right font-mono text-label-code">${fmt.number(e.peso)}</td>
+        <td class="text-right font-mono text-label-code">${fmt.fixed(e.volumen, 2)} m³</td>
+        <td>
+          <span class="badge ${e.prioridad === 'critica' ? 'badge-crit' : e.prioridad === 'alta' ? 'badge-warn' : 'badge-ok'}">
+            ${e.prioridad.toUpperCase()}
+          </span>
+        </td>
+        <td class="font-mono text-label-code">${e.origen} → ${e.destino}</td>
+        <td>
+          <span class="badge ${e.estado === 'entregada' ? 'badge-ok' : e.estado === 'fallida' ? 'badge-crit' : e.estado === 'desviada' ? 'badge-warn' : e.estado === 'en_ruta' ? 'badge-info' : 'badge-ok'}">
+            <span class="dot" style="background:${status.dot}"></span>
+            ${status.label}
+          </span>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function renderReassignOptions(unit) {
+  const container = $('#reassignOptions');
+  if (!container) return;
+
+  if (unit.estado === 'tierra' || !unit.ruta?.length) {
+    container.innerHTML = '<p class="text-secondary text-body-sm text-center py-md">Aeronave en tierra o sin ruta activa. No hay opciones de reasignación disponibles.</p>';
+    return;
+  }
+
+  // Generate mock alternatives based on current route
+  const currentIdx = unit.ruta_idx || 0;
+  const remaining = unit.ruta.slice(currentIdx + 1);
+  const alternatives = [
+    { name: 'Continuar plan actual', summary: 'Mantener ruta programada', detail: `${remaining.length} waypoints restantes`, eta: unit.eta, warn: false },
+    { name: 'Directo a destino', summary: 'Vector directo al destino final', detail: 'Ahorro estimado: 15-20 min', eta: unit.eta ? new Date(new Date(unit.eta).getTime() - 15 * 60000).toISOString() : null, warn: false },
+    { name: 'Alternativo por meteo', summary: 'Desvío por frente tormentoso', detail: '+3 waypoints, +25 min', eta: unit.eta ? new Date(new Date(unit.eta).getTime() + 25 * 60000).toISOString() : null, warn: true },
+    { name: 'Regresar a base (MEX)', summary: 'RTB - Return to Base', detail: 'Emergencia / Mantenimiento', eta: new Date(Date.now() + 45 * 60000).toISOString(), warn: true }
+  ];
+
+  container.innerHTML = alternatives.map((opt, i) => `
+    <label class="reassign-option" data-index="${i}" tabindex="0" role="radio" aria-checked="${i === 0}">
+      <input type="radio" name="reassign" class="radio sr-only" ${i === 0 ? 'checked' : ''} value="${i}">
+      <div class="content">
+        <span class="name">${opt.name}</span>
+        <span class="summary ${opt.warn ? 'warn' : 'sec'}">${opt.summary}</span>
+        <span class="detail">${opt.detail}</span>
+      </div>
+      <div class="eta">
+        <span class="eta-value ${opt.warn ? 'warn' : ''}">${opt.eta ? new Date(opt.eta).toLocaleTimeString('es-MX', { hour12: false }) + ' Z' : '—'}</span>
+        <span class="eta-label">ETA</span>
+      </div>
+    </label>
+  `).join('');
+
+  // Click handlers
+  $$('.reassign-option', container).forEach(opt => {
+    opt.addEventListener('click', () => {
+      $$('.reassign-option', container).forEach(o => { o.classList.remove('selected'); o.querySelector('input').checked = false; o.setAttribute('aria-checked', 'false'); });
+      opt.classList.add('selected');
+      opt.querySelector('input').checked = true;
+      opt.setAttribute('aria-checked', 'true');
+    });
+  });
+}
+
+function renderAcars(unit) {
+  const feed = $('#acarsFeed');
+  if (!feed) return;
+
+  // Simulated ACARS messages
+  const messages = [
+    { dir: 'incoming', from: 'ACARS', fromLabel: 'GROUND', text: `${unit.id} confirmado ruta MEX-BOG via VAKUD OTUBA GIRAR ULQ`, time: '14:22:10' },
+    { dir: 'outgoing', from: 'ACARS', fromLabel: unit.id, text: 'ROGER, estimado FL340 462kts ETA BOG 18:45Z', time: '14:22:15' },
+    { dir: 'incoming', from: 'ACARS', fromLabel: 'GROUND', text: 'METEO ACTUALIZADA: CBs sector ULQ, sugerencia desviación 20NM norte', time: '14:35:40' },
+    { dir: 'outgoing', from: 'ACARS', fromLabel: unit.id, text: 'AFIRMATIVO, solicitando desviación norte via FIX IBG DAG', time: '14:36:02' },
+    { dir: 'incoming', from: 'ACARS', fromLabel: 'GROUND', text: 'APROBADO desviación IBG DAG BOK, nuevo ETA 19:10Z', time: '14:36:30' }
+  ];
+
+  feed.innerHTML = messages.map(m => `
+    <div class="acars-msg ${m.dir}">
+      <div class="meta">
+        <span class="from ${m.fromLabel === 'GROUND' ? 'ground' : 'aircraft'}">${m.fromLabel}</span>
+        <span class="time">${m.time} Z</span>
+      </div>
+      <div class="text">${m.text}</div>
+    </div>
+  `).join('');
+  feed.scrollTop = feed.scrollHeight;
+}
+
+function sendAcars() {
+  const input = $('#acarsInput');
+  const feed = $('#acarsFeed');
+  if (!input || !feed || !input.value.trim()) return;
+
+  const msg = input.value.trim();
+  input.value = '';
+
+  const div = document.createElement('div');
+  div.className = 'acars-msg outgoing';
+  div.innerHTML = `
+    <div class="meta">
+      <span class="from aircraft">${State.selectedUnit}</span>
+      <span class="time">${fmt.utc()} Z</span>
+    </div>
+    <div class="text">${msg}</div>
+  `;
+  feed.appendChild(div);
+  feed.scrollTop = feed.scrollHeight;
+
+  // Simulate ground response after 1-2s
+  setTimeout(() => {
+    const resp = document.createElement('div');
+    resp.className = 'acars-msg incoming';
+    resp.innerHTML = `
+      <div class="meta">
+        <span class="from ground">GROUND</span>
+        <span class="time">${fmt.utc()} Z</span>
+      </div>
+      <div class="text">ROGER ${State.selectedUnit}, mensaje recibido: "${msg}"</div>
+    `;
+    feed.appendChild(resp);
+    feed.scrollTop = feed.scrollHeight;
+  }, 1000 + Math.random() * 1000);
+}
+
+// ============================================
+// MODAL HELPERS
+// ============================================
+
+function setupModal(modalId, closeSel, cancelSel, okSel) {
+  const modal = $(`#${modalId}`);
+  if (!modal) return;
+  $(closeSel)?.addEventListener('click', () => closeModal(modalId));
+  $(cancelSel)?.addEventListener('click', () => closeModal(modalId));
+  $(okSel)?.addEventListener('click', () => closeModal(modalId));
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(modalId); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && modal.classList.contains('open')) closeModal(modalId); });
+}
+
+function showConfirmModal(title, body, onConfirm, icon = 'warning', okClass = 'btn-primary', okText = 'Confirmar') {
+  $('#confirmTitle').textContent = title;
+  $('#confirmBody').innerHTML = body;
+  $('#confirmIcon').innerHTML = `<span class="material-symbols-outlined">${icon}</span>`;
+  const okBtn = $('#confirmOk');
+  okBtn.className = `btn ${okClass}`;
+  okBtn.textContent = okText;
+  okBtn.onclick = () => { onConfirm(); closeModal('confirmModal'); };
+  openModal('confirmModal');
+}
+
+function showInfoModal(title, body, icon = 'info') {
+  $('#infoTitle').textContent = title;
+  $('#infoBody').innerHTML = body;
+  $('#infoIcon').innerHTML = `<span class="material-symbols-outlined">${icon}</span>`;
+  openModal('infoModal');
+}
+
+function showReassignModal() {
+  const unit = State.fleet.find(u => u.id === State.selectedUnit);
+  if (!unit) return;
+
+  const selected = $$('.reassign-option.selected')[0];
+  const idx = selected ? parseInt(selected.dataset.index) : 0;
+  const options = ['Continuar plan actual', 'Directo a destino', 'Alternativo por meteo', 'Regresar a base (MEX)'];
+  const opt = options[idx];
+
+  showConfirmModal(
+    'Confirmar Reasignación',
+    `<div class="space-sm">
+      <div class="row"><span class="label">Aeronave:</span><span class="val font-mono">${unit.id}</span></div>
+      <div class="row"><span class="label">Opción:</span><span class="val">${opt}</span></div>
+      <div class="row"><span class="label">Impacto:</span><span class="val text-warn">Re-cálculo de ETA y combustible requerido</span></div>
+    </div>`,
+    () => {
+      showToast(`Reasignación "${opt}" solicitada para ${unit.id}`, 'ok');
+      // TODO: API call to p29_despachador:reasignar/2
+    },
+    'flight_takeoff',
+    'btn-primary',
+    'Reasignar'
+  );
+}
+
+function showDiversionModal() {
+  const unit = State.fleet.find(u => u.id === State.selectedUnit);
+  if (!unit) return;
+
+  showConfirmModal(
+    'DESVÍO DE EMERGENCIA',
+    `<div class="space-sm">
+      <div class="row"><span class="label">Aeronave:</span><span class="val font-mono text-crit">${unit.id}</span></div>
+      <div class="row"><span class="label">Acción:</span><span class="val text-crit">Desvío inmediato a alternativo más cercano</span></div>
+      <div class="row"><span class="label">Carga:</span><span class="val">${unit.awb_count || 0} envíos afectados</span></div>
+      <p class="text-body-sm text-warn mt-sm">Esta acción declara emergencia y notifica ATC. ¿Confirmar?</p>
+    </div>`,
+    () => {
+      showToast(`EMERGENCIA declarada para ${unit.id} - Desvío activado`, 'crit');
+      // TODO: API call to p29_despachador:desviar/1
+    },
+    'report_problem',
+    'btn-critical',
+    'Declarar Emergencia'
+  );
+}
+
+function showHoldModal() {
+  const unit = State.fleet.find(u => u.id === State.selectedUnit);
+  if (!unit) return;
+
+  showConfirmModal(
+    'Hold / Espera',
+    `<div class="space-sm">
+      <div class="row"><span class="label">Aeronave:</span><span class="val font-mono">${unit.id}</span></div>
+      <div class="row"><span class="label">Acción:</span><span class="val">Entrada en patrón de espera (HOLD)</span></div>
+      <div class="row"><span class="label">Combustible actual:</span><span class="val">${unit.combustible != null ? fmt.percent(unit.combustible) : '—'}</span></div>
+      <p class="text-body-sm text-info mt-sm">La aeronave entrará en racetrack hold consumiendo combustible de reserva.</p>
+    </div>`,
+    () => {
+      showToast(`HOLD activado para ${unit.id}`, 'warn');
+      // TODO: API call
+    },
+    'schedule',
+    'btn-primary',
+    'Activar Hold'
+  );
+}
+
+function showReturnModal() {
+  const unit = State.fleet.find(u => u.id === State.selectedUnit);
+  if (!unit) return;
+
+  showConfirmModal(
+    'Regresar a Base (RTB)',
+    `<div class="space-sm">
+      <div class="row"><span class="label">Aeronave:</span><span class="val font-mono">${unit.id}</span></div>
+      <div class="row"><span class="label">Acción:</span><span class="val">Return to Base - MEX</span></div>
+      <div class="row"><span class="label">Carga:</span><span class="val">${unit.awb_count || 0} envíos - requieren transbordo</span></div>
+      <p class="text-body-sm text-warn mt-sm">Todos los envíos pasarán a estado PENDIENTE para reasignación.</p>
+    </div>`,
+    () => {
+      showToast(`RTB iniciado para ${unit.id} - Carga liberada para transbordo`, 'warn');
+      // TODO: API call to p29_despachador:rtb/1
+    },
+    'flight_land',
+    'btn-critical',
+    'Confirmar RTB'
+  );
+}
+
+// ============================================
+// HISTORIAL PAGE (historial.html)
+// ============================================
+
+Page.historial = {
+  async init() {
+    await this.loadInitialData();
+    this.setupUI();
+    connectSSE();
+    this.startClock();
+    this.renderEvents();
+  },
+
+  async loadInitialData() {
+    try {
+      const [eventosRes, fleetRes] = await Promise.all([
+        apiGet('/api/eventos?limit=200'), // Assuming an eventos endpoint exists
+        apiGet(CONFIG.apiEndpoints.vehiculos)
+      ]);
+      State.eventos = (eventosRes || []).map((e, i) => ({ ...e, _id: Date.now() - i * 1000 }));
+      State.fleet = normalizeFleet(fleetRes);
+      this.updateKPIs();
+    } catch (e) {
+      // Fallback: generate sample events
+      this.generateSampleEvents();
+      this.updateKPIs();
+    }
+  },
+
+  generateSampleEvents() {
+    const codes = Object.keys(CONFIG.eventCodes);
+    const units = ['AC-7402', 'AC-7301', 'AC-7605', 'TR-3201', 'LM-101', 'AC-7503'];
+    const awbs = ['AWB-202609001', 'AWB-202609002', 'AWB-202609003', 'AWB-202609004', 'AWB-202609005'];
+
+    State.eventos = Array.from({ length: 50 }, (_, i) => {
+      const code = codes[Math.floor(Math.random() * codes.length)];
+      const info = CONFIG.eventCodes[code];
+      const unit = units[Math.floor(Math.random() * units.length)];
+      const awb = awbs[Math.floor(Math.random() * awbs.length)];
+      const time = new Date(Date.now() - i * 300000 - Math.random() * 3600000);
+
+      return {
+        _id: Date.now() - i * 1000,
+        timestamp: time.toISOString(),
+        code,
+        severity: info.severity,
+        unit,
+        awb,
+        message: this.generateEventMessage(code, unit, awb),
+        telemetry: this.generateTelemetry(code),
+        segment: ['aereo', 'troncal', 'ultima', 'transbordo'][Math.floor(Math.random() * 4)]
+      };
+    });
+  },
+
+  generateEventMessage(code, unit, awb) {
+    const msgs = {
+      'WXR-ALERT': `Frente tormentoso detectado en ruta de ${unit}, desviación recomendada`,
+      'ALT-CHG': `${unit} cambio de FL340 a FL360 por tráfico`,
+      'HDG-CHG': `${unit} corrección de rumbo 270° → 285°`,
+      'SPD-CHG': `${unit} reducción velocidad 462 → 420 kts por turbulencia`,
+      'ETA-ADJ': `${unit} ETA actualizado: +12 min por meteo`,
+      'RTE-DVRT': `${unit} DESVÍO AUTORIZADO: nueva ruta via IBG DAG BOK`,
+      'FUEL-LOW': `${unit} combustible 28% - reserva 32 min, evaluando alternativo`,
+      'PAY-SHFT': `Transbordo ${awb} de ${unit} a TR-3201 en MEX`,
+      'UNIT-DOWN': `${unit} pérdida de señal ADS-B, watchdog activado`,
+      'UNIT-UP': `${unit} señal ADS-B recuperada, reasignación completada`,
+      'URGENT-ADD': `AOG URGENTE: ${awb} MEX→BOG 2,500kg asignado a ${unit}`,
+      'CUSTOMS': `${awb} retenido en aduana BOG - documentación pendiente`,
+      'SLA-BREACH': `${awb} incumplimiento ventana SLA: +45 min retraso`,
+      'REASSIGN': `${unit} reasignado: ${awb} transferido a TR-3201`,
+      'HOLD': `${unit} entrada en HOLD patrón racetrack FL280`,
+      'DIVERT': `${unit} DESVÍO EMERGENCIA: alternativo CUN por falla hidráulica`,
+      'LANDED': `${unit} aterrizaje confirmado BOG 18:47Z`,
+      'TAKEOFF': `${unit} despegue confirmado MEX 14:30Z`
+    };
+    return msgs[code] || `${code} en ${unit}`;
+  },
+
+  generateTelemetry(code) {
+    const telemetry = {};
+    if (['WXR-ALERT', 'RTE-DVRT', 'DIVERT'].includes(code)) {
+      telemetry.lat = 19.4 + Math.random() * 10 - 5;
+      telemetry.lon = -99.1 + Math.random() * 20 - 10;
+      telemetry.alt = 300 + Math.floor(Math.random() * 100);
+      telemetry.gs = 400 + Math.floor(Math.random() * 100);
+    }
+    if (['FUEL-LOW'].includes(code)) {
+      telemetry.fuel = 15 + Math.floor(Math.random() * 15);
+    }
+    return telemetry;
+  },
+
+  setupUI() {
+    // Filters
+    $('#searchInput')?.addEventListener('input', debounce(() => {
+      State.filters.search = $('#searchInput').value.toLowerCase();
+      this.renderEvents();
+    }, 200));
+
+    $('#severityFilter')?.addEventListener('change', e => {
+      State.filters.severity = e.target.value;
+      this.renderEvents();
+    });
+
+    $('#timeFilter')?.addEventListener('change', e => {
+      State.filters.timeWindow = e.target.value;
+      this.renderEvents();
+    });
+
+    $('#segmentFilter')?.addEventListener('change', e => {
+      State.filters.segment = e.target.value;
+      this.renderEvents();
+    });
+
+    $('#clearFilters')?.addEventListener('click', () => {
+      $('#searchInput').value = '';
+      $('#severityFilter').value = '';
+      $('#timeFilter').value = '6h';
+      $('#segmentFilter').value = '';
+      State.filters = { search: '', severity: '', timeWindow: '6h', segment: '' };
+      this.renderEvents();
+    });
+
+    $('#applyFilters')?.addEventListener('click', () => this.renderEvents());
+
+    // Pause live
+    $('#pauseLive')?.addEventListener('click', () => {
+      State.paused = !State.paused;
+      $('#pauseIcon').textContent = State.paused ? 'play_arrow' : 'pause';
+      $('#pauseText').textContent = State.paused ? 'Reanudar' : 'Pausar';
+      showToast(State.paused ? 'Actualización en vivo pausada' : 'Actualización en vivo reanudada', 'info');
+    });
+
+    // Export
+    $('#exportBtn')?.addEventListener('click', () => this.exportIFR());
+
+    // Refresh
+    $('#refreshBtn')?.addEventListener('click', () => this.loadInitialData());
+
+    // Load more
+    $('#loadMoreBtn')?.addEventListener('click', () => this.loadMoreEvents());
+
+    // Modals
+    setupModal('eventModal', '#eventModalClose', null, '#eventModalCancel');
+    setupModal('gpsModal', '#gpsModalClose', null, '#gpsModalOk');
+    setupModal('reassignModal', '#reassignModalClose', null, '#reassignModalCancel');
+  },
+
+  startClock() {
+    updateClock();
+    setInterval(updateClock, 1000);
+  },
+
+  updateKPIs(resumen) {
+    // MTTR
+    const mttr = resumen?.mttr ?? (12 + Math.random() * 8);
+    $('#kpiMttr').querySelector('.font-display').textContent = fmt.fixed(mttr, 1);
+
+    // OTP
+    const otp = resumen?.otp ?? (87 + Math.random() * 8);
+    $('#kpiOtp').querySelector('.font-display').textContent = fmt.fixed(otp, 1);
+
+    // Safety
+    const safety = resumen?.safety_events ?? Math.floor(Math.random() * 5);
+    $('#kpiSafety').querySelector('.font-display').textContent = safety;
+  },
+
+  renderEvents() {
+    const list = $('#eventsList');
+    if (!list) return;
+
+    let filtered = State.eventos.filter(e => {
+      if (State.filters.search) {
+        const s = State.filters.search;
+        if (!e.code.toLowerCase().includes(s) &&
+            !e.unit.toLowerCase().includes(s) &&
+            !e.awb.toLowerCase().includes(s) &&
+            !e.message.toLowerCase().includes(s)) return false;
+      }
+      if (State.filters.severity && e.severity !== State.filters.severity) return false;
+      if (State.filters.segment && e.segment !== State.filters.segment) return false;
+      if (State.filters.timeWindow !== 'jornada' && State.filters.timeWindow !== 'custom') {
+        const hours = parseInt(State.filters.timeWindow);
+        const cutoff = Date.now() - hours * 3600000;
+        if (new Date(e.timestamp).getTime() < cutoff) return false;
+      }
+      return true;
+    });
+
+    $('#eventsCount').textContent = `${filtered.length} eventos`;
+
+    list.innerHTML = filtered.map(e => this.renderEventCard(e)).join('');
+
+    // Click handlers for event cards
+    $$('.event-card', list).forEach((card, i) => {
+      const ev = filtered[i];
+      card.querySelector('.action-btn.primary')?.addEventListener('click', e => {
+        e.stopPropagation();
+        this.openEventDetail(ev);
+      });
+      card.querySelector('.action-btn.secondary')?.addEventListener('click', e => {
+        e.stopPropagation();
+        if (ev.telemetry.lat) this.openGpsModal(ev);
+        else this.openReassignModal(ev);
+      });
+    });
+
+    // Show/hide load more
+    $('#loadMoreContainer')?.classList.toggle('hidden', filtered.length < State.eventos.length);
+  },
+
+  renderEventCard(e) {
+    const info = CONFIG.eventCodes[e.code] || { label: e.code, severity: 'info' };
+    const severity = CONFIG.statusColors[e.severity] || CONFIG.statusColors.info;
+    const cardClass = e.severity === 'critica' ? 'crit' : e.severity === 'alerta' ? 'warn' : 'ok';
+
+    const time = new Date(e.timestamp);
+    const utcStr = time.toISOString().slice(11, 19);
+    const localStr = time.toLocaleTimeString('es-MX', { hour12: false });
+
+    const pills = [];
+    if (e.telemetry.lat) pills.push(`<span class="pill"><span class="material-symbols-outlined">local_airport</span>${fmt.coord(e.telemetry.lat, e.telemetry.lon)}</span>`);
+    if (e.telemetry.alt) pills.push(`<span class="pill"><span class="material-symbols-outlined">altitude</span>FL${e.telemetry.alt}</span>`);
+    if (e.telemetry.gs) pills.push(`<span class="pill"><span class="material-symbols-outlined">speed</span>${e.telemetry.gs} kts</span>`);
+    if (e.telemetry.fuel) pills.push(`<span class="pill"><span class="material-symbols-outlined">local_shipping</span>Comb: ${e.telemetry.fuel}%</span>`);
+
+    const hasGps = !!e.telemetry.lat;
+    const hasReassign = ['REASSIGN', 'RTE-DVRT', 'DIVERT', 'PAY-SHFT'].includes(e.code);
+
+    return `
+      <article class="event-card ${cardClass}" data-id="${e._id}">
+        <header class="header">
+          <div class="badges">
+            <span class="severity ${e.severity === 'critica' ? 'crit' : e.severity === 'alerta' ? 'warn' : 'ok'}">
+              <span class="dot" style="background: ${severity.dot};"></span>
+              ${info.severity === 'critica' ? 'CRÍTICO' : info.severity === 'alerta' ? 'ALERTA' : info.severity === 'nominal' ? 'NOMINAL' : 'INFO'}
+            </span>
+            <span class="unit-tag">${e.unit}</span>
+            <span class="awb-tag">${e.awb}</span>
+            <span class="priority-tag">${e.code}</span>
+          </div>
+          <div class="timecodes">
+            <span class="time-utc">${utcStr} Z</span>
+            <span class="time-local">${localStr} LT</span>
+          </div>
+        </header>
+        <div class="message">${e.message}</div>
+        <div class="telemetry-pills">${pills.join('')}</div>
+        <div class="actions">
+          <button class="action-btn primary"><span class="material-symbols-outlined">visibility</span> Detalle</button>
+          <button class="action-btn secondary"><span class="material-symbols-outlined">${hasGps ? 'local_airport' : 'flight_takeoff'}</span> ${hasGps ? 'Ver GPS' : 'Reasignación'}</button>
+        </div>
+      </article>
+    `;
+  },
+
+  openEventDetail(e) {
+    const info = CONFIG.eventCodes[e.code] || { label: e.code, severity: 'info' };
+    const severity = CONFIG.statusColors[e.severity] || CONFIG.statusColors.info;
+
+    $('#eventModalTitle').textContent = `${e.code} — ${info.label}`;
+    $('#eventModalIcon').innerHTML = `<span class="material-symbols-outlined" style="color: ${severity.dot};">${e.severity === 'critica' ? 'error' : e.severity === 'alerta' ? 'warning' : 'check_circle'}</span>`;
+
+    const time = new Date(e.timestamp);
+    $('#eventModalBody').innerHTML = `
+      <div class="row"><span class="label">Severidad</span><span class="val"><span class="badge ${e.severity === 'critica' ? 'badge-crit' : e.severity === 'alerta' ? 'badge-warn' : 'badge-ok'}"><span class="dot" style="background:${severity.dot}"></span>${e.severity.toUpperCase()}</span></span></div>
+      <div class="row"><span class="label">Aeronave/Unidad</span><span class="val font-mono">${e.unit}</span></div>
+      <div class="row"><span class="label">AWB</span><span class="val font-mono">${e.awb}</span></div>
+      <div class="row"><span class="label">Segmento</span><span class="val">${CONFIG.sectorLabels[e.segment] || e.segment}</span></div>
+      <div class="row"><span class="label">Timestamp (UTC)</span><span class="val font-mono">${time.toISOString()}</span></div>
+      <div class="row"><span class="label">Timestamp (Local)</span><span class="val font-mono">${time.toLocaleString('es-MX')}</span></div>
+      <hr style="border-color: var(--surface-overlay); margin: var(--space-sm) 0;">
+      <div class="row"><span class="label">Mensaje</span><span class="val" style="text-align: right; max-width: 70%;">${e.message}</span></div>
+      ${e.telemetry.lat ? `<div class="row"><span class="label">Posición GPS</span><span class="val font-mono">${fmt.coord(e.telemetry.lat, e.telemetry.lon)}</span></div>` : ''}
+      ${e.telemetry.alt ? `<div class="row"><span class="label">Altitud</span><span class="val">FL${e.telemetry.alt}</span></div>` : ''}
+      ${e.telemetry.gs ? `<div class="row"><span class="label">Velocidad</span><span class="val">${e.telemetry.gs} kts</span></div>` : ''}
+      ${e.telemetry.fuel ? `<div class="row"><span class="label">Combustible</span><span class="val">${e.telemetry.fuel}%</span></div>` : ''}
+    `;
+
+    openModal('eventModal');
+  },
+
+  openGpsModal(e) {
+    $('#gpsModalTitle').textContent = `Posición GPS — ${e.unit} / ${e.awb}`;
+    const t = e.telemetry;
+    $('#gpsModalBody').innerHTML = `
+      <div class="row"><span class="label">Coordenadas</span><span class="val font-mono">${fmt.coord(t.lat, t.lon)}</span></div>
+      <div class="row"><span class="label">Altitud</span><span class="val">${t.alt ? 'FL' + t.alt : '—'}</span></div>
+      <div class="row"><span class="label">Velocidad tierra</span><span class="val">${t.gs ? t.gs + ' kts' : '—'}</span></div>
+      <div class="row"><span class="label">Combustible</span><span class="val">${t.fuel ? t.fuel + '%' : '—'}</span></div>
+      <div class="row"><span class="label">Evento</span><span class="val">${e.code}</span></div>
+      <div class="row"><span class="label">Timestamp</span><span class="val font-mono">${new Date(e.timestamp).toISOString()}</span></div>
+    `;
+    openModal('gpsModal');
+  },
+
+  openReassignModal(e) {
+    $('#reassignModalTitle').textContent = `Reasignación — ${e.code}`;
+    $('#reassignModalBody').innerHTML = `
+      <div class="row"><span class="label">Aeronave origen</span><span class="val font-mono">${e.unit}</span></div>
+      <div class="row"><span class="label">AWB afectado</span><span class="val font-mono">${e.awb}</span></div>
+      <div class="row"><span class="label">Evento</span><span class="val">${e.code}</span></div>
+      <div class="row"><span class="label">Mensaje</span><span class="val" style="text-align: right;">${e.message}</span></div>
+    `;
+    openModal('reassignModal');
+  },
+
+  exportIFR() {
+    const filtered = State.eventos.filter(e => {
+      if (State.filters.search) {
+        const s = State.filters.search;
+        if (!e.code.toLowerCase().includes(s) && !e.unit.toLowerCase().includes(s) && !e.awb.toLowerCase().includes(s)) return false;
+      }
+      if (State.filters.severity && e.severity !== State.filters.severity) return false;
+      return true;
+    });
+
+    const lines = [
+      'IFR EXPORT - AeroCargo Bitácora de Eventos',
+      `Generado: ${new Date().toISOString()}`,
+      `Eventos: ${filtered.length}`,
+      '---',
+      'Timestamp(UTC),Code,Severity,Unit,AWB,Segment,Message,Lat,Lon,Alt,GS,Fuel'
+    ];
+
+    filtered.forEach(e => {
+      const t = e.telemetry;
+      lines.push([
+        new Date(e.timestamp).toISOString(),
+        e.code,
+        e.severity,
+        e.unit,
+        e.awb,
+        e.segment,
+        `"${e.message.replace(/"/g, '""')}"`,
+        t.lat ?? '',
+        t.lon ?? '',
+        t.alt ?? '',
+        t.gs ?? '',
+        t.fuel ?? ''
+      ].join(','));
+    });
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `aerocargo-ifr-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Exportación IFR completada', 'ok');
+  },
+
+  loadMoreEvents() {
+    // In a real app, this would fetch more from API
+    showToast('No hay más eventos históricos disponibles', 'info');
+  }
+};
+
+// ============================================
+// INITIALIZATION
+// ============================================
+
+document.addEventListener('DOMContentLoaded', () => {
+  Page.init();
 });
 
-/* ---- handlers globales para onclick inline (const/let no crean window.*) ---- */
-window.setEstado = setEstado;
-window.toggleCapa = toggleCapa;
-window.mapZoom = mapZoom;
-window.recenterMap = recenterMap;
-window.abrirModal = abrirModal;
-window.cerrarModal = cerrarModal;
-window.ejecutarDespacho = ejecutarDespacho;
-window.seleccionarOpcion = seleccionarOpcion;
-window.setPrioridad = setPrioridad;
-window.transmitirReasignacion = transmitirReasignacion;
-window.abrirRadio = abrirRadio;
-window.cerrarRadio = cerrarRadio;
-window.toggleCrono = toggleCrono;
-window.applyFilters = applyFilters;
-window.clearSearch = clearSearch;
-window.resetAllFilters = resetAllFilters;
-window.filterCategory = filterCategory;
-window.filterSeverity = filterSeverity;
-window.setTimeframe = setTimeframe;
-window.handleLogSubmit = handleLogSubmit;
+// Handle visibility change to pause/resume SSE
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    State.paused = true;
+  } else if (State.paused && Page.current !== 'historial') {
+    State.paused = false;
+  }
+});
+
+// Cleanup on unload
+window.addEventListener('beforeunload', () => {
+  if (State.sse) { State.sse.close(); State.sse = null; }
+  clearTimeout(State.sseReconnectTimer);
+});
+
+export { State, CONFIG, apiGet, apiPost, connectSSE, showToast, openModal, closeModal };

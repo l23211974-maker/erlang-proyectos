@@ -1,7 +1,7 @@
 -module(p29_simulador).
 
-%% Demo del enunciado: jornada acelerada con averia al ~11 a.m. y pedido
-%% urgente a media jornada. NO es un hijo de supervision: es un espectador
+%% Demo AeroCargo: jornada acelerada con averia al ~11 a.m. y pedido
+%% urgente AOG a media jornada. NO es un hijo de supervision: es un espectador
 %% que se suscribe al reloj y decide cuando inyectar los fallos / urgencia.
 %% Correr en la shell del release o con `rebar3 shell`: p29_simulador:demo().
 %% Termina con resumen y exit normal al cerrar la jornada (ticks_jornada).
@@ -24,9 +24,9 @@ inicio() ->
   TickAveria = T0 + trunc(T * 0.4583),   %% ~11 a.m. en una jornada de 6 h (8 a 2 pm)
   TickUrgente = T0 + (T * 3) div 4,      %% urgente a media tarde
   esperar_flota(),
-  logger:info("demo #29: jornada de ~p ticks GPS (10 s cada uno simulados); "
-              "averia en el tick ~p; urgente en el tick ~p",
-              [T, trunc(T * 0.4583), (T * 3) div 4], #{dominio => flotilla}),
+  logger:info("demo #29 AeroCargo: jornada de ~p ticks ADS-B (10 s cada uno simulados); "
+              "averia en el tick ~p; urgente AOG en el tick ~p",
+              [T, trunc(T * 0.4583), (T * 3) div 4], #{dominio => aerocargo}),
   receive
     {p29_tick, N} ->
       paso(N, Fin, TickAveria, TickUrgente, #{averia => false, urgente => false})
@@ -57,35 +57,35 @@ inyectar_una_vez(_Clave, false, _Inyectar, Hechos) ->
   Hechos.
 
 inyectar_averia() ->
-  case p29_despachador:vehiculo_cargado() of
+  case p29_despachador:aeronave_cargada() of
     undefined -> ok;
-    Vid ->
-      logger:warning("demo: averia de la unidad ~p con ~p entregas a bordo",
-                     [Vid, length(p29_despachador:entregas_de(Vid))],
-                     #{dominio => flotilla}),
-      ok = p29_despachador:averiar(Vid)
+    Aid ->
+      logger:warning("demo: averia de la aeronave ~p con ~p envios a bordo",
+                     [Aid, length(p29_despachador:envios_de(Aid))],
+                     #{dominio => aerocargo}),
+      ok = p29_despachador:averiar(Aid)
   end.
 
 inyectar_urgente() ->
-  Id = p29_despachador:urgente(#{peso => 25, colonia => playas}),
-  logger:warning("demo: pedido urgente ~p insertado a media jornada",
-                 [Id], #{dominio => flotilla}).
+  Id = p29_despachador:urgente(#{peso_kg => 25, origen_iata => <<"MEX">>, destino_iata => <<"BOG">>}),
+  logger:warning("demo: pedido urgente AOG ~p insertado a media jornada",
+                 [Id], #{dominio => aerocargo}).
 
 progreso(N) ->
   case N rem 5 =:= 0 of
     false -> ok;
     true ->
       EstadoTick = p29_despachador:estado(),
-      logger:info("demo tick ~p: entregas ~p vehiculos ~p",
-                  [N, maps:get(entregas, EstadoTick), maps:get(vehiculos, EstadoTick)],
-                  #{dominio => flotilla})
+      logger:info("demo tick ~p: envios ~p aeronaves ~p",
+                  [N, maps:get(envios, EstadoTick), maps:get(aeronaves, EstadoTick)],
+                  #{dominio => aerocargo})
   end.
 
 resumen_final() ->
   Estado = p29_despachador:estado(),
   Inv = p29_despachador:invariantes(),
   logger:info("demo fin de jornada: ~p; invariantes: ~p",
-              [Estado, Inv], #{dominio => flotilla}).
+              [Estado, Inv], #{dominio => aerocargo}).
 
 subscribir() ->
   case whereis(p29_reloj) of
@@ -108,18 +108,18 @@ tick_actual() ->
 %% la demo arranca despues del arbol, pero por prudencia espera a que la
 %% flota completa exista (en arranques muy cargados el autostart tarda ms)
 esperar_flota() ->
-  NVeh = application:get_env(p29_flotilla_de_reparto, vehiculos, 15),
-  NEnt = application:get_env(p29_flotilla_de_reparto, entregas, 900),
-  esperar_flota(NVeh, NEnt, 100).
+  NAer = application:get_env(p29_flotilla_de_reparto, aeronaves, 15),
+  NEnv = application:get_env(p29_flotilla_de_reparto, envios, 900),
+  esperar_flota(NAer, NEnv, 100).
 
 esperar_flota(_N, _NE, 0) -> ok;
-esperar_flota(NVeh, NEnt, Intentos) ->
-  Caso = p29_datos:conteo_vehiculos(),
-  Listo = maps:get(en_ruta, Caso, 0) =:= NVeh
-    andalso length(p29_datos:entregas_todas()) =:= NEnt,
+esperar_flota(NAer, NEnv, Intentos) ->
+  Caso = p29_datos:conteo_aeronaves(),
+  Listo = maps:get(en_ruta, Caso, 0) =:= NAer
+    andalso length(p29_datos:envios_todos()) =:= NEnv,
   case Listo of
     true -> ok;
     false ->
       timer:sleep(10),
-      esperar_flota(NVeh, NEnt, Intentos - 1)
+      esperar_flota(NAer, NEnv, Intentos - 1)
   end.

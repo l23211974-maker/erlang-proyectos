@@ -12,10 +12,15 @@
 init(Req0, Accion) ->
   Req =
     case Accion of
+      envios ->
+        json(Req0, 200, p29_json:envios());
+      aeronaves ->
+        json(Req0, 200, p29_json:aeronaves());
+      %% Backward compat (old ground fleet terminology)
       entregas ->
-        json(Req0, 200, p29_json:entregas());
+        json(Req0, 200, p29_json:envios());
       vehiculos ->
-        json(Req0, 200, p29_json:vehiculos());
+        json(Req0, 200, p29_json:aeronaves());
       estado ->
         con_invariantes(Req0);
       averiar ->
@@ -25,32 +30,44 @@ init(Req0, Accion) ->
     end,
   {ok, Req, []}.
 
-%% POST de caos: averiar una unidad explicita. Al matar la unidad, el
-%% despachador devuelve sus cargas y el supervisor la relanza vacia.
+%% POST de caos: averiar una aeronave/unidad explicita.
+%% Acepta tanto "aeronave" (nuevo termino) como "unidad" (compatibilidad).
 averiar(Req0) ->
   case cuerpo(Req0) of
+    {ok, #{<<"aeronave">> := Unidad}} when is_integer(Unidad) ->
+      procesar_averia(Unidad, Req0);
     {ok, #{<<"unidad">> := Unidad}} when is_integer(Unidad) ->
-      case p29_despachador:averiar(Unidad) of
-        ok ->
-          json(Req0, 200, p29_json:json(#{<<"ok">> => true, <<"unidad">> => Unidad}));
-        {error, no_existe} ->
-          json(Req0, 404, p29_json:json(#{<<"ok">> => false,
-                                        <<"error">> => <<"unidad_inexistente">>,
-                                        <<"unidad">> => Unidad}))
-      end;
+      procesar_averia(Unidad, Req0);
     _ ->
       json(Req0, 400, p29_json:json(#{<<"ok">> => false,
-                                    <<"error">> => <<"se_espera_unidad_entera">>}))
+                                    <<"error">> => <<"se_espera_aeronave_unidad_entera">>}))
   end.
 
-%% urgente: crear un pedido fuera del lote; el greedy lo asigna primero.
+procesar_averia(Unidad, Req0) ->
+  case p29_despachador:averiar(Unidad) of
+    ok ->
+      json(Req0, 200, p29_json:json(#{<<"ok">> => true, <<"aeronave">> => Unidad,
+                                     <<"unidad">> => Unidad}));
+    {error, no_existe} ->
+      json(Req0, 404, p29_json:json(#{<<"ok">> => false,
+                                    <<"error">> => <<"aeronave_inexistente">>,
+                                    <<"aeronave">> => Unidad,
+                                    <<"unidad">> => Unidad}))
+  end.
+
+%% urgente: crear un envio AOG fuera del lote; el greedy lo asigna primero.
+%% Acepta terminologia AeroCargo (peso_kg, origen_iata, destino_iata) y
+%% compatibilidad hacia atras (peso, colonia).
 urgente(Req0) ->
   Parcial = case cuerpo(Req0) of
-              {ok, Map} when is_map(Map) -> maps:with([<<"peso">>, <<"colonia">>], Map);
+              {ok, Map} when is_map(Map) ->
+                maps:with([<<"peso_kg">>, <<"origen_iata">>, <<"destino_iata">>,
+                           <<"peso">>, <<"colonia">>], Map);
               _ -> #{}
             end,
   Id = p29_despachador:urgente(Parcial),
-  json(Req0, 200, p29_json:json(#{<<"ok">> => true, <<"entrega">> => Id})).
+  json(Req0, 200, p29_json:json(#{<<"ok">> => true, <<"envio">> => Id,
+                                     <<"entrega">> => Id})).  %% backward compat
 
 con_invariantes(Req0) ->
   Estado = p29_despachador:estado(),

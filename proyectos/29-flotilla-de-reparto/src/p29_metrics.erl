@@ -34,11 +34,14 @@ init(Req0, _Estado) ->
 actualizar() ->
   prometheus:start(),
   declarar(),
-  #{entregas := Entregas, vehiculos := Vehiculos,
+  #{envios := Envios, aeronaves := Aeronaves,
+    entregas := Entregas, vehiculos := Vehiculos, %% backward compat
     retraso_medio := Retraso, reasignaciones := Reasignaciones} =
     p29_despachador:estado(),
-  set_familia(p29_flotilla_entregas, Entregas),
-  set_familia(p29_flotilla_vehiculos, Vehiculos),
+  set_familia(p29_flotilla_envios, Envios),
+  set_familia(p29_flotilla_aeronaves, Aeronaves),
+  set_familia(p29_flotilla_entregas, Entregas),     %% backward compat
+  set_familia(p29_flotilla_vehiculos, Vehiculos),  %% backward compat
   prometheus_gauge:set(p29_flotilla_retraso_medio, Retraso),
   prometheus_gauge:set(p29_flotilla_reasignaciones_total, Reasignaciones),
   prometheus_gauge:set(p29_flotilla_tick, tick_actual()),
@@ -61,11 +64,17 @@ invariantes_ok() ->
 %% proplist: prometheus 4.x (OTP <= 26) exige proplist aqui; el mapa de
 %% la 6.x (OTP 27) da function_clause en proplists:get_value(registry,...).
 declarar() ->
+  prometheus_gauge:declare([{name, p29_flotilla_envios},
+                             {help, "envios por estado"},
+                             {labels, [estado]}]),
+  prometheus_gauge:declare([{name, p29_flotilla_aeronaves},
+                             {help, "aeronaves por estado"},
+                             {labels, [estado]}]),
   prometheus_gauge:declare([{name, p29_flotilla_entregas},
-                             {help, "entregas por estado"},
+                             {help, "entregas por estado (backward compat)"},
                              {labels, [estado]}]),
   prometheus_gauge:declare([{name, p29_flotilla_vehiculos},
-                             {help, "vehiculos por estado"},
+                             {help, "vehiculos por estado (backward compat)"},
                              {labels, [estado]}]),
   prometheus_gauge:declare([{name, p29_flotilla_retraso_medio},
                              {help, "retraso medio sobre la ventana (ticks)"}]),
