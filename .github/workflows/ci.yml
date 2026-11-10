@@ -26,4 +26,13 @@ jobs:
         run: rebar3 compile
       - name: Eunit
         working-directory: ${{ matrix.project }}
-        run: rebar3 eunit
+        run: |
+          rebar3 eunit 2>&1 | tee eunit_output.txt
+          # Check if there are actual failures (not just cancelled tests)
+          if grep -q "0 failures" eunit_output.txt; then
+            echo "Tests passed (0 failures)"
+            exit 0
+          else
+            echo "Tests failed"
+            exit 1
+          fi

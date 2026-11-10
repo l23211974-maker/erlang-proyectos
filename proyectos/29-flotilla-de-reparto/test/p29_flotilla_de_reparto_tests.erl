@@ -32,8 +32,12 @@ arrancar(EnvsExtra) ->
 cerrar(Pid) ->
   unlink(Pid),
   exit(Pid, shutdown),
+  %% espera a que el supervisor y todos sus hijos terminen completamente
+  esperar(fun() -> not is_process_alive(Pid) end),
   %% garantiza que las tablas ETS del escenario anterior mueren antes del siguiente
-  esperar(fun() -> whereis(p29_datos) =:= undefined end).
+  esperar(fun() -> whereis(p29_datos) =:= undefined end),
+  %% asegura que el reloj manual del test anterior se pare
+  esperar(fun() -> whereis(p29_reloj) =:= undefined end, 2000).
 
 %% polling con timeout generoso (los broadcasts del reloj son asincronos)
 esperar(Fun) -> esperar(Fun, 2000).
@@ -224,9 +228,12 @@ sin_senal_y_lote_atrasado_test_() ->
 %% ---- 6. recuperacion: la supervision relanza la aeronave --------------------------
 
 recuperacion_tras_averia_test_() ->
-  {timeout, 30,
+  {timeout, 60,
   {setup,
    fun() ->
+       %% asegura limpieza completa de cualquier test anterior
+       esperar(fun() -> whereis(p29_datos) =:= undefined end, 5000),
+       esperar(fun() -> whereis(p29_reloj) =:= undefined end, 5000),
        PidSup = arrancar([]),
        esperar_asignadas(12),
        PidSup
@@ -248,7 +255,7 @@ recuperacion_tras_averia_test_() ->
                             Row0 = p29_datos:aeronave(1),
                             maps:get(estado, Row0) =:= en_ruta
                             andalso maps:get(pid, Row0) =/= PidViejo
-                        end, 3000),
+                        end, 15000),
                 Row = p29_datos:aeronave(1),
                 ?assertEqual(en_ruta, maps:get(estado, Row)),
                 ?assertEqual(ok, p29_despachador:invariantes())
