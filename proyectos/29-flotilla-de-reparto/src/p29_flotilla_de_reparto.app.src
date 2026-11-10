@@ -5,6 +5,6 @@
                 p29_despachador, p29_flota_sup, p29_entregas_sup,
                 p29_broadcaster, p29_web]},
   {mod, {p29_flotilla_de_reparto_app, []}},
-  {applications, [kernel, stdlib, cowboy, recon, prometheus]},
+  {applications, [kernel, stdlib, cowboy, recon, prometheus, thoas]},
   {env, []}
 ]}.

@@ -106,7 +106,11 @@ retraso(_R) -> 0.
 %% ---- utilerias JSON ---------------------------------------------------------
 
 json(Terminos) ->
-  json:encode(Terminos).
+  %% OTP 27 trae json:encode/1 como stdlib; en OTP <= 26 usamos thoas
+  case erlang:function_exported(json, encode, 1) of
+    true -> json:encode(Terminos);
+    false -> thoas:encode(Terminos)
+  end.
 
 bin(Valor) when is_atom(Valor) -> atom_to_binary(Valor);
 bin(Valor) -> Valor.
@@ -116,7 +120,8 @@ num(Valor) when is_integer(Valor) -> Valor;
 num(Valor) when is_number(Valor) -> round(Valor * 100) / 100.
 
 counters(Conteos) ->
-  #{bin(Estado) => num(Conteo) || Estado := Conteo <- Conteos}.
+  %% map comprehension de OTP 26+ evitado: retrocompatible con OTP 25
+  maps:from_list([{bin(Estado), num(Conteo)} || Estado := Conteo <- Conteos]).
 
 motivo(undefined) -> null;
 motivo(M) when is_atom(M) -> bin(M);
