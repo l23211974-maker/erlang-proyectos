@@ -120,8 +120,10 @@ num(Valor) when is_integer(Valor) -> Valor;
 num(Valor) when is_number(Valor) -> round(Valor * 100) / 100.
 
 counters(Conteos) ->
-  %% map comprehension de OTP 26+ evitado: retrocompatible con OTP 25
-  maps:from_list([{bin(Estado), num(Conteo)} || Estado := Conteo <- Conteos]).
+  %% map comprehension de OTP 26+ evitado (y su doble binding tampoco es
+  %% sintaxis valida de list comprehension): retrocompatible con OTP 25
+  maps:from_list([{bin(Estado), num(maps:get(Estado, Conteos))}
+                  || Estado <- maps:keys(Conteos)]).
 
 motivo(undefined) -> null;
 motivo(M) when is_atom(M) -> bin(M);
