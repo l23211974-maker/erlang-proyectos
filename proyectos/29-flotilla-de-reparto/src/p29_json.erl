@@ -6,7 +6,7 @@
 %% se expone como string, por eso se convierte aqui). Los pids nunca se serializan.
 
 -export([entregas/0, entrega/1, vehiculos/0, vehiculo/1, estado/2,
-         instantanea/1, tick_hora/1]).
+         instantanea/1, tick_hora/1, json/1]).
 
 %% La hora simulada: 08:00 en el tick 0, 10 s reales de GPS por tick.
 -define(HORA_INI, 8 * 3600).
