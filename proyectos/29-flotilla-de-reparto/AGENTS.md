@@ -13,6 +13,9 @@ en este repo al que referirse; el de este proyecto es la fuente de reglas).
   Se entra con `ssh flotilla` (alias en `~/.ssh/config` que salta por el proxy de
   Corellium). El jump host, su token y la contraseña **no van al repo**; viven solo en la
   configuración SSH local.
+- Segunda máquina de pruebas: **curso-plf** (AWS, Erlang/OTP **25**, rebar3 3.19,
+  alias `~/.ssh/config`; credenciales efímeras ~4 h). El código debe compilar
+  y pasar `rebar3 eunit` en **ambas** OTP (ver sección «OTP 25» abajo).
 - El escritorio del estudiante es Windows con PowerShell 5.1: los comandos de abajo son
   PowerShell, no bash.
 
@@ -123,12 +126,40 @@ release ~3 s. El atasco es la UI acoplada al tick de simulación:
   `app.js`, pasa `node --check priv/static/app.js` y valida en navegador
   contra el Pi con SSE abierto antes de darlo por hecho.
 
+## OTP 25 (curso-plf): qué no se puede usar (hard-earned 2026-11-10)
+
+El código es retrocompatible OTP 25↔27 de acho intencional. Rompe el build
+en OTP 25 si reintroduces:
+
+- **Módulo `json`** (llegó en OTP 27): árbol de salida SIEMPRE via
+  `p29_json:json/1` (elige `json:encode/1` si existe, si no `thoas`);
+  decodificación via `p29_api:json_decodificar/1` (desenvuelve `{ok,Term}`
+  de thoas; `json:decode/1` devuelve el término seco — esa diferencia ya
+  costó un badmatch en tests). En tests usa el helper `decodificar/1` de
+  cada módulo de test, nunca `json:decode/1` ni `thoas:decode/1` pelados.
+- **Map comprehensions** (`#{K => V || ...}`, OTP 26+): ni siquiera como list
+  comprehension con «doble binding» `Estado := Conteo <- M`, que NO es
+  sintaxis válida fuera de map comprehensions y da `syntax error before ':='`.
+  Usa `maps:from_list([{...} || K <- maps:keys(M)])`.
+- **`erlang:floor/1`** como import automático choca con `math:floor/1` en
+  OTP 25: `floor/1` local requiere `-compile({no_auto_import,[floor/1]}).`.
+- **`rebar.lock` NO existe en este proyecto**: si tu `_build` local (OTP 29+)
+  lo regenera y lo commiteas, fija `prometheus 6.1.3` (requiere OTP 26+) y el
+  build en curso-plf muere con «OTP release 26 or later is required».
+  Bórralo y borra `_build` remoto si pasa. `prometheus` está pinneado a
+  **4.11.0** en `rebar.config` (compatible OTP 25); la 6.1.3 arrastra `ddskerl`.
+- Verificación SIEMPRE en curso-plf (OTP 25): OTP 29 local ni siquiera
+  compila prometheus 4.11.0 (`catch` deprecado + `warnings_as_errors`). Flujo:
+  editar en Windows → commit/push → `git pull --ff-only` + `rm -rf _build`
+  → `rebar3 compile` + `rebar3 eunit` por ssh. Script via stdin
+  (`bash -s`, LF), nunca comillas anidadas inline por ssh.
+
 ## Trampas que ya costaron tiempo (fase web)
 
-- **prometheus.erl es 6.1.3** (la 5.0.1 no existe en hex) y arrastra el dep
-  `ddskerl`. Metricas: gauges `p29_flotilla_*` declarados con
-  `prometheus_gauge:declare` (idempotente) y `set` en cada scrape; cuerpo por
-  `prometheus_text_format:format()`.
+- **prometheus.erl**: en `rebar.config` va **4.11.0** (OTP 25; la 6.1.3 exige
+  OTP 26+ por `ddskerl`, ver sección «OTP 25»). Metricas: gauges
+  `p29_flotilla_*` declarados con `prometheus_gauge:declare` (idempotente) y
+  `set` en cada scrape; cuerpo por `prometheus_text_format:format()`.
 - **El test web usa `web_port 0`** (puerto efímero; default en `arrancar/1`) y el
   teardown es una tupla `fun({SupPid, _Puerto}) -> cerrar(SupPid) end`; con el
   `fun cerrar/1` directo eunit cancela el caso por `badarg` en `unlink` del puerto.
