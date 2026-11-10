@@ -169,17 +169,12 @@ vuelo(_) ->
 codigo_destino(Colonia) when is_atom(Colonia) ->
   case persistent_term:get({p29_json, destinos}, undefined) of
     undefined ->
-      Tabla = dict:from_list(lists:zip([C || {C, _} <- ?COLONIAS], ?DESTINOS_CODIGO)),
+      Colonias = p29_despachador:colonias(),
+      Tabla = maps:from_list(lists:zip(Colonias, ?DESTINOS_CODIGO)),
       ok = persistent_term:put({p29_json, destinos}, Tabla),
-      case dict:find(Colonia, Tabla) of
-        {ok, Code} -> Code;
-        error -> <<"N/A">>
-      end;
+      maps:get(Colonia, Tabla, <<"N/A">>);
     Tabla ->
-      case dict:find(Colonia, Tabla) of
-        {ok, Code} -> Code;
-        error -> <<"N/A">>
-      end
+      maps:get(Colonia, Tabla, <<"N/A">>)
   end;
 codigo_destino(_) ->
   <<"N/A">>.
