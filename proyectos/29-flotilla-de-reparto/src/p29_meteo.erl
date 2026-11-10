@@ -99,8 +99,9 @@ sigmet_id(N) ->
 
 %% ---- Notificacion a aeronaves ------------------------------------------------
 
+%% Not used - weather alerts are handled directly via p29_despachador:meteo_alerta/1
 %% Called by p29_reloj or externally to notify aircraft of weather
-notificar_aeronaves(State) ->
-  Alertas = maps:values(maps:get(alertas_activas, State)),
-  [p29_despachador:meteo_alerta(A) || A <- Alertas],
-  ok.
+% notificar_aeronaves(State) ->
+%   Alertas = maps:values(maps:get(alertas_activas, State)),
+%   [p29_despachador:meteo_alerta(A) || A <- Alertas],
+%   ok.

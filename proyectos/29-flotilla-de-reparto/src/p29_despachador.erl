@@ -671,9 +671,6 @@ carga_de(Aid) ->
 
 %% ---- helpers ---------------------------------------------------------------------------
 
-phash(T) ->
-  erlang:phash2(T, 65536).
-
 menor_prioridad(A, B) ->
   ClaveA = {not maps:get(urgente, A, false), desde(maps:get(ventana, A, {0, 0})),
             maps:get(id, A)},

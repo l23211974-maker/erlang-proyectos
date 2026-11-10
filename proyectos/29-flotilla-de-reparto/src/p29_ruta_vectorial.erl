@@ -198,7 +198,7 @@ generar_ruta_adhoc(Origen, Destino, Tipo) ->
         distancia_nm => 0, fl_optimo => FLMax, tiempo_estimado_ticks => 0}
   end.
 
-generar_ruta_evitando(Origen, Destino, EvitarZonas, Tipo) ->
+generar_ruta_evitando(Origen, Destino, _EvitarZonas, Tipo) ->
   %% Por ahora: ruta ad-hoc ignorando EvitarZonas (simplificado)
   generar_ruta_adhoc(Origen, Destino, Tipo).
 
