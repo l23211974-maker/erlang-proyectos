@@ -21,7 +21,7 @@
 
 -export([start_link/0, tick/1, estado/0, reportar_gps/4, averiar/1, urgente/1,
          reasignar_pendientes/0, invariantes/0, eta/2, entrega/1, entregas_de/1,
-         vehiculo_cargado/0, reasignaciones/0]).
+         vehiculo_cargado/0, reasignaciones/0, colonias/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
 %% Colonia -> coordenada {X, Y} en la rejilla 10x10 de la ciudad simulada.
@@ -34,6 +34,11 @@
 ]).
 
 %% ---- API ---------------------------------------------------------------------
+
+%% Orden canonico de colonias (la presentacion AeroCargo traduce por indice
+%% al codigo IATA del destino; p29_json la consume).
+colonias() ->
+  [C || {C, _XY} <- ?COLONIAS].
 
 start_link() ->
   gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).

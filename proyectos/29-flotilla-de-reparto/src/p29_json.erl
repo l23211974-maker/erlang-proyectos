@@ -12,6 +12,16 @@
 -define(HORA_INI, 8 * 3600).
 -define(SEC_POR_TICK, 10).
 
+%% Destino de presentacion por colonia del despachador (el dominio interno usa
+%% la rejilla de colonias; la UI AeroCargo los presenta como redes aereas).
+%% MISMA cantidad de entradas que ?COLONIAS de p29_despachador, en el mismo
+%% orden: el codigo IATA sale por indice sin tocar el generador determinista.
+-define(DESTINOS_CODIGO, [
+  <<"MEX">>, <<"GDL">>, <<"CUN">>, <<"MTY">>, <<"TIJ">>, <<"PVR">>,
+  <<"SJD">>, <<"QRO">>, <<"MZT">>, <<"LIM">>, <<"BOG">>, <<"SCL">>,
+  <<"PTY">>, <<"MGA">>, <<"GUA">>
+]).
+
 %% ---- entregas ---------------------------------------------------------------
 
 entregas() ->
@@ -22,6 +32,7 @@ entrega(M) ->
   #{<<"id">> => num(maps:get(id, M)),
     <<"estado">> => bin(maps:get(estado, M)),
     <<"colonia">> => bin(maps:get(colonia, M)),
+    <<"destino">> => codigo_destino(maps:get(colonia, M)),
     <<"peso">> => num(maps:get(peso, M)),
     <<"urgente">> => maps:get(urgente, M, false),
     <<"ventana_desde">> => tick_hora(Desde),
@@ -49,7 +60,14 @@ vehiculo(M) ->
 
 vehiculo(M, Carga, Entregadas) ->
   {X, Y} = maps:get(pos, M, {0, 0}),
-  #{<<"id">> => num(maps:get(id, M)),
+  Id = maps:get(id, M),
+  #{<<"id">> => num(Id),
+    %% AeroCargo: cada unidad lleva identificador de vuelo y telemetria
+    %% derivada determinista de la pos ( misma entrada -> misma salida,
+    %% sin rand: el determinismo del enunciado se conserva).
+    <<"vuelo">> => vuelo(Id),
+    <<"altitud">> => 30 + (8 * X + 5 * Y) rem 10,
+    <<"velocidad">> => 405 + (3 * X + 2 * Y) rem 45,
     <<"estado">> => bin(maps:get(estado, M)),
     <<"x">> => num(X),
     <<"y">> => num(Y),
@@ -137,3 +155,31 @@ tick_hora(Tick) when is_integer(Tick) ->
   iolist_to_binary(io_lib:format("~2..0B:~2..0B", [Horas, Min]));
 tick_hora(_) ->
   null.
+
+%% ---- presentacion AeroCargo ---------------------------------------------------
+
+vuelo(Id) when is_integer(Id) ->
+  V = 700 + Id,
+  <<"AC-", (integer_to_binary(V))/binary>>;  %% AC-701, AC-702, etc.
+vuelo(_) ->
+  <<"AC-000">>.
+
+%% codigo_destino/1: mapea colonia (atom) -> codigo IATA (binario)
+%% usa persistent_term para cachear la tabla (se lee una vez por release).
+codigo_destino(Colonia) when is_atom(Colonia) ->
+  case persistent_term:get({p29_json, destinos}, undefined) of
+    undefined ->
+      Tabla = dict:from_list(lists:zip([C || {C, _} <- ?COLONIAS], ?DESTINOS_CODIGO)),
+      ok = persistent_term:put({p29_json, destinos}, Tabla),
+      case dict:find(Colonia, Tabla) of
+        {ok, Code} -> Code;
+        error -> <<"N/A">>
+      end;
+    Tabla ->
+      case dict:find(Colonia, Tabla) of
+        {ok, Code} -> Code;
+        error -> <<"N/A">>
+      end
+  end;
+codigo_destino(_) ->
+  <<"N/A">>.
