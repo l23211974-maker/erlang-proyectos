@@ -28,20 +28,20 @@ init_per_suite(Config) ->
     lists:foreach(
       fun({K, V}) -> application:set_env(?APP, K, V) end,
       [{web_port, 0},                       %% puerto efimero, como eunit
-       {vehiculos, 3}, {entregas, 40},      %% flota y carga chicos y contables
+       {aeronaves, 3}, {envios, 40},      %% flota y carga chicos y contables (AeroCargo)
        {reloj_auto, true}, {tick_interval_ms, 100},
        {ticks_jornada, 500000},             %% la jornada no cierra en la suite
        {ticks_por_parada, 999999},          %% nada se entrega a medio test
        {sin_senal_ticks, 60}, {prob_fallida, 0.0},
-       {capacidad_kg, 2500}, {asignar_al_inicio, true}]),
+       {capacidad_kg, 6000}, {asignar_al_inicio, true}]),
     {ok, _} = application:ensure_all_started(?APP),
     Puerto = ranch:get_port(p29_web_http),
     inets:start(),
     %% la asignacion greedy es asincrona: espera la pasada inicial completa
     esperar(fun() ->
-                    #{entregas := #{en_ruta := 40}} = p29_despachador:estado(),
+                    #{envios := #{en_ruta := 40}} = p29_despachador:estado(),
                     ok
-            end, 10000),
+            end, 30000),
     [{puerto, Puerto} | Config].
 
 end_per_suite(_Config) ->
@@ -66,24 +66,24 @@ api_flujo_completo(Config) ->
     Estado = decodificar(Cuerpo0),
     ?assertEqual(<<"ok">>, maps:get(<<"invariantes">>, Estado)),
     %% los contadores omiten las llaves en cero: usa get con default
-    Entregas0 = maps:get(<<"entregas">>, Estado),
-    ?assertEqual(40, maps:get(<<"en_ruta">>, Entregas0, 0)),
-    ?assertEqual(0, maps:get(<<"pendiente">>, Entregas0, 0)),
-    ?assertEqual(3, maps:get(<<"en_ruta">>, maps:get(<<"vehiculos">>, Estado))),
+    Envios0 = maps:get(<<"envios">>, Estado),
+    ?assertEqual(40, maps:get(<<"en_ruta">>, Envios0, 0)),
+    ?assertEqual(0, maps:get(<<"pendiente">>, Envios0, 0)),
+    ?assertEqual(3, maps:get(<<"en_ruta">>, maps:get(<<"aeronaves">>, Estado))),
 
-    %% caos por HTTP: averiar la unidad 1 reasigna su carga
+    %% caos por HTTP: averiar la aeronave 1 reasigna su carga
     {200, Cuerpo1} = pedir(Config, post, <<"/api/averiar">>,
-                           <<"{\"unidad\":1}">>),
-    ?assertMatch(#{<<"ok">> := true, <<"unidad">> := 1},
+                           <<"{\"aeronave\":1}">>),
+    ?assertMatch(#{<<"ok">> := true, <<"aeronave">> := 1},
                  decodificar(Cuerpo1)),
     {200, Cuerpo2} = pedir(Config, get, <<"/api/estado">>),
     Estado2 = decodificar(Cuerpo2),
     ?assertEqual(<<"ok">>, maps:get(<<"invariantes">>, Estado2)),
     ?assert(maps:get(<<"reasignaciones">>, Estado2, 0) >= 1),
 
-    %% unidad inexistente: 404 con JSON, nunca crash
+    %% aeronave inexistente: 404 con JSON, nunca crash
     {404, Cuerpo3} = pedir(Config, post, <<"/api/averiar">>,
-                           <<"{\"unidad\":99}">>),
+                           <<"{\"aeronave\":99}">>),
     ?assertMatch(#{<<"ok">> := false}, decodificar(Cuerpo3)).
 
 %% ---- 2. estaticos: el dashboard se sirve completo ------------------------------
@@ -93,7 +93,7 @@ estaticos_del_dashboard(Config) ->
     ct:pal("cuerpo de /: ~ts", [Cuerpo1]),
     %% NOTE: en esta OTP binary:match/2 devuelve nomatch | {Begin, Largo}
     ?assertMatch({_Inicio, _Largo},
-                 binary:match(Cuerpo1, <<"Flotilla de Reparto">>)),
+                 binary:match(Cuerpo1, <<"AeroCargo">>)),
     {200, _} = pedir(Config, get, <<"/unidad.html">>),
     {200, _} = pedir(Config, get, <<"/historial.html">>),
     {200, _} = pedir(Config, get, <<"/app.css">>),

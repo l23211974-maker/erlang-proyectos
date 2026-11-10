@@ -1,205 +1,223 @@
-# #29 — Flotilla de reparto
+# AeroCargo — Flotilla Multimodal de Transporte Aéreo
 
-**Dominio:** aviación y transporte
+> **Proyecto #29** — Simulación de despacho multimodal de carga aérea y terrestre con telemetría en tiempo real, reasignación automática y panel de operaciones táctico.
 
-Rastreo GPS simulado y reasignación de entregas para una flotilla urbana:
-15 unidades, 900 entregas en la jornada, telemetría cada 10 s (acelerada x300),
-avería a ~11 a. m. y pedido urgente a media jornada.
+**Dominio:** aviación y transporte multimodal (aéreo internacional + troncal terrestre + última milla)  
+**Stack:** Erlang/OTP 25+ (retrocompatible), rebar3, Cowboy 2.12, Prometheus 4.11, Thoas/JSON, HTML/CSS/JS plano (sin frameworks) servido por Cowboy  
+**Diseño visual:** Export de Google Stitch "AeroCargo Telematics & Dispatch Operations" — dark slate, tipografía Chivo/Geist/JetBrains Mono, semántica táctica tricolor (Esmeralda/Ámbar/Carmesí)
 
-## Equipo
+---
 
-| Rol | Integrante |
-|---|---|
-| Backend (OTP) | GRANDE ORTEGA MAXIMILIANO ALBERTO |
-| Frontend (Stitch + cowboy) | GRANDE ORTEGA MAXIMILIANO ALBERTO |
-| Ops/QA | GRANDE ORTEGA MAXIMILIANO ALBERTO |
+## Tabla de contenidos
 
-## Arranque
+- [Arquitectura OTP](#arquitectura-otp)
+- [Comandos de desarrollo](#comandos-de-desarrollo)
+- [API y Endpoints web](#api-y-endpoints-web)
+- [Diseño visual (Stitch)](#diseño-visual-stitch)
+- [Pantallas implementadas](#pantallas-implementadas)
+- [Despliegue en Raspberry Pi](#despliegue-en-raspberry-pi)
+- [Referencias](#referencias)
 
-```bash
-rebar3 compile   # dominio completo
-rebar3 eunit     # 11 casos en 9 escenarios (árbol, asignación, statem, avería, señal, caos, demo, web)
-rebar3 ct        # 3 casos de integración (app completa: estaticos, /api/*, regresión SSE)
-rebar3 shell     # web en :8080 + de aquí se corre p29_simulador:demo().
-```
+---
 
-Dentro de la shell (o ni eso: `sys.config` trae `web_port 8080` y la UI arranca sola):
-
-```erlang
-p29_simulador:demo().
-```
-
-La demo corre la jornada completa (2160 ticks GPS de 10 s simulados cada 33 ms,
-~72 s reales), inyecta la avería al ~46 % de la jornada y el pedido urgente al 75 %,
-y termina sola imprimiendo el estado final.
-
-### Web (fase 2)
-
-La app levanta su propio HTTP con cowboy al arrancar:
-
-| Ruta | Qué sirve |
-|---|---|
-| `/` | Dashboard: KPIs, mapa GPS en vivo (rejilla 10×10), flota y manifiesto |
-| `/unidad.html?id=N` | Ficha de la unidad + botón de caos *inyectar avería* |
-| `/historial.html` | Entregas fallidas y bitácora de alertas |
-| `/api/entregas` · `/api/vehiculos` · `/api/estado` | JSON del dominio (`estado` incluye `invariantes`) |
-| `/api/averiar` | **POST** `{"unidad": N}` — caos |
-| `/api/urgente` | **POST** — alta de un pedido urgente fuera del lote |
-| `/eventos` | SSE: un evento `estado` por tick con resumen + instantánea de unidades |
-| `/metrics` | Prometheus (gauges `p29_flotilla_*` + métricas de VM) |
-
-La UI es HTML/CSS/JS plano servido de `priv/static/` (los tokens son los del
-export de Stitch); `/eventos` alimenta el mapa con `EventSource`, sin frameworks.
-
-En el **Raspberry Pi** (RPi 4, Debian 11, OTP 27.3.4.19) los pasos completos —release,
-modo sin teclado, cifras esperadas y problemas frecuentes— están en el gist:
-<https://gist.github.com/l23211974-maker/f754a5fa477b148f2cdc2f36a10a76a8>
-
-## Diseño OTP
+## Arquitectura OTP
 
 ```
 p29_sup (rest_for_one)
-├── p29_datos        (gen_server: tablas ETS de solo lectura p29_entregas / p29_vehiculos)
-├── p29_reloj        (gen_server: único dueño del tiempo; emite {p29_tick, N})
-├── p29_despachador  (gen_server: asigna, reasigna, watchdog de señal, counters)
-├── p29_flota_sup    (simple_one_for_one: un gen_server p29_vehiculo por unidad)
-├── p29_entregas_sup (simple_one_for_one: un gen_statem p29_entrega por paquete)
-├── p29_broadcaster  (gen_server: único suscriptor del reloj; difunde instantáneas a los handlers SSE)
-└── p29_web          (gen_server: listener cowboy — estáticos, /api/*, /eventos, /metrics)
+├── p29_datos           (gen_server: tablas ETS de solo lectura p29_envios / p29_aeronaves)
+├── p29_reloj           (gen_server: único dueño del tiempo; emite {p29_tick, N})
+├── p29_ruta_vectorial  (gen_server: rutas vectoriales waypoint-a-waypoint, Great Circle)
+├── p29_meteo           (gen_server: frentes tormentosos, CBs, turbulencia, viento en altura)
+├── p29_adsb            (gen_server: simulación ADS-B OUT 1090 MHz cada 10s)
+├── p29_adsb_receptor   (gen_server: receptor ADS-B, correlación con flota)
+├── p29_despachador     (gen_server: asigna, reasigna, watchdog de señal, averías, urgencias)
+├── p29_aeronaves_sup   (simple_one_for_one: un gen_server p29_aeronave por unidad)
+├── p29_envios_sup      (simple_one_for_one: un gen_statem p29_envio por envío)
+├── p29_transbordo_sup  (simple_one_for_one: transbordos en hubs)
+├── p29_broadcaster     (gen_server: único suscriptor del reloj; difunde instantáneas a SSE)
+└── p29_web             (gen_server: listener cowboy — estáticos, /api/*, /eventos, /metrics)
 ```
 
-### Por qué rest_for_one y este orden
+### Por qué `rest_for_one` y este orden
 
-Las dependencias arrancan en orden: sin tablas no hay filas que escribir, sin
-reloj no hay ticks, sin despachador nadie organiza, y solo entonces existen
-vehículos y entregas para quien ya hay quien los ordene. Si algo intermedio
-cae, todo lo que depende de él se re-arranca en bloque.
+Las dependencias arrancan en orden: sin tablas no hay filas que escribir, sin reloj no hay ticks, sin rutas no hay plan de vuelo, sin meteo no hay alertas, sin ADS-B no hay telemetría, sin despachador nadie organiza, y solo entonces existen aeronaves y envíos para quien ya hay quien los ordene. Si algo intermedio cae, todo lo que depende de él se re-arranca en bloque.
 
-### Por qué cada caso difícil quedó cubierto así
+### Reglas de dominio inmutables
 
-1. **Sin huérfanas ni duplicadas** — un solo proceso (`p29_entrega`, gen_statem)
-   es dueño de cada paquete; solo su proceso puede escribir su fila ETS. Pasar
-   una entrega de una unidad a otra pasa siempre por
-   `devolver → pendiente → asignar`; el rechazo de eventos inválidos
-   (`asignar` sin devolver, `devolver` desde `pendiente`) es del statem, no del
-   despachador. `p29_despachador:invariantes/0` verifica el orden al final de
-   cada escenario y de la jornada.
-2. **Buena y rápida antes que perfecta y lenta** — el despachador usa un
-   *greedy first-fit*: ordena pendientes (urgente primero, luego ventana más
-   próxima, luego id) y asigna cada una a la unidad con menor carga que quepa
-   por capacidad. Es O(entregas × unidades) por pasada, sin VRP (NP-difícil).
-   Unido a esto: la unidad es **independiente** del despachador (está en otro
-   ramal), de modo que si muere una unidad, el despachador no muere y la carga
-   del día se reasigna al instante.
-3. **Señal perdida y lotes atrasados** — los GPS llegan con el tick simulado de
-   origen; si un reporte trae un tick *más viejo* que el último conocido se
-   descarta (el más nuevo manda). El *watchdog* del despachador detecta
-   unidades que dejaron de reportar (umbral `sin_senal_ticks`, ~60 s reales),
-   las marca `sin_senal`, devuelve toda su carga a `pendiente` y reasigna.
-   Cuando el GPS vuelve, la señal misma repone a la unidad en `en_ruta`.
-   Una unidad muerta (averría/crash) la detecta el monitor del despachador
-   (`'DOWN'`) y se relanza vacía bajo `p29_flota_sup`.
+- **ETS es caché de lectura**: el dueño de cada fila es el `gen_statem` del envío o el `gen_server` de la aeronave. Nunca escribas ETS desde otro proceso ni desde handler HTTP; usa la API (`p29_envio:*`, `p29_despachador:*`).
+- **Reloj único**: `p29_reloj` es el único dueño del tiempo. Nada de `erlang:monotonic_time/0` ni `timer:sleep` en el dominio: rompe reproducibilidad y tests con reloj manual.
+- **Determinismo**: flota, pesos, rutas y ventanas salen de `erlang:phash2`, no de `rand`. Meter `rand` sin semilla hace fallar `simulador_test_`.
+- **Jornada desde T0**: el simulador cuenta desde el tick en que arranca (`T0 = tick_actual()`), no desde 0 absoluto. La avería/urgente se inyectan con `>=` una sola vez.
+- **Despachador atrapa salidas** (`trap_exit`) y detecta muertes por monitores `'DOWN'`; las unidades se relanzan bajo `p29_aeronaves_sup`. Si tocas el arranque, respeta `esperar_sup`.
 
-### Reloj simulado
+---
 
-El tiempo simulado existe solo en `p29_reloj`: cada tick equivale a ~10 s de
-GPS (`ticks_jornada`). Con `reloj_auto = false` los tests impulsan ticks a mano
-(`p29_reloj:tick/0` o `p29_despachador:tick/1`) y las corridas son
-deterministas; con `reloj_auto = true` el reloj corre solo cada
-`tick_interval_ms`.
+## Comandos de desarrollo
 
-## Módulos
+Todos los comandos se ejecutan **desde la raíz del proyecto** (`C:\Users\Max\dev\erlang-proyectos\proyectos\29-flotilla-de-reparto`):
 
-| Módulo | Role |
+```powershell
+rebar3 compile      # warnings_as_errors: un solo warning rompe el build
+rebar3 eunit        # 11 casos en 9 escenarios (árbol, asignación, statem, avería, señal, caos, demo, web)
+rebar3 ct           # 3 casos de integración (app completa: estáticos, /api/*, regresión SSE)
+rebar3 shell        # web en :8080 + de aquí: p29_simulador:demo().
+```
+
+Un caso suelto:
+```powershell
+rebar3 eunit --test=p29_flotilla_de_reparto_tests:arbol_despues_de_arrancar_test_
+```
+
+La demo corre la jornada completa (2160 ticks GPS de 10 s simulados cada 33 ms, ~72 s reales), inyecta avería al ~46% y pedido urgente al 75%, termina imprimiendo estado final.
+
+---
+
+## API y Endpoints web
+
+| Ruta | Qué sirve |
 |---|---|
-| `p29_datos` | Filas ETS de consulta (una por entrega/vehículo); solo el proceso dueño escribe la suya |
-| `p29_reloj` | Ticks {p29_tick, N}; suscripción/desuscripción |
-| `p29_despachador` | Asignación greedy, watchdog de señal, averías, urgencias, `eta/2`, `invariantes/0` |
-| `p29_vehiculo` | gen_server por unidad: movimiento en rejilla y reporte GPS por tick |
-| `p29_entrega` | gen_statem: `pendiente → en_ruta → entregada | fallida`; `entregar` calcula el retraso contra la ventana |
-| `p29_flota_sup` | `simple_one_for_one` de unidades; relanza vacías |
-| `p29_entregas_sup` | `simple_one_for_one` de entregas |
-| `p29_simulador` | Espectador demo: suscríbase al reloj, inyecta avería/urgente e imprime el resumen |
-| `p29_json` | Encoders JSON del dominio (OTP 27 stdlib `json`); reloj→«HH:MM» con `tick_hora/1` |
-| `p29_broadcaster` | Único suscriptor del reloj; un JSON por tick repartido a los watchers SSE con monitores |
-| `p29_api` | Handlers `/api/*`: GET de consultas y POST de caos (`averiar`, `urgente`) |
-| `p29_sse` | Handler `cowboy_loop` de `/eventos`: primer payload al conectar + latidos cada 15 s |
-| `p29_metrics` | Handler `/metrics`: gauges `p29_flotilla_*` refrescados en cada scrape |
-| `p29_web` | Listener cowboy + router; trap_exit y stop de listener en terminate |
+| `/` | Dashboard: KPIs tácticos, mapa vectorial GPS en vivo, flota activa con filtros, feed de alertas |
+| `/unidad.html?id=N` | Ficha de aeronave + botón de caos *inyectar avería* + panel de reasignación + radar + ACARS |
+| `/historial.html` | Bitácora de telemetría y alertas con filtros tácticos, exportación IFR |
+| `/api/aeronaves` | JSON de la flota con terminología AeroCargo |
+| `/api/envios` | JSON de envíos con terminología AeroCargo |
+| `/api/vehiculos` | **Backward compat** - alias de `/api/aeronaves` |
+| `/api/entregas` | **Backward compat** - alias de `/api/envios` |
+| `/api/estado` | Resumen + invariantes (`aeronaves`, `envios`, `reasignaciones`, `transbordos`, `retraso_medio`) |
+| `/api/averiar` | **POST** `{"aeronave": N}` o `{"unidad": N}` — inyecta avería/desvío |
+| `/api/urgente` | **POST** — alta de envío urgente AOG (nueva + legacy terminology) |
+| `/eventos` | SSE: un evento `estado` por tick con resumen + instantánea de unidades |
+| `/metrics` | Prometheus (gauges `p29_flotilla_*` + métricas de VM) |
 
-## Supuestos de diseño
+### Métricas Prometheus (nuevas familias AeroCargo)
 
-- La ciudad es una rejilla 10×10; la GPS de cada unidad describe un circuito
-  determinista por tick (la misma corrida es reproducible).
-- Los pesos (5–44 kg), colonias (15 en la lista) y ventanas (entrega lógica
-  entre ticks 20 y 170) se generan con `erlang:phash2`, **no** con `rand`:
-  la corrida es reproducible de principio a fin.
-- La probabilidad de `cliente_ausente` (`prob_fallida`, 0.10) ronda el punto
-  medio del rango real 5–15 % (ver cifras abajo).
-- Cada "parada" lógica termina una entrega cada `ticks_por_parada` (36 ticks
-  simulados ≈ 6 min): con 15 unidades y 900 entregas el día cierra con la
-  fila casi vacía.
+```prometheus
+# Nuevas familias AeroCargo
+p29_flotilla_aeronaves{estado="en_ruta|en_tierra|critico|alerta"}
+p29_flotilla_envios{estado="pendiente|en_ruta|entregada|fallida|desviada"}
+p29_flotilla_transbordos_total
 
-## Cifras del mundo real (verificadas)
-
-- **Entregas por unidad/día:** 50–150 paradas según el vehículo y la densidad
-  (Winkenbach, MIT CTL, 2018: "50 to 150 stops per day"; flota de FedEx 150–200;
-  contemporáneos urbanos 100–120: *Sustainability* 12(7):2837, 2020). El
-  enunciado usa 900/15 = 60 por unidad: dentro del rango observado para
-  camionetas ligeras (40–60 en MDPI, id.).
-- **Entrega fallada en primer intento:** 6–8 % (Loqate/GBG 2022: EE. UU. 8 %,
-  R. U. 6 %, D. 7 %) y 10–15 % en España (Deloitte 2020, citado en
-  arXiv:2508.01032). El enunciado de 5–15 % cubre ambos; la simulación usa 10 %.
-- **La última milla es la etapa más cara:** aquella en la que
-  "arguably the least efficient and most expensive stage" del envío
-  (arXiv:2508.01032, intro, revisión de 2025).
-- **GPS cada 5–15 s:** usamos 10 s (punto del enunciado); es el intervalo
-  típico de las plataformas comerciales de telemetría de flota.
-
-## Resultados de la corrida de validación (envs de `sys.config`)
-
-Jornada completa con avería inyectada y urgente:
-
-```text
-FIN: 901 entregas (900 + urgente)
-  entregada  ~785   (~87 %)
-  fallida     ~85   (~9.4 %, dentro del 5–15 % real)
-  en_ruta     33    (en la calle al cierre de la jornada: eDay no las desalienta)
-  unidades    15/15 en_ruta (la averiada fue relanzada vacía por su supervisor)
-  reasignaciones 40
-  invariantes  ok
+# Backward compat (se mantienen para dashboards existentes)
+p29_flotilla_vehiculos{estado="en_ruta|en_tierra"}
+p29_flotilla_entregas{estado="pendiente|en_ruta|entregada|fallida"}
+p29_flotilla_retraso_medio
+p29_flotilla_reasignaciones_total
 ```
 
-La misma corrida en el **Raspberry Pi 4** (Debian 11, OTP 27.3.4.19, 4 cores) cierra
-en el tick 2160 con **780 entregadas, 74 fallidas y 47 en ruta** (818/81/2 si se deja
-drenar la cola) y `invariantes ok`, 15/15 unidades y 40 reasignaciones. Las diferencias
-con la tabla son de ±1 % y vienen de en qué tick exacto se corta la jornada, no del
-reparto.
+---
 
-## Prueba de caos
+## Diseño visual (Stitch)
 
-- **Matar la unidad más cargada en pleno día** (`p29_despachador:averiar/1` o el
-  botón de la demo): sus entregas pasan todas a `pendiente` y la frase
-  reasigna al instante entre las vivas; su proceso se relanza vacío bajo
-  `p29_flota_sup` y vuelve a reportar GPS. Cubierto por los tests
-  `averia_reasignacion_test_` y `recuperacion_tras_averia_test_`.
-- **Matar sin avisar** (crash real con `'DOWN'`): mismo camino — el despachador
-  vigila cada pid con `erlang:monitor`; ni el despachador muere (atrapa salidas)
-  ni se pierde una entrega. Cubierto por `p29_entrega` + `invariantes/0`.
-- **Quitar la señal** (desuscribir la unidad del reloj): a los
-  `sin_senal_ticks` el watchdog la marca, devuelve su carga y la reasigna;
-  reportes atrasados que llegaran en lote se descartan por tick viejo.
-  Cubierto por `sin_senal_y_lote_atrasado_test_`.
+### Paleta táctica (source of truth: `design/stitch_aerocargo/aerocargo_telematics_dispatch_operations/DESIGN.md`)
 
-## Estado y pendiente
+```css
+/* Superficies */
+--canvas-default:     #0B1120;  /* Negro Espacial Profundo */
+--surface-base:       #0F172A;  /* Azul Pizarra Base */
+--surface-elevated:   #1E293B;  /* Pizarra Elevada / Contenedores */
+--surface-overlay:    #334155;  /* Bordes activos, divisores */
 
-- [x] Diseño OTP y dominio completo (estados, supervisión, pero con diccionario ETS)
-- [x] Suite eunit: 11 casos en verde (`rebar3 compile` + `rebar3 eunit`), también en el Raspberry Pi
-- [x] Suite common_test: integración de la app completa con `rebar3 ct` (estáticos, `/api/*`, caos por HTTP y regresión del crash de `/eventos`)
-- [x] Demo productiva validada (averia + urgente + watchdog + invariantes), también en el Raspberry Pi 4
-- [x] Diseño visual en Stitch (`design/PROMPT_STITCH.md`) y export a `design/`; maquetas portadas a `priv/static/`
-- [x] Endpoints `/api/...` y mapa en vivo por SSE con cowboy
-- [x] Métricas `/metrics` (prometheus.erl 6.1.3) y diagnóstico con recon
-- [x] Release + systemd en el Raspberry Pi (Debian 11, OTP 27, 4 schedulers); la unidad va versionada en `deploy/p29-flotilla.service`
-- [x] Manual de uso del cliente en el gist (instalación, ejecución, API, solución de problemas): <https://gist.github.com/l23211974-maker/f754a5fa477b148f2cdc2f36a10a76a8>
-- [x] Documento «Importancia de Erlang en el proyecto» en [docs/importancia-erlang.md](docs/importancia-erlang.md), también publicado como gist: <https://gist.github.com/l23211974-maker/7aa4a94d57b4eb7b17b89f21d18928cb>
+/* Marca y acción */
+--primary:            #0284C7;  /* Azul Vector */
+--primary-active:     #38BDF8;  /* Luz de radar / Foco */
+
+/* Semántica táctica (estricta) */
+--status-ok:          #10B981;  /* Esmeralda Operativa: nominal, a tiempo, GPS estable */
+--status-warning:     #F59E0B;  /* Ámbar Radar: meteo moderada, retraso, recalibración */
+--status-critical:    #EF4444;  /* Carmesí Alerta: desvío, falla crítica, emergencia */
+--status-info:        #38BDF8;  /* Cian Aviónica: balizas, aproximación, telemetría pasiva */
+
+/* Texto */
+--text-primary:       #F8FAFC;
+--text-secondary:     #94A3B8;
+--text-muted:         #64748B;
+```
+
+### Tipografía
+
+- **Chivo** (600/700): Headers, títulos de sección, alertas
+- **Geist** (400/500/600): UI, datos de manifiesto, cuerpo
+- **JetBrains Mono** (500/700): Coordenadas, telemetría, contadores, códigos
+
+### Componentes clave
+
+1. **Botones Tácticos**: Primario (Azul Vector), Crítico (Carmesí), Secundario (Filtro)
+2. **Badges/Chips de estado**: NOMINAL (verde + punto), ALERTA (ámbar + pulso lento), CRÍTICO (carmesi + pulso 1Hz)
+3. **Tarjeta de Aeronave**: Chasis `#1E293B`, cabecera ID + ruta + badge, cuadrícula 3x1 telemetría (FL, GS, Payload), mini-barra de progreso de ruta
+4. **Inputs/Selects**: Fondo `#0B1120`, foco con glow `#0284C7`, selectores de flota agrupados por sector
+5. **Lista de Eventos de Despacho**: Filas alternadas, timestamp monoespaciado UTC/Local, código evento, mensaje, acción rápida
+6. **Mapa Vectorial (Canvas)**: Grid táctico, anillos concéntricos, rutas con gradientes semánticos, pins interactivos con ficha telemetría
+
+---
+
+## Pantallas implementadas
+
+| Archivo | Pantalla | Descripción |
+|---|---|---|
+| `priv/static/index.html` | Dashboard | Consola de mando, 4 KPIs tácticos, mapa vectorial multimodal, tabla de flota activa con filtros, terminal de alertas |
+| `priv/static/unidad.html` | Detalle Aeronave | Cabecera aeronave, 6 gauges telemetría (Altitud, Vel. Tierra, Heading, V/S, Combustible, Carga Útil), manifiesto crítico, panel decisión reasignación (radio options + calculador impacto), mapa radar con fixes de decisión, intercom ACARS |
+| `priv/static/historial.html` | Bitácora/Alertas | Filtros tácticos (búsqueda, severidad, ventana temporal, segmento), 3 KPIs (MTTR, OTP, Safety), stream cronológico de eventos con modales GPS/Reasignación, export IFR |
+
+### Optimizaciones de rendimiento (app.js)
+
+- **requestAnimationFrame** para todas las actualizaciones visuales (batched rendering at max 2Hz)
+- **Dirty flag system** - solo re-renderiza lo que cambió realmente
+- **SSE throttled** (500ms mínimo entre lotes de procesamiento)
+- **Canvas-based radar** (60fps capable vs SVG DOM thrashing)
+- **Virtualized fleet list** - solo renderiza items visibles + buffer
+- **Event delegation** - single listener vs per-element listeners
+- **DOM reuse / element pooling** - no innerHTML replacement en cada tick
+- **Projection cache** - transformadas de coordenadas memoizadas
+- **Formatter caches** - formateo de números/fechas memoizado
+- **Proper cleanup** - animation frames, event listeners, caches on unload
+- **Visibility change handling** - pausa rendering cuando tab hidden
+
+**Resultado:** Elimina congelación de botones, asegura respuesta inmediata de UI bajo carga pesada de datos SSE.
+
+---
+
+## Despliegue en Raspberry Pi (producción)
+
+- Repo en `~/erlang-proyectos` (clon GitHub). Se edita/empuja desde Windows y allí `git pull --ff-only`; no hay credenciales git en el Pi.
+- `ssh flotilla 'comando'` **no** carga asdf (bash no interactivo): prefija `export PATH=$HOME/.asdf/shims:$HOME/bin:$PATH` o usa `bash -lc '...'`.
+- **Comillas dobles y contrabarras mueren en PowerShell→ssh**: para mandar JSON desde Windows, escríbelo en el Pi sin comillas dobles en la línea, con `printf` octal y contrabarras dobladas:
+  `printf '\\173\\042aeronave\\042\\0727\\175' > /tmp/u.json; curl -s -X POST -H 'Content-Type: application/json' --data @/tmp/u.json ...`
+- `sudo` sin contraseña; 26 GB libres; deps en `_build` ya bajadas.
+- Antes de dar por desplegado: `rebar3 compile` y `rebar3 eunit` **en el Pi**; OTP/aarch64 puede comportarse distinto que Windows.
+- `config/vm.args` fija `+S 4:4`: nunca más schedulers que cores físicos.
+- `config/sys.config` lleva envs de demo (waypoints, FL, kts, payload tons, SLA ventanas, meteo), no secretos; cookie de `vm.args` (`cambiar_en_produccion`) se cambia al desplegar.
+- Servicio corre release de **`_build/default/rel/`** (ver `deploy/p29-flotilla.service`), NO `_build/prod/rel/`: `rebar3 release` y comprobar binario en `systemctl status`. Reconstruir sin reiniciar servicio deja en `:8080` release viejo con estáticos viejos.
+- Cotejo rápido Pi vs local (lectura vía `ssh flotilla`):
+  `md5sum priv/static/app.js src/p29_json.erl config/sys.config` en ambos lados
+  `git rev-parse HEAD` en ambos
+  En Pi: `curl -s -o /dev/null -w '%{time_total}' http://127.0.0.1:8080/api/aeronaves` para separar "lento en navegador" (~12ms en Pi) de "lento por proxy Corellium".
+
+---
+
+## Referencias
+
+- **Repo original (especificación base)**: https://github.com/tectijuana/erlang-proyectos/tree/main/proyectos/29-flotilla-de-reparto
+- **Fork con trabajo actual (AeroCargo)**: https://github.com/l23211974-maker/erlang-proyectos/tree/main/proyectos/29-flotilla-de-reparto
+- **Manual Pi + métricas (gist)**: https://gist.github.com/l23211974-maker/f754a5fa477b148f2cdc2f36a10a76a8
+- **Documento "Importancia de Erlang"**: https://gist.github.com/l23211974-maker/7aa4a94d57b4eb7b17b89f21d18928cb
+- **Diseño Stitch AeroCargo**: `C:\Users\Max\Downloads\stitch_gestor_de_flotilla_a_rea.zip` (descomprimido en `design/stitch_aerocargo/`)
+
+---
+
+## Próximos pasos
+
+1. **Actualizar sys.config** con parámetros de aviación reales (waypoints AIP, FL máximos por tipo, kts por régimen, payload tons, SLA ventanas, meteo SIGMET)
+2. **Tests de caos extendidos**: pérdida de señal ADS-B por sector, meteo severa generalizada, fallo de hub principal
+3. **Verificar OTP 25**: `rebar3 compile` + `rebar3 eunit` en curso-plf antes de merge
+4. **Desplegar en Pi**: validar release, systemd, métricas, SSE en vivo
+
+---
+
+## Notas para el agente
+
+- **No dupliques lógica**: usa los módulos existentes como base; el pivot es semántico (tierra→aire), la arquitectura OTP se mantiene.
+- **Respeta OTP 25**: cualquier cambio debe compilar y pasar tests en OTP 25 (curso-plf) y OTP 27+ (local/Pi).
+- **Tokens de diseño**: toma colores, tipografía, espaciado, componentes del `DESIGN.md` de Stitch; no inventes valores.
+- **SSE bajo carga**: el diagnóstico 2026-11-08 sigue válido — desacopla pintado del tick (rAF + bandera), no refetchees `/api/aeronaves` por tick, reusa mapa, estrangula SSE tras jornada.
+- **PowerShell 5.1 en Windows**: escribe archivos UTF-8 sin BOM; usa `bash -s` con heredoc para comandos remotos ssh.
+- **Segundo Cerebro**: al cerrar sesión, crea/actualiza nota en `C:\Users\Max\Desktop\obsidian\Maximiliano\Sesiones/` y enlaza desde `MOC_SegundoCerebro.md`.

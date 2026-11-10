@@ -52,22 +52,34 @@ aeronave(M) ->
 
 aeronave(M, Carga, Entregadas) ->
   Pos = maps:get(pos, M, {0, 0}),
-  {Lat, Lon} = Pos,
+  case Pos of
+    undefined -> {Lat, Lon} = {0, 0};
+    {Lat, Lon} -> {Lat, Lon}
+  end,
   Id = maps:get(id, M),
   Tipo = maps:get(tipo, M),
+  FL = val_def(maps:get(fl, M), 0),
+  GS = val_def(maps:get(gs, M), 0),
+  Estado = maps:get(estado, M, en_tierra),
+  UltimoReporte = val_def(maps:get(tick_ultimo_reporte, M), 0),
+  Capacidad = val_def(maps:get(capacidad, M), 0),
+  Combustible = val_def(maps:get(combustible_pct, M), 100),
   #{<<"id">> => num(Id),
     <<"vuelo">> => vuelo(Id),
     <<"tipo">> => bin(Tipo),
-    <<"altitud_ft">> => num(maps:get(fl, M) * 100),
-    <<"velocidad_kts">> => num(maps:get(gs, M)),
-    <<"estado">> => bin(maps:get(estado, M)),
+    <<"altitud_ft">> => num(FL * 100),
+    <<"velocidad_kts">> => num(GS),
+    <<"estado">> => bin(Estado),
     <<"lat">> => num(Lat),
     <<"lon">> => num(Lon),
-    <<"ultimo_reporte">> => num(maps:get(tick_ultimo_reporte, M, undefined)),
-    <<"capacidad_kg">> => num(maps:get(capacidad, M, undefined)),
+    <<"ultimo_reporte">> => num(UltimoReporte),
+    <<"capacidad_kg">> => num(Capacidad),
     <<"carga_kg">> => Carga,
     <<"entregadas">> => Entregadas,
-    <<"combustible_pct">> => num(maps:get(combustible_pct, M, 100))}.
+    <<"combustible_pct">> => num(Combustible)}.
+
+val_def(undefined, Def) -> Def;
+val_def(V, _Def) -> V.
 
 %% por aeronave: envios en_ruta (su carga viva) y envios entregados del dia.
 %% Se recorre la tabla UNA vez para las 15 filas, no una pasada por unidad.
