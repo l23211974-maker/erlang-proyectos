@@ -1,6 +1,10 @@
 -module(p29_flotilla_de_reparto_tests).
 -include_lib("eunit/include/eunit.hrl").
 
+%% OTP <= 26: thoas devuelve {ok, Termino}; normalizar a Termino seco.
+decodificar(Bin) ->
+  {ok, Termino} = thoas:decode(Bin),
+  Termino.
 %% Suite del proyecto #29. Cada escenario arranca su propio arbol de
 %% supervision con envs pequenos (2 unidades, entregas contadas) y reloj
 %% MANUAL (reloj_auto false) para corridas deterministas y rapidas.
@@ -341,7 +345,7 @@ web_endpoints_test_() ->
                   {ok, {{_, 200, _}, _, CuerpoEstado}} =
                     httpc:request(get, {Ruta("/api/estado"), []},
                                   [{timeout, 3000}], [{body_format, binary}]),
-                  EstadoJson = thoas:decode(CuerpoEstado),
+                  EstadoJson = decodificar(CuerpoEstado),
                   ?assertEqual(<<"ok">>, maps:get(<<"invariantes">>, EstadoJson)),
                   ?assertEqual(12,
                                maps:get(<<"en_ruta">>,
@@ -349,11 +353,11 @@ web_endpoints_test_() ->
                   {ok, {{_, 200, _}, _, CuerpoEntregas}} =
                     httpc:request(get, {Ruta("/api/entregas"), []},
                                   [{timeout, 3000}], [{body_format, binary}]),
-                  ?assertEqual(12, length(thoas:decode(CuerpoEntregas))),
+                  ?assertEqual(12, length(decodificar(CuerpoEntregas))),
                   {ok, {{_, 200, _}, _, CuerpoVehiculos}} =
                     httpc:request(get, {Ruta("/api/vehiculos"), []},
                                   [{timeout, 3000}], [{body_format, binary}]),
-                  ?assertEqual(2, length(thoas:decode(CuerpoVehiculos))),
+                  ?assertEqual(2, length(decodificar(CuerpoVehiculos))),
                   {ok, {{_, 200, _}, _, CuerpoMetricas}} =
                     httpc:request(get, {Ruta("/metrics"), []},
                                   [{timeout, 3000}], [{body_format, binary}]),
@@ -368,20 +372,20 @@ web_endpoints_test_() ->
                                          <<"{\"unidad\":1}">>},
                                   [{timeout, 3000}], [{body_format, binary}]),
                   ?assertMatch(#{<<"ok">> := true, <<"unidad">> := 1},
-                               thoas:decode(CuerpoAveriar)),
+                               decodificar(CuerpoAveriar)),
                   {ok, {{_, 404, _}, _, CuerpoNoHubo}} =
                     httpc:request(post, {Ruta("/api/averiar"), [],
                                          "application/json",
                                          <<"{\"unidad\":99}">>},
                                   [{timeout, 3000}], [{body_format, binary}]),
-                  ?assertMatch(#{<<"ok">> := false}, thoas:decode(CuerpoNoHubo)),
+                  ?assertMatch(#{<<"ok">> := false}, decodificar(CuerpoNoHubo)),
                   %% cuerpo basura: 400, nunca crash
                   {ok, {{_, 400, _}, _, CuerpoBasura}} =
                     httpc:request(post, {Ruta("/api/averiar"), [],
                                          "application/json",
                                          <<"\x07no-es-json">>},
                                   [{timeout, 3000}], [{body_format, binary}]),
-                  ?assertMatch(#{<<"ok">> := false}, thoas:decode(CuerpoBasura)),
+                  ?assertMatch(#{<<"ok">> := false}, decodificar(CuerpoBasura)),
                   %% urgente por HTTP: alta de un pedido urgente fuera del lote
                   {ok, {{_, 200, _}, _, CuerpoUrgente}} =
                     httpc:request(post, {Ruta("/api/urgente"), [],
@@ -389,7 +393,7 @@ web_endpoints_test_() ->
                                          <<"{\"peso\":30}">>},
                                   [{timeout, 3000}], [{body_format, binary}]),
                   ?assertMatch(#{<<"ok">> := true, <<"entrega">> := _},
-                               thoas:decode(CuerpoUrgente))
+                               decodificar(CuerpoUrgente))
                end)
        ]
     end}.

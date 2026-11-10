@@ -80,11 +80,15 @@ cuerpo(Req0) ->
       {error, vacio}
   end.
 
-%% json:decode/1 unicamente existe en OTP 27+; en OTP <= 26 usa thoas
+%% json:decode/1 unicamente existe en OTP 27+; en OTP <= 26 usa thoas,
+%% y se desenvuelve {ok, Termino} para que el resultado sea identico.
 json_decodificar(Bin) ->
   case erlang:function_exported(json, decode, 1) of
     true -> json:decode(Bin);
-    false -> thoas:decode(Bin)
+    false ->
+      case thoas:decode(Bin) of
+        {ok, Termino} -> Termino
+      end
   end.
 
 json(Req0, Codigo, Binario) ->

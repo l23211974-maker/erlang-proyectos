@@ -17,6 +17,11 @@
 
 %% ---- mapa de la suite --------------------------------------------------------
 
+%% OTP <= 26: thoas devuelve {ok, Termino}; normalizar a Termino seco.
+decodificar(Bin) ->
+  {ok, Termino} = thoas:decode(Bin),
+  Termino.
+
 all() -> [api_flujo_completo, estaticos_del_dashboard, sse_regresion_y_vivos].
 
 init_per_suite(Config) ->
@@ -58,7 +63,7 @@ recuperar_web() ->
 
 api_flujo_completo(Config) ->
     {200, Cuerpo0} = pedir(Config, get, <<"/api/estado">>),
-    Estado = thoas:decode(Cuerpo0),
+    Estado = decodificar(Cuerpo0),
     ?assertEqual(<<"ok">>, maps:get(<<"invariantes">>, Estado)),
     %% los contadores omiten las llaves en cero: usa get con default
     Entregas0 = maps:get(<<"entregas">>, Estado),
@@ -70,16 +75,16 @@ api_flujo_completo(Config) ->
     {200, Cuerpo1} = pedir(Config, post, <<"/api/averiar">>,
                            <<"{\"unidad\":1}">>),
     ?assertMatch(#{<<"ok">> := true, <<"unidad">> := 1},
-                 thoas:decode(Cuerpo1)),
+                 decodificar(Cuerpo1)),
     {200, Cuerpo2} = pedir(Config, get, <<"/api/estado">>),
-    Estado2 = thoas:decode(Cuerpo2),
+    Estado2 = decodificar(Cuerpo2),
     ?assertEqual(<<"ok">>, maps:get(<<"invariantes">>, Estado2)),
     ?assert(maps:get(<<"reasignaciones">>, Estado2, 0) >= 1),
 
     %% unidad inexistente: 404 con JSON, nunca crash
     {404, Cuerpo3} = pedir(Config, post, <<"/api/averiar">>,
                            <<"{\"unidad\":99}">>),
-    ?assertMatch(#{<<"ok">> := false}, thoas:decode(Cuerpo3)).
+    ?assertMatch(#{<<"ok">> := false}, decodificar(Cuerpo3)).
 
 %% ---- 2. estaticos: el dashboard se sirve completo ------------------------------
 
