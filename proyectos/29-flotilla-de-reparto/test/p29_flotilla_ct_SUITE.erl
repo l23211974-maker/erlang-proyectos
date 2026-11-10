@@ -58,7 +58,7 @@ recuperar_web() ->
 
 api_flujo_completo(Config) ->
     {200, Cuerpo0} = pedir(Config, get, <<"/api/estado">>),
-    Estado = json:decode(Cuerpo0),
+    Estado = thoas:decode(Cuerpo0),
     ?assertEqual(<<"ok">>, maps:get(<<"invariantes">>, Estado)),
     %% los contadores omiten las llaves en cero: usa get con default
     Entregas0 = maps:get(<<"entregas">>, Estado),
@@ -70,16 +70,16 @@ api_flujo_completo(Config) ->
     {200, Cuerpo1} = pedir(Config, post, <<"/api/averiar">>,
                            <<"{\"unidad\":1}">>),
     ?assertMatch(#{<<"ok">> := true, <<"unidad">> := 1},
-                 json:decode(Cuerpo1)),
+                 thoas:decode(Cuerpo1)),
     {200, Cuerpo2} = pedir(Config, get, <<"/api/estado">>),
-    Estado2 = json:decode(Cuerpo2),
+    Estado2 = thoas:decode(Cuerpo2),
     ?assertEqual(<<"ok">>, maps:get(<<"invariantes">>, Estado2)),
     ?assert(maps:get(<<"reasignaciones">>, Estado2, 0) >= 1),
 
     %% unidad inexistente: 404 con JSON, nunca crash
     {404, Cuerpo3} = pedir(Config, post, <<"/api/averiar">>,
                            <<"{\"unidad\":99}">>),
-    ?assertMatch(#{<<"ok">> := false}, json:decode(Cuerpo3)).
+    ?assertMatch(#{<<"ok">> := false}, thoas:decode(Cuerpo3)).
 
 %% ---- 2. estaticos: el dashboard se sirve completo ------------------------------
 

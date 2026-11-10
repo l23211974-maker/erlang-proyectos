@@ -32,14 +32,14 @@ averiar(Req0) ->
     {ok, #{<<"unidad">> := Unidad}} when is_integer(Unidad) ->
       case p29_despachador:averiar(Unidad) of
         ok ->
-          json(Req0, 200, json:encode(#{<<"ok">> => true, <<"unidad">> => Unidad}));
+          json(Req0, 200, p29_json:json(#{<<"ok">> => true, <<"unidad">> => Unidad}));
         {error, no_existe} ->
-          json(Req0, 404, json:encode(#{<<"ok">> => false,
+          json(Req0, 404, p29_json:json(#{<<"ok">> => false,
                                         <<"error">> => <<"unidad_inexistente">>,
                                         <<"unidad">> => Unidad}))
       end;
     _ ->
-      json(Req0, 400, json:encode(#{<<"ok">> => false,
+      json(Req0, 400, p29_json:json(#{<<"ok">> => false,
                                     <<"error">> => <<"se_espera_unidad_entera">>}))
   end.
 
@@ -50,7 +50,7 @@ urgente(Req0) ->
               _ -> #{}
             end,
   Id = p29_despachador:urgente(Parcial),
-  json(Req0, 200, json:encode(#{<<"ok">> => true, <<"entrega">> => Id})).
+  json(Req0, 200, p29_json:json(#{<<"ok">> => true, <<"entrega">> => Id})).
 
 con_invariantes(Req0) ->
   Estado = p29_despachador:estado(),
@@ -58,9 +58,9 @@ con_invariantes(Req0) ->
   Base = p29_json:estado(Estado, Tick),
   case p29_despachador:invariantes() of
     ok ->
-      json(Req0, 200, json:encode(Base#{<<"invariantes">> => <<"ok">>}));
+      json(Req0, 200, p29_json:json(Base#{<<"invariantes">> => <<"ok">>}));
     {error, _Lista} ->
-      json(Req0, 200, json:encode(Base#{<<"invariantes">> => <<"violadas">>}))
+      json(Req0, 200, p29_json:json(Base#{<<"invariantes">> => <<"violadas">>}))
   end.
 
 %% ---- utilerias ---------------------------------------------------------------
@@ -70,7 +70,7 @@ con_invariantes(Req0) ->
 cuerpo(Req0) ->
   case cowboy_req:read_body(Req0) of
     {ok, Bin, _Req} when byte_size(Bin) > 0 ->
-      try json:decode(Bin) of
+      try json_decodificar(Bin) of
         Map when is_map(Map) -> {ok, Map};
         _ -> {error, vacio}
       catch
@@ -78,6 +78,13 @@ cuerpo(Req0) ->
       end;
     _ ->
       {error, vacio}
+  end.
+
+%% json:decode/1 unicamente existe en OTP 27+; en OTP <= 26 usa thoas
+json_decodificar(Bin) ->
+  case erlang:function_exported(json, decode, 1) of
+    true -> json:decode(Bin);
+    false -> thoas:decode(Bin)
   end.
 
 json(Req0, Codigo, Binario) ->

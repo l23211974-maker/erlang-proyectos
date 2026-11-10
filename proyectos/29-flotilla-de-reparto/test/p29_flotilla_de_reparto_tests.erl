@@ -341,7 +341,7 @@ web_endpoints_test_() ->
                   {ok, {{_, 200, _}, _, CuerpoEstado}} =
                     httpc:request(get, {Ruta("/api/estado"), []},
                                   [{timeout, 3000}], [{body_format, binary}]),
-                  EstadoJson = json:decode(CuerpoEstado),
+                  EstadoJson = thoas:decode(CuerpoEstado),
                   ?assertEqual(<<"ok">>, maps:get(<<"invariantes">>, EstadoJson)),
                   ?assertEqual(12,
                                maps:get(<<"en_ruta">>,
@@ -349,11 +349,11 @@ web_endpoints_test_() ->
                   {ok, {{_, 200, _}, _, CuerpoEntregas}} =
                     httpc:request(get, {Ruta("/api/entregas"), []},
                                   [{timeout, 3000}], [{body_format, binary}]),
-                  ?assertEqual(12, length(json:decode(CuerpoEntregas))),
+                  ?assertEqual(12, length(thoas:decode(CuerpoEntregas))),
                   {ok, {{_, 200, _}, _, CuerpoVehiculos}} =
                     httpc:request(get, {Ruta("/api/vehiculos"), []},
                                   [{timeout, 3000}], [{body_format, binary}]),
-                  ?assertEqual(2, length(json:decode(CuerpoVehiculos))),
+                  ?assertEqual(2, length(thoas:decode(CuerpoVehiculos))),
                   {ok, {{_, 200, _}, _, CuerpoMetricas}} =
                     httpc:request(get, {Ruta("/metrics"), []},
                                   [{timeout, 3000}], [{body_format, binary}]),
@@ -368,20 +368,20 @@ web_endpoints_test_() ->
                                          <<"{\"unidad\":1}">>},
                                   [{timeout, 3000}], [{body_format, binary}]),
                   ?assertMatch(#{<<"ok">> := true, <<"unidad">> := 1},
-                               json:decode(CuerpoAveriar)),
+                               thoas:decode(CuerpoAveriar)),
                   {ok, {{_, 404, _}, _, CuerpoNoHubo}} =
                     httpc:request(post, {Ruta("/api/averiar"), [],
                                          "application/json",
                                          <<"{\"unidad\":99}">>},
                                   [{timeout, 3000}], [{body_format, binary}]),
-                  ?assertMatch(#{<<"ok">> := false}, json:decode(CuerpoNoHubo)),
+                  ?assertMatch(#{<<"ok">> := false}, thoas:decode(CuerpoNoHubo)),
                   %% cuerpo basura: 400, nunca crash
                   {ok, {{_, 400, _}, _, CuerpoBasura}} =
                     httpc:request(post, {Ruta("/api/averiar"), [],
                                          "application/json",
                                          <<"\x07no-es-json">>},
                                   [{timeout, 3000}], [{body_format, binary}]),
-                  ?assertMatch(#{<<"ok">> := false}, json:decode(CuerpoBasura)),
+                  ?assertMatch(#{<<"ok">> := false}, thoas:decode(CuerpoBasura)),
                   %% urgente por HTTP: alta de un pedido urgente fuera del lote
                   {ok, {{_, 200, _}, _, CuerpoUrgente}} =
                     httpc:request(post, {Ruta("/api/urgente"), [],
@@ -389,7 +389,7 @@ web_endpoints_test_() ->
                                          <<"{\"peso\":30}">>},
                                   [{timeout, 3000}], [{body_format, binary}]),
                   ?assertMatch(#{<<"ok">> := true, <<"entrega">> := _},
-                               json:decode(CuerpoUrgente))
+                               thoas:decode(CuerpoUrgente))
                end)
        ]
     end}.
