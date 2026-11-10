@@ -185,20 +185,11 @@ esperar_sup(_Nombre, 0) ->
 esperar_sup(Nombre, Intentos) ->
   case whereis(Nombre) of
     undefined ->
-      intentar_log(Nombre, Intentos),
       timer:sleep(10),
       esperar_sup(Nombre, Intentos - 1);
     Pid ->
       Pid
   end.
-
-%% DEBUG temporal: cada 10 intentos reporta la vista del supervisor raiz
-intentar_log(Nombre, Intentos) when Intentos rem 10 == 0 ->
-  Hijos = supervisor:which_children(p29_flotilla_de_reparto_sup),
-  logger:warning("esperar_sup ~p: quedan ~p intentos; top_sup ~p",
-                 [Nombre, Intentos, Hijos], #{dominio => debug});
-intentar_log(_, _) ->
-  ok.
 
 arrancar_vehiculo(I) ->
   Sup = esperar_sup(p29_flota_sup, 100),
