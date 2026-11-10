@@ -58,21 +58,23 @@ invariantes_ok() ->
     {error, _} -> 0
   end.
 
+%% proplist: prometheus 4.x (OTP <= 26) exige proplist aqui; el mapa de
+%% la 6.x (OTP 27) da function_clause en proplists:get_value(registry,...).
 declarar() ->
-  prometheus_gauge:declare(#{name => p29_flotilla_entregas,
-                             help => "entregas por estado",
-                             labels => [estado]}),
-  prometheus_gauge:declare(#{name => p29_flotilla_vehiculos,
-                             help => "vehiculos por estado",
-                             labels => [estado]}),
-  prometheus_gauge:declare(#{name => p29_flotilla_retraso_medio,
-                             help => "retraso medio sobre la ventana (ticks)"}),
-  prometheus_gauge:declare(#{name => p29_flotilla_reasignaciones_total,
-                             help => "reasignaciones acumuladas de la jornada"}),
-  prometheus_gauge:declare(#{name => p29_flotilla_tick,
-                             help => "tick actual del reloj simulado"}),
-  prometheus_gauge:declare(#{name => p29_flotilla_invariantes_ok,
-                             help => "invariantes de negocio (1 ok, 0 violadas)"}),
+  prometheus_gauge:declare([{name, p29_flotilla_entregas},
+                             {help, "entregas por estado"},
+                             {labels, [estado]}]),
+  prometheus_gauge:declare([{name, p29_flotilla_vehiculos},
+                             {help, "vehiculos por estado"},
+                             {labels, [estado]}]),
+  prometheus_gauge:declare([{name, p29_flotilla_retraso_medio},
+                             {help, "retraso medio sobre la ventana (ticks)"}]),
+  prometheus_gauge:declare([{name, p29_flotilla_reasignaciones_total},
+                             {help, "reasignaciones acumuladas de la jornada"}]),
+  prometheus_gauge:declare([{name, p29_flotilla_tick},
+                             {help, "tick actual del reloj simulado"}]),
+  prometheus_gauge:declare([{name, p29_flotilla_invariantes_ok},
+                             {help, "invariantes de negocio (1 ok, 0 violadas)"}]),
   ok.
 
 %% ---- utilerias ---------------------------------------------------------------
