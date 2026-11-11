@@ -26,13 +26,24 @@ jobs:
         run: rebar3 compile
       - name: Eunit
         working-directory: ${{ matrix.project }}
-        run: |
-          rebar3 eunit 2>&1 | tee eunit_output.txt
-          # Check if there are actual failures (not just cancelled tests)
-          if grep -q "0 failures" eunit_output.txt; then
-            echo "Tests passed (0 failures)"
-            exit 0
-          else
-            echo "Tests failed"
-            exit 1
-          fi
+        run: rebar3 eunit
+
+  # El proyecto #29 promete OTP 25+ (curso-plf) y tiene suite CT propia. Se
+  # verifica aparte para no forzar OTP 25 ni CT al resto de los proyectos.
+  test-p29-otp25:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "25"
+          rebar3-version: "3.24"
+      - name: Compile
+        working-directory: proyectos/29-flotilla-de-reparto
+        run: rebar3 compile
+      - name: Eunit
+        working-directory: proyectos/29-flotilla-de-reparto
+        run: rebar3 eunit
+      - name: Common Test
+        working-directory: proyectos/29-flotilla-de-reparto
+        run: rebar3 ct
