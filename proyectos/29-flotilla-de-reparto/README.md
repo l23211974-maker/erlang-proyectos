@@ -164,6 +164,21 @@ p29_flotilla_reasignaciones_total
 
 Las cinco pantallas se generan desde las maquetas de Stitch con `tools/stitch_port/port.py` y se hidratan con `priv/static/app.js` (dispatcher por `body[data-page]`).
 
+### Capturas de la app real (RPi, 2026-11-11)
+
+Tomadas con Chromium headless (Playwright) contra el release desplegado en la RPi a través de un túnel SSH a `:8080`, con la jornada en marcha (no son maquetas).
+
+| Pantalla | Captura |
+|---|---|
+| Dashboard | ![](docs/capturas/01-dashboard.png) |
+| Detalle aeronave | ![](docs/capturas/02-detalle-aeronave.png) |
+| Detalle enfocado | ![](docs/capturas/03-detalle-enfocado.png) |
+| Bitácora / alertas | ![](docs/capturas/04-bitacora-alertas.png) |
+| Bitácora con modal de reasignación | ![](docs/capturas/04b-bitacora-modal.png) |
+| Configuración | ![](docs/capturas/05-configuracion.png) |
+
+Defectos de UI que muestran las capturas y todavía no están corregidos: la cabecera del dashboard dice «42 UNIDADES ACTIVAS» fijo mientras el KPI dice 15, y `configuracion.html` lee las claves legacy `vehiculos`/`entregas` (ver «Código legacy»).
+
 ### Optimizaciones de rendimiento (app.js)
 
 - **requestAnimationFrame** para todas las actualizaciones visuales (batched rendering at max 2Hz)
@@ -251,7 +266,7 @@ Se mató un proceso de cada capa con `exit(Pid, kill)` contra la app real y se m
 - `sudo` sin contraseña; 26 GB libres; deps en `_build` ya bajadas.
 - Antes de dar por desplegado: `rebar3 compile` y `rebar3 eunit` **en el Pi**; OTP/aarch64 puede comportarse distinto que Windows.
 - `config/vm.args` fija `+S 4:4`: nunca más schedulers que cores físicos.
-- `config/sys.config` lleva envs de demo (waypoints, FL, kts, payload tons, SLA ventanas, meteo), no secretos; cookie de `vm.args` (`cambiar_en_produccion`) se cambia al desplegar.
+- `config/sys.config` lleva envs de demo (waypoints, FL, kts, payload tons, SLA ventanas, meteo), no secretos; la cookie **no** se versiona: `vm.args` usa `-setcookie ${P29_COOKIE}` y el valor real vive en `/etc/p29-flotilla.env` (chmod 600, `EnvironmentFile` de la unidad, `RELX_REPLACE_OS_VARS=true`).
 - Servicio corre release de **`_build/default/rel/`** (ver `deploy/p29-flotilla.service`), NO `_build/prod/rel/`: `rebar3 release` y comprobar binario en `systemctl status`. Reconstruir sin reiniciar servicio deja en `:8080` release viejo con estáticos viejos.
 - Cotejo rápido Pi vs local (lectura vía `ssh flotilla`):
   `md5sum priv/static/app.js src/p29_json.erl config/sys.config` en ambos lados
@@ -278,17 +293,19 @@ Se mató un proceso de cada capa con `exit(Pid, kill)` contra la app real y se m
 - ~~Supuestos y cifras verificadas~~: sección propia en este README, con las fuentes del enunciado contrastadas.
 - ~~Prueba de caos~~: cinco escenarios con evidencia en [`docs/prueba-de-caos.md`](docs/prueba-de-caos.md).
 - ~~Modelo de retraso~~: ventanas repartidas sobre la jornada; `retraso_medio` ≈ 12 min en vez de 2.7 h.
+- ~~Endurecer systemd~~: `Restart=always`, `StartLimit`, `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=full`, timeouts y logrotate (`deploy/`). Verificado en la RPi: `KILL` → arriba en 12 s con HTTP 200.
+- ~~Cookie fuera del repo~~: `-setcookie ${P29_COOKIE}` sustituido por relx en runtime; la cookie vive en `/etc/p29-flotilla.env` (chmod 600). Verificado: cookie nueva `pong`, la vieja `pang`.
+- ~~Verificar OTP 25~~: job `test-p29-otp25` del CI (compile + eunit + ct en OTP 25), porque `curso-plf` ya no está disponible.
+- ~~Capturas~~: seis capturas reales en [`docs/capturas/`](docs/capturas) enlazadas arriba.
 
 **Pendiente**
 
 1. **Tests de caos automatizados**: los cinco escenarios de `docs/prueba-de-caos.md` corren a mano; pasarlos a `p29_flotilla_ct_SUITE` (pérdida de señal ADS-B por sector, meteo severa generalizada, fallo de hub principal).
-2. **Verificar OTP 25**: `rebar3 compile` + `rebar3 eunit` en curso-plf antes de merge, y agregar la matriz `otp-version: ["25","27"]` al CI.
-3. **Cobertura de dominio**: `p29_meteo`, `p29_transbordo` y `p29_ruta_vectorial` no tienen test directo (sí se ejercitan desde `eunit`/`ct`).
-4. **Endurecer systemd**: `Restart=always`, `WatchdogSec`, rotación de logs de `run_erl`.
-5. **Estrangular el SSE** cuando termina `ticks_jornada` (hoy sigue a 30 Hz con la flota idle).
-6. **Seguridad**: cambiar la cookie `cambiar_en_produccion` de `config/vm.args` y la contraseña por defecto del Pi antes de exponerlo.
-7. **Capturas**: guardar en `docs/` screenshots de las cinco pantallas y de las maquetas de Stitch para la entrega escrita.
-8. **Código legacy**: `p29_vehiculo`, `p29_entrega`, `p29_flota_sup` y `p29_entregas_sup` ya no están en el árbol de supervisión (quedaron del pivot tierra→aire); decidir si se borran o se marcan `deprecated`.
+2. **Cobertura de dominio**: `p29_meteo`, `p29_transbordo` y `p29_ruta_vectorial` no tienen test directo (sí se ejercitan desde `eunit`/`ct`).
+3. **Estrangular el SSE** cuando termina `ticks_jornada` (hoy sigue a 30 Hz con la flota idle).
+4. **Seguridad restante**: contraseña por defecto del Pi (`pi`/`raspberry`); la cookie ya no está en el repo.
+5. **Código legacy**: `p29_vehiculo`, `p29_entrega`, `p29_flota_sup` y `p29_entregas_sup` ya no están en el árbol de supervisión (quedaron del pivot tierra→aire); decidir si se borran o se marcan `deprecated`. `configuracion.html` todavía lee las claves legacy `vehiculos`/`entregas`.
+6. **UI**: la cabecera del dashboard muestra «42 UNIDADES ACTIVAS» fijo en vez del conteo real.
 
 ---
 

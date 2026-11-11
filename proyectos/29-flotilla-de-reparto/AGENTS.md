@@ -23,13 +23,13 @@ en este repo al que referirse; el de este proyecto es la fuente de reglas).
 
 ```powershell
 rebar3 compile      # warnings_as_errors: un solo warning rompe el build
-rebar3 eunit        # 11 casos, 0 fallos = verde
+rebar3 eunit        # 12 casos, 0 fallos = verde
 rebar3 shell        # web en :8080 + dentro: p29_simulador:demo(). (jornada completa, ~72 s)
 rebar3 release      # _build/default/rel/p29_flotilla_de_reparto (NO prod: ver deploy/)
 ```
 
 - Un caso suelto: `rebar3 eunit --test=p29_flotilla_de_reparto_tests:arbol_despues_de_arrancar_test_`
-- La suite tiene **11 casos**. Si un día `rebar3 eunit` dice 20, es que el módulo está
+- La suite tiene **12 casos**. Si un día `rebar3 eunit` dice 20, es que el módulo está
   duplicado en `_build/test/lib/p29_flotilla_de_reparto/ebin` y `.../test`: borra el beam
   de `ebin` y vuelve a correr; no son 20 casos distintos.
 - La demo imprime el resumen al terminar; para mirar el estado en vivo:
@@ -291,8 +291,9 @@ en OTP 25 si reintroduces:
 - Antes de dar algo por desplegado: `rebar3 compile` y `rebar3 eunit` **en el Pi**;
   OTP/aarch64 puede comportarse distinto que en Windows (pasó con la demo: ver abajo).
 - `config/vm.args` fija `+S 4:4`: nunca pongas más schedulers que cores físicos.
-- `config/sys.config` lleva los envs de la demo, no secretos; la cookie de `vm.args`
-  (`cambiar_en_produccion`) es de ejemplo y se cambia al desplegar.
+- `config/sys.config` lleva los envs de la demo, no secretos; `vm.args` **no**
+  lleva cookie: va como `${P29_COOKIE}` y relx la sustituye en runtime desde
+  `/etc/p29-flotilla.env` (chmod 600, ver `deploy/`).
 - El servicio corre el release de **`_build/default/rel/`** (ver
   `deploy/p29-flotilla.service`), no `_build/prod/rel/`: `rebar3 release` y
   comprobar que el binario de esa ruta es el que está en `systemctl status`.
