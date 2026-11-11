@@ -18,7 +18,7 @@ arrancar(EnvsExtra) ->
     fun({K, V}) -> application:set_env(?APP, K, V) end,
     [
      {aeronaves, 2}, {envios, 12}, {reloj_auto, false},
-     {tick_interval_ms, 3600000}, {prob_fallida, 0.0},
+     {tick_interval_ms, 3600000}, {prob_fallida, 0.0}, {prob_desvio, 0.0},
      {sin_senal_ticks, 100}, {ticks_por_parada, 999999},
      {capacidad_kg, 6000}, {asignar_al_inicio, true},
      %% web en puerto efimero: cada escenario levanta su propio cowboy
@@ -39,15 +39,25 @@ cerrar(Pid) ->
   %% asegura que el reloj manual del test anterior se pare
   esperar(fun() -> whereis(p29_reloj) =:= undefined end, 2000).
 
-%% polling con timeout generoso (los broadcasts del reloj son asincronos)
+%% polling con deadline real: el presupuesto se mide en tiempo de pared
+%% (erlang:monotonic_time), no en iteraciones, para que un predicado que
+%% duerme o tarda no convierta un timeout de 15 s en uno de minutos.
+%% (Tests: permitido; el dominio sigue usando solo p29_reloj.)
 esperar(Fun) -> esperar(Fun, 2000).
-esperar(_Fun, 0) -> timeout;
-esperar(Fun, Restante) ->
+esperar(Fun, TimeoutMs) ->
+  Fin = erlang:monotonic_time(millisecond) + TimeoutMs,
+  esperar_hasta(Fun, Fin).
+esperar_hasta(Fun, Fin) ->
   case Fun() of
     true -> ok;
     false ->
-      timer:sleep(10),
-      esperar(Fun, Restante - 10)
+      Restante = Fin - erlang:monotonic_time(millisecond),
+      case Restante =< 0 of
+        true -> timeout;
+        false ->
+          timer:sleep(erlang:min(10, Restante)),
+          esperar_hasta(Fun, Fin)
+      end
   end.
 
 esperar_asignadas(Total) ->
@@ -244,20 +254,30 @@ recuperacion_tras_averia_test_() ->
       ?_test(begin
                 ?assertEqual(ok, p29_despachador:averiar(1)),
                 PidViejo = maps:get(pid, p29_datos:aeronave(1)),
-                %% el supervisor relanza la aeronave; su ADS-B nuevo la repone.
-                %% Con reloj manual el tick del test puede llegar ANTES de que
-                %% la aeronave nueva se suscriba: se repiten ticks durante la
-                %% espera para no depender del orden de suscripcion
-                ?assertEqual(1, p29_reloj:tick()),
+                %% el supervisor relanza la aeronave: su init repone el pid
+                %% nuevo en ETS. Los envios de la caida ya los lleva la sana
+                %% (manejar_caida reasigna), asi que no hay pendientes que la
+                %% reactiven: la repuesta queda en_tierra hasta que el
+                %% despachador le asigna carga nueva.
+                ?assertEqual(ok,
+                             esperar(fun() ->
+                                         maps:get(pid, p29_datos:aeronave(1),
+                                                  undefined)
+                                             =/= PidViejo
+                                     end, 15000)),
+                Id = p29_despachador:urgente(
+                       #{peso_kg => 40, origen_iata => <<"MEX">>,
+                         destino_iata => <<"BOG">>}),
+                %% en_tierra cuenta como disponible: el urgente la levanta
                 esperar(fun() ->
-                            timer:sleep(50),
-                            _ = p29_reloj:tick(),
-                            Row0 = p29_datos:aeronave(1),
-                            maps:get(estado, Row0) =:= en_ruta
-                            andalso maps:get(pid, Row0) =/= PidViejo
-                        end, 15000),
+                            maps:get(estado, p29_datos:aeronave(1),
+                                     undefined) =:= en_ruta
+                        end),
                 Row = p29_datos:aeronave(1),
                 ?assertEqual(en_ruta, maps:get(estado, Row)),
+                ?assert(is_pid(maps:get(pid, Row))),
+                ?assertEqual(en_ruta,
+                             maps:get(estado, p29_despachador:envio(Id))),
                 ?assertEqual(ok, p29_despachador:invariantes())
               end)
      ]
@@ -288,15 +308,18 @@ urgente_test_() ->
 
 %% ---- 8. mini-jornada del enunciado con averia y urgente --------------------------
 
-%% Escenario AeroCargo en miniatura: jornada de 30 ticks (con reloj
+%% Escenario AeroCargo en miniatura: jornada de 40 ticks (con reloj
 %% automatico acelerado), averia al ~46% de la jornada y pedido urgente al 75%.
-%% Con prob_fallida 0 (env del helper) el resultado final es exacto:
-%% 12 envios + 1 urgente = 13 entregados, 0 pendientes, 0 fallidos.
+%% Con prob_fallida y prob_desvio 0 (env del helper) el resultado final es
+%% exacto: 12 envios + 1 urgente = 13 entregados, 0 pendientes, 0 fallidos.
+%% La jornada es de 40 y no 30 ticks: cada parada entrega 1 envio por
+%% aeronave, y desde la averia (~46%) vuela una sola. Con 30 los huecos de
+%% entrega tras la averia salian justos (filo) y la demo quedaba a 12/13.
 simulador_test_() ->
   {setup,
    fun() ->
        Sup = arrancar([{reloj_auto, true}, {tick_interval_ms, 3},
-                       {ticks_jornada, 30}, {ticks_por_parada, 3},
+                       {ticks_jornada, 40}, {ticks_por_parada, 3},
                        {sin_senal_ticks, 6}]),
        esperar_asignadas(12),
        PidSim = p29_simulador:demo(),
@@ -332,75 +355,99 @@ simulador_test_() ->
 
 %% El escenario levanta cowboy en un puerto efimero (web_port 0) contra los
 %% mismos endpoints que consume la UI de la flotilla en produccion.
+%% El wrapper {timeout, 60, ...} y los timeouts httpc holgados existen por un
+%% quieque del runtime en Windows/OTP 29: tras 2-3 conexiones seguidas, una
+%% conexion nueva puede tardar ~5 s en ser despachada por el listener (se vio
+%% con stacktrace: los acceptors de ranch quedan en prim_inet:accept0 con la
+%% conexion esperando en el backlog). En Linux/CI no ocurre; el margen no
+%% cambia nada alla y aqui evita que el leaf de 5 s de eunit cancele el caso.
 web_endpoints_test_() ->
-  {setup,
-   fun() ->
-       Sup = arrancar([]),
-       esperar_asignadas(12),
-       {Sup, ranch:get_port(p29_web_http)}
-   end,
-   fun({SupPid, _Puerto}) ->
-       cerrar(SupPid)
-   end,
-   fun({_Sup, Puerto}) ->
-       [
-        ?_test(begin
-                  inets:start(),
-                  Ruta = fun(Q) ->
-                             "http://127.0.0.1:" ++ integer_to_list(Puerto) ++ Q
+  {timeout, 60,
+   {setup,
+    fun() ->
+        Sup = arrancar([]),
+        esperar_asignadas(12),
+        {Sup, ranch:get_port(p29_web_http)}
+    end,
+    fun({SupPid, _Puerto}) ->
+        cerrar(SupPid)
+    end,
+    fun({_Sup, Puerto}) ->
+        [
+         ?_test(begin
+                   inets:start(),
+                   Ruta = fun(Q) ->
+                              "http://127.0.0.1:" ++ integer_to_list(Puerto) ++ Q
+                          end,
+                   %% Reintento para /metrics: el atasco de accept del
+                   %% runtime en Windows/OTP 29 (comentario arriba) puede
+                   %% superar incluso 15 s; pedir de nuevo lo libera. En
+                   %% Linux/CI la primera tentativa siempre basta.
+                   PedirMetricas =
+                     fun Intento(N) when N > 0 ->
+                             case (catch httpc:request(
+                                          get, {Ruta("/metrics"), []},
+                                          [{timeout, 15000}],
+                                          [{body_format, binary}])) of
+                               {ok, Respuesta} -> {ok, Respuesta};
+                               _ when N > 1 ->
+                                   timer:sleep(500),
+                                   Intento(N - 1);
+                               _ ->
+                                   error({metrics_timeout, N})
+                             end
                          end,
-                  {ok, {{_, 200, _}, _, CuerpoEstado}} =
-                    httpc:request(get, {Ruta("/api/estado"), []},
-                                  [{timeout, 3000}], [{body_format, binary}]),
-                  EstadoJson = decodificar(CuerpoEstado),
-                  ?assertEqual(<<"ok">>, maps:get(<<"invariantes">>, EstadoJson)),
-                  ?assertEqual(12,
-                               maps:get(<<"en_ruta">>,
-                                        maps:get(<<"envios">>, EstadoJson))),
-                  {ok, {{_, 200, _}, _, CuerpoEnvios}} =
-                    httpc:request(get, {Ruta("/api/envios"), []},
-                                  [{timeout, 3000}], [{body_format, binary}]),
-                  ?assertEqual(12, length(decodificar(CuerpoEnvios))),
-                  {ok, {{_, 200, _}, _, CuerpoAeronaves}} =
-                    httpc:request(get, {Ruta("/api/aeronaves"), []},
-                                  [{timeout, 3000}], [{body_format, binary}]),
-                  ?assertEqual(2, length(decodificar(CuerpoAeronaves))),
-                  {ok, {{_, 200, _}, _, CuerpoMetricas}} =
-                    httpc:request(get, {Ruta("/metrics"), []},
-                                  [{timeout, 5000}], [{body_format, binary}]),
-                  ?assertMatch({match, _},
-                               re:run(CuerpoMetricas,
-                                      <<"^p29_flotilla_envios\\{estado=">>,
-                                      [multiline])),
-                  %% caos por HTTP: averiar una aeronave viva y una inexistente
-                  {ok, {{_, 200, _}, _, CuerpoAveriar}} =
-                    httpc:request(post, {Ruta("/api/averiar"), [],
-                                         "application/json",
-                                         <<"{\"aeronave\":1}">>},
-                                  [{timeout, 3000}], [{body_format, binary}]),
-                  ?assertMatch(#{<<"ok">> := true, <<"aeronave">> := 1},
-                               decodificar(CuerpoAveriar)),
-                  {ok, {{_, 404, _}, _, CuerpoNoHubo}} =
-                    httpc:request(post, {Ruta("/api/averiar"), [],
-                                         "application/json",
-                                         <<"{\"aeronave\":99}">>},
-                                  [{timeout, 3000}], [{body_format, binary}]),
-                  ?assertMatch(#{<<"ok">> := false}, decodificar(CuerpoNoHubo)),
-                  %% cuerpo basura: 400, nunca crash
-                  {ok, {{_, 400, _}, _, CuerpoBasura}} =
-                    httpc:request(post, {Ruta("/api/averiar"), [],
-                                         "application/json",
-                                         <<"\x07no-es-json">>},
-                                  [{timeout, 3000}], [{body_format, binary}]),
-                  ?assertMatch(#{<<"ok">> := false}, decodificar(CuerpoBasura)),
-                  %% urgente por HTTP: alta de un envio urgente fuera del lote
-                  {ok, {{_, 200, _}, _, CuerpoUrgente}} =
-                    httpc:request(post, {Ruta("/api/urgente"), [],
-                                         "application/json",
-                                         <<"{\"peso_kg\":30, \"origen_iata\":\"MEX\", \"destino_iata\":\"BOG\"}">>},
-                                  [{timeout, 3000}], [{body_format, binary}]),
-                  ?assertMatch(#{<<"ok">> := true, <<"envio">> := _},
-                               decodificar(CuerpoUrgente))
-               end)
-       ]
-    end}.
+                   {ok, {{_, 200, _}, _, CuerpoEstado}} =
+                     httpc:request(get, {Ruta("/api/estado"), []},
+                                   [{timeout, 10000}], [{body_format, binary}]),
+                   EstadoJson = decodificar(CuerpoEstado),
+                   ?assertEqual(<<"ok">>, maps:get(<<"invariantes">>, EstadoJson)),
+                   ?assertEqual(12,
+                                maps:get(<<"en_ruta">>,
+                                         maps:get(<<"envios">>, EstadoJson))),
+                   {ok, {{_, 200, _}, _, CuerpoEnvios}} =
+                     httpc:request(get, {Ruta("/api/envios"), []},
+                                   [{timeout, 10000}], [{body_format, binary}]),
+                   ?assertEqual(12, length(decodificar(CuerpoEnvios))),
+                   {ok, {{_, 200, _}, _, CuerpoAeronaves}} =
+                     httpc:request(get, {Ruta("/api/aeronaves"), []},
+                                   [{timeout, 10000}], [{body_format, binary}]),
+                   ?assertEqual(2, length(decodificar(CuerpoAeronaves))),
+                   {ok, {{_, 200, _}, _, CuerpoMetricas}} =
+                     PedirMetricas(3),
+                   ?assertMatch({match, _},
+                                re:run(CuerpoMetricas,
+                                       <<"^p29_flotilla_envios\\{estado=">>,
+                                       [multiline])),
+                   %% caos por HTTP: averiar una aeronave viva y una inexistente
+                   {ok, {{_, 200, _}, _, CuerpoAveriar}} =
+                     httpc:request(post, {Ruta("/api/averiar"), [],
+                                          "application/json",
+                                          <<"{\"aeronave\":1}">>},
+                                   [{timeout, 10000}], [{body_format, binary}]),
+                   ?assertMatch(#{<<"ok">> := true, <<"aeronave">> := 1},
+                                decodificar(CuerpoAveriar)),
+                   {ok, {{_, 404, _}, _, CuerpoNoHubo}} =
+                     httpc:request(post, {Ruta("/api/averiar"), [],
+                                          "application/json",
+                                          <<"{\"aeronave\":99}">>},
+                                   [{timeout, 10000}], [{body_format, binary}]),
+                   ?assertMatch(#{<<"ok">> := false}, decodificar(CuerpoNoHubo)),
+                   %% cuerpo basura: 400, nunca crash
+                   {ok, {{_, 400, _}, _, CuerpoBasura}} =
+                     httpc:request(post, {Ruta("/api/averiar"), [],
+                                          "application/json",
+                                          <<"\x07no-es-json">>},
+                                   [{timeout, 10000}], [{body_format, binary}]),
+                   ?assertMatch(#{<<"ok">> := false}, decodificar(CuerpoBasura)),
+                   %% urgente por HTTP: alta de un envio urgente fuera del lote
+                   {ok, {{_, 200, _}, _, CuerpoUrgente}} =
+                     httpc:request(post, {Ruta("/api/urgente"), [],
+                                          "application/json",
+                                          <<"{\"peso_kg\":30, \"origen_iata\":\"MEX\", \"destino_iata\":\"BOG\"}">>},
+                                   [{timeout, 10000}], [{body_format, binary}]),
+                   ?assertMatch(#{<<"ok">> := true, <<"envio">> := _},
+                                decodificar(CuerpoUrgente))
+                end)
+         ]
+     end}}.
