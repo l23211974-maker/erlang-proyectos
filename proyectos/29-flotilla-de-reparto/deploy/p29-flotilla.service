@@ -21,8 +21,10 @@ Type=forking
 User=pi
 Environment=HOME=/home/pi
 Environment=PATH=/home/pi/.asdf/shims:/home/pi/bin:/usr/local/bin:/usr/bin:/bin
-ExecStart=/bin/bash -lc '/home/pi/erlang-proyectos/proyectos/29-flotilla-de-reparto/_build/default/rel/p29_flotilla_de_reparto/bin/p29_flotilla_de_reparto daemon'
-ExecStop=/bin/bash -lc '/home/pi/erlang-proyectos/proyectos/29-flotilla-de-reparto/_build/default/rel/p29_flotilla_de_reparto/bin/p29_flotilla_de_reparto stop'
+# Type=forking con bash -c (no -l): un login shell reescribe PATH en Debian y
+# resolvia /usr/bin/erl (OTP viejo) en vez del OTP del Environment.
+ExecStart=/bin/bash -c '/home/pi/erlang-proyectos/proyectos/29-flotilla-de-reparto/_build/default/rel/p29_flotilla_de_reparto/bin/p29_flotilla_de_reparto daemon'
+ExecStop=/bin/bash -c '/home/pi/erlang-proyectos/proyectos/29-flotilla-de-reparto/_build/default/rel/p29_flotilla_de_reparto/bin/p29_flotilla_de_reparto stop'
 Restart=on-failure
 RestartSec=10
 LimitNOFILE=65536
