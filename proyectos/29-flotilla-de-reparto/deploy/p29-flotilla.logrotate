@@ -1,0 +1,13 @@
+# Rotacion de los logs del release #29 (run_erl deja erlang.log.N sin limite).
+# Instalar en /etc/logrotate.d/p29-flotilla
+/home/pi/erlang-proyectos/proyectos/29-flotilla-de-reparto/_build/default/rel/p29_flotilla_de_reparto/log/*.log {
+    weekly
+    rotate 4
+    maxsize 10M
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    su pi pi
+}

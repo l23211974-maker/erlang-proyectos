@@ -1,5 +1,9 @@
 -name p29_flotilla_de_reparto@127.0.0.1
--setcookie cambiar_en_produccion
+# La cookie se inyecta en runtime (relx sustituye ${P29_COOKIE} cuando
+# RELX_REPLACE_OS_VARS=true). En la RPi vive en /etc/p29-flotilla.env
+# (chmod 600) y no se versiona. Si la variable falta, el release arranca con
+# la cadena literal "${P29_COOKIE}": cambiala antes de exponer el nodo.
+-setcookie ${P29_COOKIE}
 +S 4:4
 +SDcpu 4:4
 +SDio 10

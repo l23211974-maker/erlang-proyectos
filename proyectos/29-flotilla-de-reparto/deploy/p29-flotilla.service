@@ -2,6 +2,9 @@
 #
 # Instalacion en la Raspberry Pi (Debian 11, user pi, OTP 27.3.4.19 via asdf):
 #   sudo cp deploy/p29-flotilla.service /etc/systemd/system/
+#   sudo cp deploy/p29-flotilla.env.example /etc/p29-flotilla.env
+#   sudo chmod 600 /etc/p29-flotilla.env    # y editar P29_COOKIE
+#   sudo cp deploy/p29-flotilla.logrotate /etc/logrotate.d/p29-flotilla
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable --now p29-flotilla
 # Verificacion:
@@ -14,20 +17,46 @@
 
 [Unit]
 Description=Flotilla de reparto #29 (OTP, cowboy web :8080)
-After=network.target
+Documentation=file:///home/pi/erlang-proyectos/proyectos/29-flotilla-de-reparto/README.md
+After=network-online.target
+Wants=network-online.target
+# Si el release se rompe en bucle, no martillar el sistema: 5 intentos en 5 min.
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=forking
 User=pi
+Group=pi
 Environment=HOME=/home/pi
-Environment=PATH=/home/pi/.asdf/shims:/home/pi/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PATH=/home/pi/otp/27.3.4.19/bin:/home/pi/bin:/usr/local/bin:/usr/bin:/bin
+# Cookie fuera del repo: /etc/p29-flotilla.env (chmod 600, P29_COOKIE=...).
+# relx sustituye ${P29_COOKIE} en vm.args solo si RELX_REPLACE_OS_VARS=true.
+EnvironmentFile=-/etc/p29-flotilla.env
+Environment=RELX_REPLACE_OS_VARS=true
 # Type=forking con bash -c (no -l): un login shell reescribe PATH en Debian y
 # resolvia /usr/bin/erl (OTP viejo) en vez del OTP del Environment.
 ExecStart=/bin/bash -c '/home/pi/erlang-proyectos/proyectos/29-flotilla-de-reparto/_build/default/rel/p29_flotilla_de_reparto/bin/p29_flotilla_de_reparto daemon'
 ExecStop=/bin/bash -c '/home/pi/erlang-proyectos/proyectos/29-flotilla-de-reparto/_build/default/rel/p29_flotilla_de_reparto/bin/p29_flotilla_de_reparto stop'
-Restart=on-failure
-RestartSec=10
+# always y no on-failure: si el nodo muere "limpio" (exit 0) en la demo,
+# tambien queremos que vuelva. El release ya trae su ERTS.
+Restart=always
+RestartSec=5
+TimeoutStartSec=90
+TimeoutStopSec=40
+KillSignal=SIGTERM
 LimitNOFILE=65536
+# Endurecimiento sin romper el release (vive en /home/pi, usa /tmp para los pipes)
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=false
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+# WatchdogSec requiere que la app llame sd_notify; hoy no lo hace.
+# Si se implementa un heartbeat en p29_web/p29_reloj, activar aqui:
+# WatchdogSec=60
 
 [Install]
 WantedBy=multi-user.target
