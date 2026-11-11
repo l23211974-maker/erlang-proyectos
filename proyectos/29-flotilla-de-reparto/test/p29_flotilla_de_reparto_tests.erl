@@ -231,6 +231,28 @@ sin_senal_y_lote_atrasado_test_() ->
                 Fila = p29_datos:aeronave(1),
                 ?assertEqual({19.4363, -99.0721}, maps:get(pos, Fila)),
                 ?assertEqual(10, maps:get(tick_ultimo_reporte, Fila))
+              end),
+      ?_test(begin
+                %% regresion: adsb_ultimo/1 devuelve el reporte de mayor tick
+                %% (antes usaba lists:max/2, inexistente, y un match spec de
+                %% 3 tuplas contra una tabla de 2)
+                true = p29_datos:adsb_upsert(#{icao24 => <<"ABC123">>,
+                                               callsign => <<"AC1">>,
+                                               aeronave_id => 1, tick => 5,
+                                               pos => {1.0, 2.0}}),
+                true = p29_datos:adsb_upsert(#{icao24 => <<"ABC123">>,
+                                               callsign => <<"AC1">>,
+                                               aeronave_id => 1, tick => 9,
+                                               pos => {3.0, 4.0}}),
+                true = p29_datos:adsb_upsert(#{icao24 => <<"XYZ789">>,
+                                               callsign => <<"AC2">>,
+                                               aeronave_id => 2, tick => 7,
+                                               pos => {5.0, 6.0}}),
+                Ultimo1 = p29_datos:adsb_ultimo(1),
+                ?assertEqual(9, maps:get(tick, Ultimo1)),
+                ?assertEqual({3.0, 4.0}, maps:get(pos, Ultimo1)),
+                ?assertEqual(7, maps:get(tick, p29_datos:adsb_ultimo(2))),
+                ?assertEqual(undefined, p29_datos:adsb_ultimo(99))
               end)
      ]
    end}.

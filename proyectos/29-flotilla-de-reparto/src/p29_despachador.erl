@@ -247,14 +247,26 @@ datos_envio(I) ->
   Origen = origen_aleatorio(I),
   Destino = destino_aleatorio(I, Origen),
   TipoCarga = tipo_carga_aleatorio(I),
-  Desde = 20 + (erlang:phash2({envio, desde, I}) rem 150),
-  Hasta = Desde + 60 + (erlang:phash2({envio, hasta, I}) rem 180),  %% ventana 60-240 ticks
+  {Desde, Hasta} = ventana_aleatoria(I),
   Urgente = erlang:phash2({urg, I}) rem 50 =:= 0,  %% 2% urgentes
   Ruta = p29_ruta_vectorial:ruta_para(Origen, Destino, tipo_aeronave_aleatorio(I)),
   #{id => I, peso_kg => Peso, tipo_carga => TipoCarga,
     origen_iata => Origen, destino_iata => Destino,
     ventana => {Desde, Hasta}, urgente => Urgente,
     ruta_id => maps:get(id_ruta, Ruta)}.
+
+%% Ventana de entrega realista ("entre 2 y 4 pm"): se reparte a lo largo de la
+%% jornada simulada en vez de amontonarse en los primeros ticks (el modelo
+%% anterior la fijaba en 20..408 sobre una jornada de 2160, asi que casi toda
+%% entrega quedaba "tarde" contra una ventana que ya habia cerrado).
+%% Duracion 1-3 h (360-1080 ticks de 10 s); el inicio se sortea determinista
+%% sobre la jornada. Las ventanas pueden cerrar despues de ticks_jornada: la
+%% simulacion sigue hasta drenar la cola, igual que un dia real.
+ventana_aleatoria(I) ->
+  Jornada = application:get_env(p29_flotilla_de_reparto, ticks_jornada, 2160),
+  Duracion = 360 + (erlang:phash2({envio, hasta, I}) rem 720),   %% 360-1079 ticks
+  Inicio = 20 + (erlang:phash2({envio, desde, I}) rem erlang:max(1, Jornada - 20)),
+  {Inicio, Inicio + Duracion}.
 
 datos_urgente(Parcial, Tick) ->
   Id = p29_datos:proximo_id(),

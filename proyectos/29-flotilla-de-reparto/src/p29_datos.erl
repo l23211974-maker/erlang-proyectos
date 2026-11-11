@@ -249,18 +249,20 @@ adsb_upsert(Mapa) when is_map(Mapa) ->
   ets:insert(?TAB_ADSB, {Key, Mapa}).
 
 adsb_ultimo(AeronaveId) ->
-  %% Return latest ADS-B report for an aircraft
-  case ets:select(?TAB_ADSB, [{{'$1', '$2', '_'}, [], ['$$']}]) of
+  %% Ultimo reporte ADS-B de una aeronave (mayor tick). La tabla guarda
+  %% {Clave, Mapa}: no se puede usar un match spec de 3 tuplas ni lists:max/2
+  %% (no existe); se filtra y se pliega sobre el tick.
+  Filas = [M || {_Clave, M} <- ets:tab2list(?TAB_ADSB),
+                maps:get(aeronave_id, M, undefined) =:= AeronaveId],
+  case Filas of
     [] -> undefined;
-    Resultados ->
-      %% Filter by aeronave_id and get latest tick
-      Filtrados = [R || R <- Resultados, maps:get(aeronave_id, R) =:= AeronaveId],
-      case Filtrados of
-        [] -> undefined;
-        _ -> lists:max(Filtrados, fun(A, B) ->
-                                  maps:get(tick, A) =< maps:get(tick, B)
-                                end)
-      end
+    [Primero | Resto] ->
+      lists:foldl(fun(A, Acum) ->
+                      case maps:get(tick, A) >= maps:get(tick, Acum) of
+                        true -> A;
+                        false -> Acum
+                      end
+                  end, Primero, Resto)
   end.
 
 adsb_todos() ->
