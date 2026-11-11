@@ -177,7 +177,7 @@ Tomadas con Chromium headless (Playwright) contra el release desplegado en la RP
 | Bitácora con modal de reasignación | ![](docs/capturas/04b-bitacora-modal.png) |
 | Configuración | ![](docs/capturas/05-configuracion.png) |
 
-Defectos de UI que muestran las capturas y todavía no están corregidos: la cabecera del dashboard dice «42 UNIDADES ACTIVAS» fijo mientras el KPI dice 15, y `configuracion.html` lee las claves legacy `vehiculos`/`entregas` (ver «Código legacy»).
+La cabecera ya no arrastra las cifras de la maqueta: unidades activas, alertas y operatividad se reescriben desde el SSE (antes decía «42 unidades» fijo mientras el KPI marcaba 15). Queda pendiente que `configuracion.html` lea las claves reales (`aeronaves`/`envios`) en vez de las legacy `vehiculos`/`entregas`.
 
 ### Optimizaciones de rendimiento (app.js)
 
@@ -305,7 +305,7 @@ Se mató un proceso de cada capa con `exit(Pid, kill)` contra la app real y se m
 3. **Estrangular el SSE** cuando termina `ticks_jornada` (hoy sigue a 30 Hz con la flota idle).
 4. **Seguridad restante**: contraseña por defecto del Pi (`pi`/`raspberry`); la cookie ya no está en el repo.
 5. **Código legacy**: `p29_vehiculo`, `p29_entrega`, `p29_flota_sup` y `p29_entregas_sup` ya no están en el árbol de supervisión (quedaron del pivot tierra→aire); decidir si se borran o se marcan `deprecated`. `configuracion.html` todavía lee las claves legacy `vehiculos`/`entregas`.
-6. **UI**: la cabecera del dashboard muestra «42 UNIDADES ACTIVAS» fijo en vez del conteo real.
+6. **UI**: `configuracion.html` sigue leyendo las claves legacy `vehiculos`/`entregas`; la cabecera ya está arreglada (`app.js` la pinta desde el SSE).
 
 ---
 
