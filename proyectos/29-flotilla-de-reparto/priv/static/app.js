@@ -341,6 +341,23 @@
     }, 20000);
   }
 
+  // ---- cabecera: badges del header (maqueta trae cifras fijas) ------------
+
+  function pintarCabecera(unidades) {
+    if (!unidades) return;
+    var enRuta = unidades.filter(function (a) { return !esTerrestre(a); });
+    var alertas = unidades.filter(function (a) {
+      var k = estadoInfo(a.estado).key;
+      return k === 'alert' || k === 'crit';
+    });
+    var ok = unidades.filter(function (a) { return estadoInfo(a.estado).key === 'ok'; });
+    var pct = unidades.length ? (ok.length * 100 / unidades.length).toFixed(1) : '0.0';
+
+    if ($id('hdrUnidades')) $id('hdrUnidades').textContent = enRuta.length + ' Unidades Activas';
+    if ($id('hdrAlertas')) $id('hdrAlertas').textContent = alertas.length + (alertas.length === 1 ? ' Alerta' : ' Alertas');
+    if ($id('hdrOperatividad')) $id('hdrOperatividad').textContent = 'Operatividad ' + pct + '%';
+  }
+
   // ---- SSE con coalescencia (máx. ~6 pintadas/s) --------------------------
 
   function conectarSSE(alRecibir) {
@@ -356,7 +373,7 @@
         if (pendiente == null) return;
         var p = pendiente;
         pendiente = null;
-        if (!document.hidden) alRecibir(p);
+        if (!document.hidden) { pintarCabecera(p.unidades); alRecibir(p); }
       }, 160);
     }
 

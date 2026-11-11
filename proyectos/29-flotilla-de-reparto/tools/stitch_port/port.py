@@ -156,6 +156,17 @@ def hooks_monitoreo(body):
     return body
 
 
+def ids_cabecera(body):
+    """Los badges del header vienen de la maqueta con cifras fijas (42/98.4%/3).
+    app.js los reescribe por SSE si llevan id; en la maqueta no existen."""
+    for texto, ident in (("Operatividad 98.4%", "hdrOperatividad"),
+                         ("42 Unidades Activas", "hdrUnidades"),
+                         ("3 Alertas", "hdrAlertas")):
+        body = body.replace('uppercase">%s</span>' % texto,
+                            'uppercase"><span id="%s">%s</span></span>' % (ident, texto))
+    return body
+
+
 def hooks_historial(body):
     body = body.replace('<div class="space-y-space-md" id="events-container">',
                         '<div class="space-y-space-md" id="events-container">')
@@ -252,6 +263,7 @@ def build_config(dash_html):
     body = body_inner(dash_html)
     body = drop_logo(body)
     body = fix_nav(body, "configuracion-de-flota")
+    body = ids_cabecera(body)
     principal = re.search(r"<main\b.*?</main>", body, re.S)
     nueva = re.search(r"<main\b.*?</main>", CONFIG_PAGE, re.S)
     body = body.replace(principal.group(0), nueva.group(0))
@@ -272,6 +284,7 @@ def main():
         body = body_inner(html)
         body = drop_logo(body)
         body = fix_nav(body, page)
+        body = ids_cabecera(body)
         body = HOOKS[page](body)
         if page in ("monitoreo-en-vivo", "bitacora-y-alertas"):
             body = strip_inline_scripts(body)
