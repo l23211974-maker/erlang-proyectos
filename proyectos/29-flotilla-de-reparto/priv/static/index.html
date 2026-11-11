@@ -1,403 +1,600 @@
 <!DOCTYPE html>
-<html lang="es">
+<html class="dark" lang="es">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0B1120">
+  <meta name="theme-color" content="#0b1326">
   <title>AeroCargo · Monitoreo en Vivo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chivo:wght@600;700&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=local_shipping,airplanemode_active,radar,warning,check_circle,error,schedule,inventory_2,local_shipping,settings,menu,chevron_right,expand_more,chevron_left,refresh,flight_takeoff,flight_land,local_airport,directions_runway,speed,altitude,inventory,assignment,report_problem,chat,visibility,visibility_off,filter_list,delete,edit,content_copy,download,upload,print,fullscreen,close,more_vert,info,notifications,notifications_active,bolt,shield,lock,unlock,key,verified,pending_actions" rel="stylesheet">
-  <link rel="stylesheet" href="app.css">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="stitch.css">
 </head>
-<body>
-  <header class="fixed top-0 left-0 right-0 z-30 bg-surface-base border-b border-outline-variant" style="height: var(--header-h);" role="banner">
-    <div class="flex items-center justify-between px-gutter-desk h-full gap-md">
-      <div class="flex items-center gap-md xl:hidden">
-        <button class="btn-ghost" id="sidebarToggle" aria-label="Abrir panel de flota" aria-expanded="false">
-          <span class="material-symbols-outlined">menu</span>
-        </button>
-      </div>
-      <div class="flex items-center gap-sm">
-        <span class="material-symbols-outlined text-primary" style="font-size: 28px;">airplanemode_active</span>
-        <h1 class="font-display text-headline-lg">AeroCargo</h1>
-      </div>
-      <div class="flex-1 max-w-xl">
-        <nav class="tabs" aria-label="Navegación principal">
-          <a href="index.html" aria-current="page"><span class="material-symbols-outlined">radar</span> Monitoreo</a>
-          <a href="historial.html"><span class="material-symbols-outlined">inventory_2</span> Bitácora</a>
-        </nav>
-      </div>
-      <div class="flex items-center gap-sm">
-        <div class="hidden sm:flex items-center gap-xs px-sm py-xs bg-surface-elevated rounded border border-outline-variant">
-          <span class="material-symbols-outlined text-info" style="font-size: 14px;">schedule</span>
-          <span id="clockUtc" class="font-mono text-label-code">--:--:--</span>
-          <span class="text-secondary text-label-sm">Z</span>
-        </div>
-        <div class="hidden sm:flex items-center gap-xs px-sm py-xs bg-surface-elevated rounded border border-outline-variant">
-          <span class="material-symbols-outlined text-primary" style="font-size: 14px;">local_shipping</span>
-          <span id="fleetCount" class="font-mono text-label-code">0</span>
-        </div>
-        <button class="btn-secondary btn-sm" id="settingsBtn" aria-label="Configuración">
-          <span class="material-symbols-outlined">settings</span>
-        </button>
-      </div>
-    </div>
-  </header>
+<body class="bg-background font-body-md text-body-md text-on-surface antialiased" data-page="monitoreo-en-vivo">
+<header class="fixed top-0 left-0 right-0 z-50 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.4)]"><div class="h-16 w-full px-gutter-desktop flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-md min-w-0"><span class="material-symbols-outlined text-primary" style="font-size:28px;">flight</span><div class="flex flex-col"><span class="font-headline-sm text-headline-sm text-primary tracking-wider uppercase">AeroCargo</span><span class="font-label-sm text-label-sm text-on-surface-variant hidden sm:inline">Centro de Operaciones Multimodal</span></div><div class="hidden xl:flex items-center gap-space-xs ml-space-md pl-space-md border-l border-outline-variant"><div class="flex items-center gap-space-xs px-space-sm py-1 bg-surface-container rounded-lg"><span class="w-2 h-2 rounded-full bg-secondary"></span><span class="font-label-badge text-label-badge text-on-surface uppercase">Operatividad 98.4%</span></div><div class="flex items-center gap-space-xs px-space-sm py-1 bg-surface-container rounded-lg"><span class="w-2 h-2 rounded-full bg-primary"></span><span class="font-label-badge text-label-badge text-on-surface uppercase">42 Unidades Activas</span></div><div class="flex items-center gap-space-xs px-space-sm py-1 bg-surface-container rounded-lg"><span class="w-2 h-2 rounded-full bg-error animate-pulse"></span><span class="font-label-badge text-label-badge text-error uppercase">3 Alertas</span></div></div></div><nav class="hidden lg:flex items-center gap-space-xs" data-active-classes="bg-primary-container text-on-primary-container font-semibold rounded-lg"><a aria-current="page" class="px-space-md py-space-xs transition-colors bg-primary-container text-on-primary-container font-semibold rounded-lg" data-path="monitoreo-en-vivo" href="index.html">Monitoreo en Vivo (Dashboard)</a><a class="px-space-md py-space-xs font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors rounded-lg" data-path="detalle-de-unidad-y-reasignacion" href="unidad.html">Detalle de Unidad &amp; Reasignación</a><a class="px-space-md py-space-xs font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors rounded-lg" data-path="bitacora-y-alertas" href="historial.html">Bitácora y Alertas</a><a class="px-space-md py-space-xs font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors rounded-lg" data-path="configuracion-de-flota" href="configuracion.html">Configuración de Flota</a></nav><div class="flex items-center gap-space-md shrink-0"><div class="hidden md:flex flex-col text-right"><span class="font-label-badge text-label-badge text-on-surface">Despachador en Turno</span><span class="font-label-sm text-label-sm text-on-surface-variant">Centro de Control Bogotá/Miami</span></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><aside class="fixed left-0 top-16 bottom-0 w-64 bg-surface-container-low shadow-[0_1px_8px_rgba(0,0,0,0.3)] z-40 hidden md:flex flex-col justify-between p-space-md"><div class="space-y-space-md"><div class="px-space-xs font-label-badge text-label-badge text-outline uppercase tracking-wider">Sectores de Despacho</div><nav class="space-y-space-xs" data-active-classes="bg-surface-container-high text-primary font-semibold"><a aria-current="page" class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg transition-colors bg-surface-container-high text-primary font-semibold" data-path="monitoreo-en-vivo" href="index.html"><span class="material-symbols-outlined text-on-surface-variant text-[20px]">radar</span><span class="font-body-sm text-body-sm">Sector Aéreo Internacional</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="detalle-de-unidad-y-reasignacion" href="unidad.html"><span class="material-symbols-outlined text-on-surface-variant text-[20px]">flight_takeoff</span><span class="font-body-sm text-body-sm">Troncal Bogotá - Miami</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="bitacora-y-alertas" href="historial.html"><span class="material-symbols-outlined text-on-surface-variant text-[20px]">warning</span><span class="font-body-sm text-body-sm">Vigilancia Meteorológica</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="configuracion-de-flota" href="configuracion.html"><span class="material-symbols-outlined text-on-surface-variant text-[20px]">hub</span><span class="font-body-sm text-body-sm">Rutas &amp; Balizas</span></a></nav></div><div class="p-space-sm bg-surface-container rounded-lg space-y-space-xs"><div class="flex justify-between items-center"><span class="font-label-badge text-label-badge text-on-surface-variant uppercase">Canal Telemetría</span><span class="w-2 h-2 rounded-full bg-secondary"></span></div><div class="font-label-code text-label-code text-primary truncate">BOG-HUB-VHF-128.45</div><div class="font-label-sm text-label-sm text-outline">Latencia: 24ms · UTC Sync</div></div></aside><div class="md:pl-64"><main class="w-full pt-16 bg-surface min-h-screen"><div class="flex flex-col w-full space-y-space-md p-gutter-desktop">
+<!-- SECCIÓN SUPERIOR: CONSOLA DE ESTADO & TELEMETRÍA GLOBAL -->
+<div class="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-space-md bg-surface-container-low p-space-md rounded-xl shadow-md">
+<div class="flex items-center gap-space-md">
+<div class="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center text-primary shadow-sm">
+<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1;">satellite_alt</span>
+</div>
+<div>
+<div class="flex items-center gap-space-sm">
+<span class="font-headline-sm text-headline-sm text-on-surface tracking-wide uppercase">Consola de Mando Táctico Multimodal</span>
+<span class="px-space-xs py-0.5 rounded bg-surface-container-highest text-secondary font-label-badge text-label-badge uppercase">En Línea · UTC-5</span>
+</div>
+<div class="flex items-center gap-space-md font-label-sm text-label-sm text-on-surface-variant">
+<span>FRECUENCIA MASTER: <strong class="font-label-code text-label-code text-on-surface">121.50 MHz (SEC-OPS)</strong></span>
+<span class="hidden sm:inline">·</span>
+<span class="hidden sm:inline">RADAR DOPPLER: <strong class="font-label-code text-label-code text-secondary">CALIBRADO</strong></span>
+<span class="hidden sm:inline">·</span>
+<span>SINCRONIZACIÓN SATELITAL: <strong class="font-label-code text-label-code text-primary">GNSS-GALILEO 14ms</strong></span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-sm self-stretch sm:self-auto">
+<button class="flex-1 sm:flex-initial px-space-md py-space-xs bg-surface-container-high hover:bg-surface-bright text-on-surface font-body-sm text-body-sm rounded-lg transition-all flex items-center justify-center gap-space-xs shadow-sm">
+<span class="material-symbols-outlined text-[18px]">download</span>
+<span>Exportar Telemetría</span>
+</button>
+<button class="flex-1 sm:flex-initial px-space-md py-space-xs bg-primary hover:bg-primary-container text-on-primary font-headline-sm text-headline-sm rounded-lg transition-all flex items-center justify-center gap-space-xs shadow-md">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">bolt</span>
+<span>Protocolo de Contingencia</span>
+</button>
+</div>
+</div>
+<!-- 1. KPI BANNER DE ALTO IMPACTO (4 TARJETAS TÁCTICAS) -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md">
+<!-- KPI 1: En Vuelo / Ruta Nominal -->
+<div class="relative overflow-hidden bg-surface-container-low p-space-lg rounded-xl shadow-md flex flex-col justify-between group hover:bg-surface-container transition-all">
+<div class="absolute -right-4 -bottom-4 w-24 h-24 bg-secondary/5 rounded-full blur-xl pointer-events-none"></div>
+<div class="flex items-center justify-between">
+<span class="font-label-badge text-label-badge uppercase tracking-wider text-on-surface-variant">En Vuelo / En Ruta</span>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary/15 text-secondary font-label-badge text-label-badge">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+          OK NOMINAL
+        </span>
+</div>
+<div class="mt-space-md flex items-baseline justify-between">
+<div>
+<span id="kpiEnRuta" class="font-headline-xl text-headline-xl text-on-surface font-bold tracking-tight">28</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant ml-1">unidades</span>
+</div>
+<div class="flex items-center text-secondary font-label-code text-label-code">
+<span class="material-symbols-outlined text-[16px]">trending_up</span>
+<span>+2 vs 12:00Z</span>
+</div>
+</div>
+<div class="mt-space-md space-y-1">
+<div class="flex justify-between font-label-sm text-label-sm text-on-surface-variant">
+<span>Aeronaves: <span id="kpiAereas">15</span></span>
+<span>Tierra: <span id="kpiTierra">0</span></span>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded-full overflow-hidden">
+<div class="bg-secondary h-full rounded-full" style="width: 82%"></div>
+</div>
+</div>
+</div>
+<!-- KPI 2: Retrasos & Clima -->
+<div class="relative overflow-hidden bg-surface-container-low p-space-lg rounded-xl shadow-md flex flex-col justify-between group hover:bg-surface-container transition-all">
+<div class="absolute -right-4 -bottom-4 w-24 h-24 bg-tertiary/10 rounded-full blur-xl pointer-events-none"></div>
+<div class="flex items-center justify-between">
+<span class="font-label-badge text-label-badge uppercase tracking-wider text-on-surface-variant">Alertas Clima / Demora</span>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tertiary-container/30 text-tertiary font-label-badge text-label-badge">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
+          PRECAUCIÓN
+        </span>
+</div>
+<div class="mt-space-md flex items-baseline justify-between">
+<div>
+<span id="kpiAlertas" class="font-headline-xl text-headline-xl text-tertiary font-bold tracking-tight">05</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant ml-1">vectores</span>
+</div>
+<div class="flex items-center text-tertiary font-label-code text-label-code">
+<span class="material-symbols-outlined text-[16px]">air</span>
+<span>CB en Golfo MEX</span>
+</div>
+</div>
+<div class="mt-space-md space-y-1">
+<div class="flex justify-between font-label-sm text-label-sm text-on-surface-variant">
+<span>Retraso prom: <span id="kpiRetraso">0</span> min</span>
+<span>Hold fuel: 140m</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded-full overflow-hidden">
+<div class="bg-tertiary h-full rounded-full" style="width: 25%"></div>
+</div>
+</div>
+</div>
+<!-- KPI 3: Fallas & Desvíos Críticos -->
+<div class="relative overflow-hidden bg-surface-container-low p-space-lg rounded-xl shadow-md flex flex-col justify-between group hover:bg-surface-container transition-all">
+<div class="absolute -right-4 -bottom-4 w-24 h-24 bg-error/15 rounded-full blur-xl pointer-events-none"></div>
+<div class="flex items-center justify-between">
+<span class="font-label-badge text-label-badge uppercase tracking-wider text-on-surface-variant">Mecánica / Desvíos</span>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-error-container/40 text-error font-label-badge text-label-badge">
+<span class="w-1.5 h-1.5 rounded-full bg-error animate-ping"></span>
+          CRÍTICO
+        </span>
+</div>
+<div class="mt-space-md flex items-baseline justify-between">
+<div>
+<span id="kpiCriticos" class="font-headline-xl text-headline-xl text-error font-bold tracking-tight">02</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant ml-1">contingencias</span>
+</div>
+<div class="flex items-center text-error font-label-code text-label-code">
+<span class="material-symbols-outlined text-[16px]">emergency</span>
+<span>SOP Activo</span>
+</div>
+</div>
+<div class="mt-space-md space-y-1">
+<div class="flex justify-between font-label-sm text-label-sm text-on-surface-variant">
+<span>AC-714: Alt. Divert</span>
+<span>TRK-12: Aduana</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded-full overflow-hidden">
+<div class="bg-error h-full rounded-full" style="width: 12%"></div>
+</div>
+</div>
+</div>
+<!-- KPI 4: Entregas Completadas Hoy -->
+<div class="relative overflow-hidden bg-surface-container-low p-space-lg rounded-xl shadow-md flex flex-col justify-between group hover:bg-surface-container transition-all">
+<div class="absolute -right-4 -bottom-4 w-24 h-24 bg-primary/10 rounded-full blur-xl pointer-events-none"></div>
+<div class="flex items-center justify-between">
+<span class="font-label-badge text-label-badge uppercase tracking-wider text-on-surface-variant">Entregas Cumplidas Hoy</span>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-label-badge text-label-badge">
+<span class="material-symbols-outlined text-[12px]">check_circle</span>
+          98.2% SLI
+        </span>
+</div>
+<div class="mt-space-md flex items-baseline justify-between">
+<div>
+<span id="kpiEntregas" class="font-headline-xl text-headline-xl text-on-surface font-bold tracking-tight">142</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant ml-1">pallets LD3</span>
+</div>
+<div class="flex items-center text-primary font-label-code text-label-code">
+<span id="kpiTonelaje">318.4 Tons</span>
+</div>
+</div>
+<div class="mt-space-md space-y-1">
+<div class="flex justify-between font-label-sm text-label-sm text-on-surface-variant">
+<span>Meta diurna: 145</span>
+<span>Restante: 3</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 98.2%"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- 2. MAPA SIMULADO DE RASTREO GPS Y TELEMETRÍA (ESTILO RADAR TÁCTICO) -->
+<div class="bg-surface-container-lowest rounded-xl shadow-xl overflow-hidden relative">
+<!-- Barra de Herramientas del Mapa -->
+<div class="bg-surface-container-low px-space-md py-space-sm flex flex-wrap items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-md">
+<div class="flex items-center gap-space-xs text-primary font-headline-sm text-headline-sm">
+<span class="material-symbols-outlined text-[20px]">radar</span>
+<span>MATRIZ VECTORIAL MULTIMODAL · AMÉRICA LATINA &amp; CARIBE</span>
+</div>
+<span class="hidden md:inline font-label-code text-label-code text-on-surface-variant">GRID LAT: 04°35'N / LON: 74°08'W</span>
+</div>
+<div class="flex items-center gap-space-xs">
+<div class="flex bg-surface-container rounded-lg p-0.5">
+<button class="px-space-sm py-1 rounded bg-primary text-on-primary font-label-badge text-label-badge uppercase">Radar Activo</button>
+<button class="px-space-sm py-1 rounded text-on-surface-variant hover:text-on-surface font-label-badge text-label-badge uppercase">Viento / Jetstream</button>
+<button class="px-space-sm py-1 rounded text-on-surface-variant hover:text-on-surface font-label-badge text-label-badge uppercase">Hubs Terrestres</button>
+</div>
+<button class="p-1.5 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors" title="Centrar Radar">
+<span class="material-symbols-outlined text-[18px]">filter_center_focus</span>
+</button>
+<button class="p-1.5 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors" title="Zoom In">
+<span class="material-symbols-outlined text-[18px]">zoom_in</span>
+</button>
+</div>
+</div>
+<!-- Lienzo del Mapa Visual Táctico -->
+<div id="mapCanvas" class="relative w-full h-[520px] bg-[#070e1c] overflow-hidden select-none">
+<!-- Fondo Cartográfico con data-location implícito -->
+<div class="absolute inset-0 opacity-25 mix-blend-luminosity bg-cover bg-center filter grayscale contrast-125" data-location="Bogota, Colombia" style=""></div>
+<!-- Cuadrícula Táctica Superpuesta (Aeronautical Grid Lines) -->
+<div id="mapPins" class="absolute inset-0 pointer-events-none z-10"></div>
+<div class="absolute inset-0 bg-[radial-gradient(#1f2e4d_1px,transparent_1px)] [background-size:32px_32px] opacity-40"></div>
+<!-- Anillos Concéntricos de Rango Radar BOG Hub -->
+<div class="absolute top-[48%] left-[45%] -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border border-primary/10 pointer-events-none"></div>
+<div class="absolute top-[48%] left-[45%] -translate-x-1/2 -translate-y-1/2 w-[380px] h-[380px] rounded-full border border-primary/15 pointer-events-none"></div>
+<div class="absolute top-[48%] left-[45%] -translate-x-1/2 -translate-y-1/2 w-[180px] h-[180px] rounded-full border border-primary/20 pointer-events-none"></div>
+<!-- Gráfico SVG de Rutas & Waypoints Vectoriales -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<lineargradient id="routeNominal" x1="0%" x2="100%" y1="100%" y2="0%">
+<stop offset="0%" stop-color="#4edea3" stop-opacity="0.3"></stop>
+<stop offset="100%" stop-color="#4edea3" stop-opacity="0.9"></stop>
+</lineargradient>
+<lineargradient id="routeAlert" x1="0%" x2="100%" y1="100%" y2="0%">
+<stop offset="0%" stop-color="#ffb95f" stop-opacity="0.2"></stop>
+<stop offset="100%" stop-color="#ffb95f" stop-opacity="0.9"></stop>
+</lineargradient>
+<lineargradient id="routeDiverted" x1="0%" x2="100%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#ffb4ab" stop-opacity="0.3"></stop>
+<stop offset="100%" stop-color="#ffb4ab" stop-opacity="0.9"></stop>
+</lineargradient>
+</defs>
+<!-- Ruta 1: BOG -> MIA (Nominal) -->
 
-  <aside id="sidebar" class="fixed top-0 left-0 bottom-0 z-40 w-64 bg-surface-base border-r border-outline-variant transform -translate-x-full transition-transform duration-300 lg:translate-x-0 lg:static lg:bottom-auto lg:h-auto" role="complementary" aria-label="Panel de flota y filtros">
-    <div class="h-full flex flex-col overflow-y-auto p-space-md gap-md">
-      <div class="flex items-center justify-between">
-        <h2 class="font-display text-headline-sm">Flota Activa</h2>
-        <button class="btn-ghost btn-sm xl:hidden" id="sidebarClose" aria-label="Cerrar panel">
-          <span class="material-symbols-outlined">chevron_left</span>
-        </button>
-      </div>
+<!-- Ruta 2: PTY -> GDL (Alerta Clima en Caribe/Pacífico) -->
 
-      <div class="input-wrapper">
-        <span class="material-symbols-outlined">filter_list</span>
-        <input type="search" id="fleetSearch" class="input" placeholder="Buscar aeronave, AWB, IATA..." aria-label="Filtrar flota">
-      </div>
+<!-- Ruta 3: LIM -> SCL (Desvío / Mantenimiento) -->
 
-      <div class="space-xs">
-        <label class="flex items-center gap-sm cursor-pointer">
-          <input type="checkbox" class="filter-checkbox" name="filterSector" value="aereo" checked>
-          <span class="material-symbols-outlined text-primary">flight_takeoff</span>
-          <span class="font-medium text-body-sm">Aéreo Internacional</span>
-          <span id="countAereo" class="ml-auto font-mono text-label-badge text-info">0</span>
-        </label>
-        <label class="flex items-center gap-sm cursor-pointer">
-          <input type="checkbox" class="filter-checkbox" name="filterSector" value="troncal" checked>
-          <span class="material-symbols-outlined text-info">directions_runway</span>
-          <span class="font-medium text-body-sm">Troncal Terrestre</span>
-          <span id="countTroncal" class="ml-auto font-mono text-label-badge text-info">0</span>
-        </label>
-        <label class="flex items-center gap-sm cursor-pointer">
-          <input type="checkbox" class="filter-checkbox" name="filterSector" value="ultima" checked>
-          <span class="material-symbols-outlined text-secondary">local_shipping</span>
-          <span class="font-medium text-body-sm">Última Milla</span>
-          <span id="countUltima" class="ml-auto font-mono text-label-badge text-info">0</span>
-        </label>
-      </div>
+<!-- Ruta Terrestre Troncal: BOG -> MDE (Camión) -->
 
-      <div class="border-t border-outline-variant pt-md">
-        <h3 class="font-display text-label-badge text-secondary mb-sm">Estados</h3>
-        <div class="space-xs">
-          <label class="flex items-center gap-sm cursor-pointer">
-            <input type="checkbox" class="filter-checkbox" name="filterStatus" value="nominal" checked>
-            <span class="w-2 h-2 rounded-full bg-status-ok"></span>
-            <span class="text-body-sm text-ok">Nominal</span>
-            <span id="countNominal" class="ml-auto font-mono text-label-badge text-ok">0</span>
-          </label>
-          <label class="flex items-center gap-sm cursor-pointer">
-            <input type="checkbox" class="filter-checkbox" name="filterStatus" value="alerta" checked>
-            <span class="w-2 h-2 rounded-full bg-status-warning animate-pulse-slow"></span>
-            <span class="text-body-sm text-warn">Alerta / Retraso</span>
-            <span id="countAlerta" class="ml-auto font-mono text-label-badge text-warn">0</span>
-          </label>
-          <label class="flex items-center gap-sm cursor-pointer">
-            <input type="checkbox" class="filter-checkbox" name="filterStatus" value="critico" checked>
-            <span class="w-2 h-2 rounded-full bg-status-critical animate-pulse"></span>
-            <span class="text-body-sm text-crit">Crítico</span>
-            <span id="countCritico" class="ml-auto font-mono text-label-badge text-crit">0</span>
-          </label>
-          <label class="flex items-center gap-sm cursor-pointer">
-            <input type="checkbox" class="filter-checkbox" name="filterStatus" value="tierra" checked>
-            <span class="w-2 h-2 rounded-full bg-status-info"></span>
-            <span class="text-body-sm text-info">En Tierra</span>
-            <span id="countTierra" class="ml-auto font-mono text-label-badge text-info">0</span>
-          </label>
-        </div>
-      </div>
-
-      <div class="border-t border-outline-variant pt-md">
-        <h3 class="font-display text-label-badge text-secondary mb-sm">Prioridad</h3>
-        <div class="space-xs">
-          <label class="flex items-center gap-sm cursor-pointer">
-            <input type="checkbox" class="filter-checkbox" name="filterPriority" value="critica" checked>
-            <span class="material-symbols-outlined text-crit">report_problem</span>
-            <span class="text-body-sm">Crítica</span>
-            <span id="countPriCritica" class="ml-auto font-mono text-label-badge text-crit">0</span>
-          </label>
-          <label class="flex items-center gap-sm cursor-pointer">
-            <input type="checkbox" class="filter-checkbox" name="filterPriority" value="alta" checked>
-            <span class="material-symbols-outlined text-warn">warning</span>
-            <span class="text-body-sm">Alta</span>
-            <span id="countPriAlta" class="ml-auto font-mono text-label-badge text-warn">0</span>
-          </label>
-          <label class="flex items-center gap-sm cursor-pointer">
-            <input type="checkbox" class="filter-checkbox" name="filterPriority" value="normal" checked>
-            <span class="material-symbols-outlined text-ok">check_circle</span>
-            <span class="text-body-sm">Normal</span>
-            <span id="countPriNormal" class="ml-auto font-mono text-label-badge text-ok">0</span>
-          </label>
-        </div>
-      </div>
-
-      <div class="mt-auto pt-md border-t border-outline-variant">
-        <button class="btn-secondary w-full justify-center gap-sm" id="refreshFleet">
-          <span class="material-symbols-outlined">refresh</span>
-          Actualizar flota
-        </button>
-      </div>
-    </div>
-  </aside>
-
-  <div id="sidebarOverlay" class="fixed inset-0 z-35 bg-black/50 hidden lg:hidden" aria-hidden="true"></div>
-
-  <main class="pt-[calc(var(--header-h)+var(--space-gutter-desk))] pb-20 lg:pb-[calc(var(--space-gutter-desk)+4rem)] px-gutter-desk">
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter-desk">
-      <section class="lg:col-span-5 xl:col-span-4 space-lg" aria-labelledby="fleetTitle" id="fleetPanel">
-        <header class="flex items-center justify-between">
-          <h2 id="fleetTitle" class="font-display text-headline-sm">Flota en Operaciones</h2>
-          <div class="flex items-center gap-xs">
-            <span id="liveBadge" class="badge badge-info hidden"><span class="dot animate-ping"></span> EN VIVO</span>
-            <span id="pausedBadge" class="badge badge-warn"><span class="dot"></span> PAUSADO</span>
-          </div>
-        </header>
-        <div id="fleetList" class="space-md overflow-y-auto max-h-[calc(100vh-200px)] lg:max-h-[calc(100vh-280px)]" role="list" aria-label="Lista de aeronaves">
-          <!-- Fleet cards injected here -->
-        </div>
-      </section>
-
-      <section class="lg:col-span-7 xl:col-span-8 space-lg" aria-labelledby="radarTitle">
-        <header class="flex items-center justify-between flex-wrap gap-sm">
-          <h2 id="radarTitle" class="font-display text-headline-sm">Radar Vectorial / Capa Meteorológica</h2>
-          <div class="flex items-center gap-sm">
-            <div class="flex items-center gap-xs bg-surface-elevated rounded border border-outline-variant p-xs">
-              <button type="button" class="btn-ghost btn-xs" id="layerFleet" aria-pressed="true"><span class="material-symbols-outlined">local_shipping</span></button>
-              <button type="button" class="btn-ghost btn-xs" id="layerWeather" aria-pressed="false"><span class="material-symbols-outlined">cloud</span></button>
-              <button type="button" class="btn-ghost btn-xs" id="layerRoutes" aria-pressed="true"><span class="material-symbols-outlined">directions_runway</span></button>
-              <button type="button" class="btn-ghost btn-xs" id="layerHubs" aria-pressed="true"><span class="material-symbols-outlined">local_airport</span></button>
-            </div>
-            <button class="btn-secondary btn-sm" id="fullscreenMap" aria-label="Pantalla completa">
-              <span class="material-symbols-outlined">fullscreen</span>
-            </button>
-          </div>
-        </header>
-        <div class="radar-container" id="radarContainer" role="img" aria-label="Mapa radar con posiciones de flota, rutas y meteorología">
-          <div class="radar-bg" id="radarBg"></div>
-          <div class="radar-grid"></div>
-          <div class="radar-rings" id="radarRings">
-            <div class="ring ring-1" aria-hidden="true"></div>
-            <div class="ring ring-2" aria-hidden="true"></div>
-            <div class="ring ring-3" aria-hidden="true"></div>
-          </div>
-          <svg class="radar-svg" id="radarSvg" aria-hidden="true"></svg>
-          <div id="radarPins" class="absolute inset-0 pointer-events-none"></div>
-          <div class="radar-hud">
-            <div class="item"><span class="dot" style="background: var(--status-ok);"></span><span>Aeronave nominal</span></div>
-            <div class="item"><span class="dot" style="background: var(--status-warning);"></span><span>Alerta / Meteo</span></div>
-            <div class="item"><span class="dot" style="background: var(--status-critical);"></span><span>Crítico / Emergencia</span></div>
-            <div class="item"><span class="dot" style="background: var(--status-info);"></span><span>En tierra</span></div>
-            <div class="item"><span class="dot" style="background: var(--primary);"></span><span>Waypoint activo</span></div>
-            <div class="item"><span class="material-symbols-outlined" style="font-size: 16px;">local_airport</span><span>Hub / Base</span></div>
-          </div>
-          <div class="radar-legend">
-            <div class="item"><span class="dot" style="background: var(--primary);"></span><span>Ruta planificada</span></div>
-            <div class="item"><span class="dot" style="background: var(--status-warning);"></span><span>Desvío / Hold</span></div>
-            <div class="item"><span class="dot" style="background: var(--status-critical);"></span><span>Vector emergencia</span></div>
-          </div>
-          <div class="radar-controls">
-            <button type="button" class="btn" id="zoomIn" aria-label="Acercar"><span class="material-symbols-outlined">add</span></button>
-            <button type="button" class="btn" id="zoomOut" aria-label="Alejar"><span class="material-symbols-outlined">remove</span></button>
-            <button type="button" class="btn" id="resetView" aria-label="Vista por defecto"><span class="material-symbols-outlined">center_focus_strong</span></button>
-            <button type="button" class="btn" id="centerFleet" aria-label="Centrar flota"><span class="material-symbols-outlined">my_location</span></button>
-          </div>
-        </div>
-      </section>
-
-      <section class="lg:col-span-12 xl:col-span-4 space-lg" aria-labelledby="telemetryTitle" id="telemetryPanel">
-        <header class="flex items-center justify-between">
-          <h2 id="telemetryTitle" class="font-display text-headline-sm">Telemetría y Despacho</h2>
-        </header>
-        <div id="telemetryContent" class="space-lg">
-          <div class="text-center py-xl text-secondary">
-            <span class="material-symbols-outlined text-muted" style="font-size: 48px;">radar</span>
-            <p class="mt-sm">Seleccione una aeronave para ver telemetría detallada, manifiesto de carga y opciones de reasignación.</p>
-          </div>
-        </div>
-      </section>
-    </div>
-  </main>
-
-  <footer class="fixed bottom-0 left-0 right-0 z-30 bg-surface-base/95 backdrop-blur border-t border-outline-variant lg:hidden" role="contentinfo">
-    <nav class="nav-bottom" aria-label="Navegación móvil">
-      <a href="index.html" aria-current="page"><span class="material-symbols-outlined" style="font-size: 24px;">radar</span><span>Monitoreo</span></a>
-      <a href="historial.html"><span class="material-symbols-outlined" style="font-size: 24px;">inventory_2</span><span>Bitácora</span></a>
-    </nav>
-  </footer>
-
-  <div id="unitDetailDrawer" class="fixed inset-0 z-50 hidden lg:fixed lg:top-0 lg:right-0 lg:bottom-0 lg:inset-y-0 lg:inset-x-auto lg:w-[420px] lg:max-w-[90vw] bg-surface-base border-l border-outline-variant transform translate-x-full transition-transform duration-300 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="unitDetailTitle">
-    <div class="h-full flex flex-col p-space-md gap-md">
-      <header class="flex items-center justify-between border-b border-outline-variant pb-md flex-shrink-0">
-        <div class="flex items-center gap-sm">
-          <button class="btn-ghost" id="closeUnitDetail" aria-label="Cerrar detalle">
-            <span class="material-symbols-outlined">close</span>
+</svg>
+<!-- Overlay HUD de Instrumentos de Vuelo (Extremo Inferior Izquierdo) -->
+<div class="absolute bottom-space-md left-space-md bg-surface-container-lowest/85 backdrop-blur-md p-space-sm rounded-lg shadow-lg flex items-center gap-space-md border border-outline-variant/30 hidden sm:flex">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-secondary animate-pulse"></span>
+<span class="font-label-badge text-label-badge text-on-surface">VIGILANCIA ADS-B OUT: ACTIVA</span>
+</div>
+<div class="h-4 w-px bg-outline-variant"></div>
+<div class="font-label-code text-label-code text-on-surface-variant">
+          VIENTO CRUZADO BOG: <span class="text-on-surface">090° / 12kt</span>
+</div>
+<div class="h-4 w-px bg-outline-variant"></div>
+<div class="font-label-code text-label-code text-on-surface-variant">
+          TECHO NUBOSO: <span class="text-on-surface">BKN 2,500ft</span>
+</div>
+</div>
+<!-- Leyenda Rápida Flotante (Extremo Inferior Derecho) -->
+<div class="absolute bottom-space-md right-space-md bg-surface-container-lowest/85 backdrop-blur-md px-space-md py-space-xs rounded-lg shadow-lg flex items-center gap-space-md font-label-badge text-label-badge text-on-surface-variant">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span>Nominal (<span id="legendOk">28</span>)</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span>Demora (<span id="legendAlert">5</span>)</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-error"></span>
+<span>Crítico (<span id="legendCrit">2</span>)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- 3. PANEL INFERIOR: FLOTILLA ACTIVA EN TIEMPO REAL CON FILTROS AVANZADOS -->
+<div class="bg-surface-container-low rounded-xl shadow-md p-space-lg space-y-space-md">
+<!-- Encabezado de la Sección de Flotilla y Controles de Filtrado -->
+<div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-space-md">
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="font-headline-md text-headline-md text-on-surface">Flotilla Activa en Operación</span>
+<span class="px-space-xs py-0.5 rounded bg-surface-container text-primary font-label-badge text-label-badge">35 REGISTROS</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Manifiestos de carga, telemetría ADS-B/GPS y vectores de enlace terrestre actualizados cada 10 seg.</p>
+</div>
+<!-- Controles de Filtros Dinámicos -->
+<div class="flex flex-wrap items-center gap-space-sm self-stretch lg:self-auto">
+<!-- Búsqueda rápida de unidad / ruta -->
+<div class="relative flex-1 sm:w-64">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+<input id="fleetSearch" class="w-full pl-8 pr-space-sm py-1.5 bg-surface rounded-lg text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Buscar por ID, matrícula o ruta..." type="text"/>
+</div>
+<!-- Filtro por Modalidad (Aéreo / Terrestre / Todos) -->
+<div class="flex bg-surface-container rounded-lg p-0.5">
+<button class="px-space-md py-1 rounded bg-surface-container-high text-primary font-label-badge text-label-badge uppercase shadow-sm" id="filter-all">Todos</button>
+<button class="px-space-md py-1 rounded text-on-surface-variant hover:text-on-surface font-label-badge text-label-badge uppercase transition-colors" id="filter-air">Aéreo</button>
+<button class="px-space-md py-1 rounded text-on-surface-variant hover:text-on-surface font-label-badge text-label-badge uppercase transition-colors" id="filter-ground">Terrestre</button>
+</div>
+<!-- Filtro por Estado Operacional -->
+<div class="flex bg-surface-container rounded-lg p-0.5">
+<button class="px-space-sm py-1 rounded text-secondary font-label-badge text-label-badge flex items-center gap-1 hover:bg-surface-container-high">
+<span class="w-2 h-2 rounded-full bg-secondary"></span> OK
           </button>
-          <div class="flex items-center gap-sm">
-            <div class="w-10 h-10 rounded bg-surface-elevated flex items-center justify-center" id="unitDetailIcon">
-              <span class="material-symbols-outlined text-primary">airplanemode_active</span>
-            </div>
-            <div>
-              <h3 id="unitDetailTitle" class="font-display text-headline-sm">AC-7402</h3>
-              <p id="unitDetailSub" class="text-secondary text-label-code">B767-300F · MEX → BOG</p>
-            </div>
-          </div>
+<button class="px-space-sm py-1 rounded text-tertiary font-label-badge text-label-badge flex items-center gap-1 hover:bg-surface-container-high">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span> Alerta
+          </button>
+<button class="px-space-sm py-1 rounded text-error font-label-badge text-label-badge flex items-center gap-1 hover:bg-surface-container-high">
+<span class="w-2 h-2 rounded-full bg-error"></span> Falla
+          </button>
+</div>
+</div>
+</div>
+<!-- TABLA DE DESPACHO AERONÁUTICO / MULTIMODAL -->
+<div class="overflow-x-auto rounded-lg bg-surface-container-lowest">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container text-on-surface-variant font-label-badge text-label-badge uppercase tracking-wider">
+<th class="py-space-md px-space-md">Unidad / Tipo</th>
+<th class="py-space-md px-space-md">Origen → Destino</th>
+<th class="py-space-md px-space-md">Carga &amp; Ocupación</th>
+<th class="py-space-md px-space-md">Altitud / Velocidad</th>
+<th class="py-space-md px-space-md">Estado Telemetría</th>
+<th class="py-space-md px-space-md">ETA / Arribo</th>
+<th class="py-space-md px-space-md text-right">Acción Operativa</th>
+</tr>
+</thead>
+<tbody id="fleetBody" class="divide-y divide-surface-container font-body-sm text-body-sm text-on-surface">
+<!-- FILA 1: B737-800F (AC-408) - NOMINAL -->
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">flight</span>
+</div>
+<div>
+<div class="font-label-code text-label-code text-on-surface font-bold">AC-408 · HK-5120</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Boeing 737-800F (Carga Pura)</div>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-1.5 font-label-code text-label-code">
+<span class="text-on-surface font-bold">BOG</span>
+<span class="material-symbols-outlined text-[14px] text-outline">arrow_forward</span>
+<span class="text-primary font-bold">MIA</span>
+</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Vía Caribe W-14 · Sector 02</div>
+</td>
+<td class="py-space-md px-space-md">
+<div class="font-label-code text-label-code text-on-surface">18,450 kg <span class="text-secondary">(92%)</span></div>
+<div class="w-24 bg-surface-container-highest h-1 rounded-full overflow-hidden mt-1">
+<div class="bg-secondary h-full rounded-full" style="width: 92%"></div>
+</div>
+</td>
+<td class="py-space-md px-space-md font-telemetry-metric text-on-surface-variant">
+<div>FL310 <span class="font-label-sm text-label-sm text-outline">(31,000 ft)</span></div>
+<div class="text-[12px] text-on-surface">472 kts GS</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded-full bg-secondary/15 text-secondary font-label-badge text-label-badge uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                Nominal OK
+              </span>
+</td>
+<td class="py-space-md px-space-md font-telemetry-metric">
+<div class="text-on-surface font-bold">14:35 UTC</div>
+<div class="font-label-sm text-label-sm text-secondary">A tiempo (00 min)</div>
+</td>
+<td class="py-space-md px-space-md text-right">
+<button class="px-space-md py-1 bg-surface-container-high hover:bg-primary hover:text-on-primary text-on-surface font-headline-sm text-headline-sm rounded-lg transition-colors inline-flex items-center gap-1 shadow-sm">
+<span>Detalle</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</td>
+</tr>
+<!-- FILA 2: ATR-72-500F (AC-714) - FALLA CRÍTICA -->
+<tr class="bg-error-container/10 hover:bg-error-container/20 transition-colors">
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-8 h-8 rounded-lg bg-error/20 flex items-center justify-center text-error">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">flight</span>
+</div>
+<div>
+<div class="font-label-code text-label-code text-error font-bold">AC-714 · HK-4902</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">ATR-72-500F (Turboprop)</div>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-1.5 font-label-code text-label-code">
+<span class="text-on-surface font-bold">BOG</span>
+<span class="material-symbols-outlined text-[14px] text-error">trending_flat</span>
+<span class="text-error font-bold">CLO [DIVERT]</span>
+</div>
+<div class="font-label-sm text-label-sm text-error">Desvío de emergencia por falla</div>
+</td>
+<td class="py-space-md px-space-md">
+<div class="font-label-code text-label-code text-on-surface">6,800 kg <span class="text-outline-variant">(85%)</span></div>
+<div class="w-24 bg-surface-container-highest h-1 rounded-full overflow-hidden mt-1">
+<div class="bg-error h-full rounded-full" style="width: 85%"></div>
+</div>
+</td>
+<td class="py-space-md px-space-md font-telemetry-metric text-on-surface-variant">
+<div class="text-error">FL140 ↓ (Descenso)</div>
+<div class="text-[12px] text-on-surface">210 kts GS</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded-full bg-error-container/40 text-error font-label-badge text-label-badge uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-error animate-ping"></span>
+                Falla Motor 2
+              </span>
+</td>
+<td class="py-space-md px-space-md font-telemetry-metric">
+<div class="text-error font-bold">13:18 UTC</div>
+<div class="font-label-sm text-label-sm text-error">Arribo a Base Alterna</div>
+</td>
+<td class="py-space-md px-space-md text-right">
+<button class="px-space-md py-1 bg-error hover:bg-error-container text-on-error font-headline-sm text-headline-sm rounded-lg transition-colors inline-flex items-center gap-1 shadow-sm">
+<span>Reasignar Carga</span>
+<span class="material-symbols-outlined text-[16px]">sync_alt</span>
+</button>
+</td>
+</tr>
+<!-- FILA 3: TERRESTRE TRK-12 - ALERTA DEMORA -->
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">local_shipping</span>
+</div>
+<div>
+<div class="font-label-code text-label-code text-on-surface font-bold">TRK-12 · T-884-COL</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Kenworth T680 / Furgón 53ft</div>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-1.5 font-label-code text-label-code">
+<span class="text-on-surface font-bold">BOG-CARGO</span>
+<span class="material-symbols-outlined text-[14px] text-outline">arrow_forward</span>
+<span class="text-tertiary font-bold">MDE-HUB</span>
+</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Troncal Magdalena · Km 44</div>
+</td>
+<td class="py-space-md px-space-md">
+<div class="font-label-code text-label-code text-on-surface">22,100 kg <span class="text-tertiary">(96%)</span></div>
+<div class="w-24 bg-surface-container-highest h-1 rounded-full overflow-hidden mt-1">
+<div class="bg-tertiary h-full rounded-full" style="width: 96%"></div>
+</div>
+</td>
+<td class="py-space-md px-space-md font-telemetry-metric text-on-surface-variant">
+<div class="text-tertiary">0 km/h (Detenido)</div>
+<div class="text-[12px] text-on-surface">Retén DIAN / Aduana</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded-full bg-tertiary-container/30 text-tertiary font-label-badge text-label-badge uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
+                Demora +55 min
+              </span>
+</td>
+<td class="py-space-md px-space-md font-telemetry-metric">
+<div class="text-tertiary font-bold">17:40 UTC</div>
+<div class="font-label-sm text-label-sm text-tertiary">Atraso Estimado</div>
+</td>
+<td class="py-space-md px-space-md text-right">
+<button class="px-space-md py-1 bg-surface-container-high hover:bg-tertiary-container hover:text-on-tertiary-container text-on-surface font-headline-sm text-headline-sm rounded-lg transition-colors inline-flex items-center gap-1 shadow-sm">
+<span>Ruta Alterna</span>
+<span class="material-symbols-outlined text-[16px]">alt_route</span>
+</button>
+</td>
+</tr>
+<!-- FILA 4: B737-400F (AC-202) - NOMINAL -->
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">flight</span>
+</div>
+<div>
+<div class="font-label-code text-label-code text-on-surface font-bold">AC-202 · HP-1940</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Boeing 737-400F (Clásico)</div>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-1.5 font-label-code text-label-code">
+<span class="text-on-surface font-bold">PTY</span>
+<span class="material-symbols-outlined text-[14px] text-outline">arrow_forward</span>
+<span class="text-primary font-bold">GDL</span>
+</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Ruta Centroamérica R-500</div>
+</td>
+<td class="py-space-md px-space-md">
+<div class="font-label-code text-label-code text-on-surface">15,200 kg <span class="text-secondary">(78%)</span></div>
+<div class="w-24 bg-surface-container-highest h-1 rounded-full overflow-hidden mt-1">
+<div class="bg-secondary h-full rounded-full" style="width: 78%"></div>
+</div>
+</td>
+<td class="py-space-md px-space-md font-telemetry-metric text-on-surface-variant">
+<div>FL280 <span class="font-label-sm text-label-sm text-outline">(28,000 ft)</span></div>
+<div class="text-[12px] text-on-surface">435 kts GS</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded-full bg-secondary/15 text-secondary font-label-badge text-label-badge uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                Nominal OK
+              </span>
+</td>
+<td class="py-space-md px-space-md font-telemetry-metric">
+<div class="text-on-surface font-bold">16:10 UTC</div>
+<div class="font-label-sm text-label-sm text-secondary">A tiempo (-05 min)</div>
+</td>
+<td class="py-space-md px-space-md text-right">
+<button class="px-space-md py-1 bg-surface-container-high hover:bg-primary hover:text-on-primary text-on-surface font-headline-sm text-headline-sm rounded-lg transition-colors inline-flex items-center gap-1 shadow-sm">
+<span>Detalle</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</td>
+</tr>
+<!-- FILA 5: TERRESTRE TRK-08 - NOMINAL -->
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">local_shipping</span>
+</div>
+<div>
+<div class="font-label-code text-label-code text-on-surface font-bold">TRK-08 · T-612-COL</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">International ProStar / Thermo</div>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-1.5 font-label-code text-label-code">
+<span class="text-on-surface font-bold">BOG-HUB</span>
+<span class="material-symbols-outlined text-[14px] text-outline">arrow_forward</span>
+<span class="text-primary font-bold">BAQ-AIRPORT</span>
+</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Ruta Caribe Troncal 45</div>
+</td>
+<td class="py-space-md px-space-md">
+<div class="font-label-code text-label-code text-on-surface">19,800 kg <span class="text-secondary">(88%)</span></div>
+<div class="w-24 bg-surface-container-highest h-1 rounded-full overflow-hidden mt-1">
+<div class="bg-secondary h-full rounded-full" style="width: 88%"></div>
+</div>
+</td>
+<td class="py-space-md px-space-md font-telemetry-metric text-on-surface-variant">
+<div>74 km/h <span class="font-label-sm text-label-sm text-outline">(GPS Terrestre)</span></div>
+<div class="text-[12px] text-secondary">Frío: +3.2°C (Farma)</div>
+</td>
+<td class="py-space-md px-space-md">
+<span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded-full bg-secondary/15 text-secondary font-label-badge text-label-badge uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                Nominal OK
+              </span>
+</td>
+<td class="py-space-md px-space-md font-telemetry-metric">
+<div class="text-on-surface font-bold">21:30 UTC</div>
+<div class="font-label-sm text-label-sm text-secondary">A tiempo (00 min)</div>
+</td>
+<td class="py-space-md px-space-md text-right">
+<button class="px-space-md py-1 bg-surface-container-high hover:bg-primary hover:text-on-primary text-on-surface font-headline-sm text-headline-sm rounded-lg transition-colors inline-flex items-center gap-1 shadow-sm">
+<span>Detalle</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Paginador de Tabla y Resumen de Estado -->
+<div class="flex flex-col sm:flex-row items-center justify-between gap-space-sm pt-space-xs font-label-sm text-label-sm text-on-surface-variant">
+<div id="fleetPager">Mostrando 5 de 35 unidades en tránsito activo (28 Nominales · 5 Alerta · 2 Falla)</div>
+<div class="flex items-center gap-space-xs">
+<button class="px-space-sm py-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors">Anterior</button>
+<span class="px-space-sm py-1 rounded bg-primary text-on-primary font-bold">1</span>
+<button class="px-space-sm py-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors">2</button>
+<button class="px-space-sm py-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors">3</button>
+<button class="px-space-sm py-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors">Siguiente</button>
+</div>
+</div>
+</div>
+<!-- 4. BARRA DE HERRAMIENTAS INFERIOR / TERMINAL DE ALERTAS OPERATIVAS -->
+<div class="bg-surface-container-low p-space-md rounded-xl shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-md">
+<div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-[24px]">terminal</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="font-label-badge text-label-badge text-tertiary uppercase">Feed de Despacho Inmediato</span>
+<span class="font-label-code text-label-code text-outline">14:02:19 UTC</span>
+</div>
+<div class="font-body-sm text-body-sm text-on-surface">
+<strong>SKBO-TWR:</strong> Pista 13R habilitada para despegues de carga pesada. Viento racheado en cabecera norte.
         </div>
-        <span id="unitDetailBadge" class="badge badge-ok"><span class="dot"></span> EN RUTA</span>
-      </header>
-
-      <div class="flex-1 overflow-y-auto space-lg" id="unitDetailContent">
-        <section aria-labelledby="gaugesTitle">
-          <h4 id="gaugesTitle" class="font-display text-label-badge text-secondary mb-md">Instrumentos de Vuelo</h4>
-          <div class="grid grid-cols-2 gap-md" id="gaugesGrid">
-            <div class="gauge-card">
-              <div class="gauge-header"><span>Altitud</span><span>FL</span></div>
-              <div class="gauge-value text-ok" id="gaugeAlt">--</div>
-              <div class="gauge-bar"><div id="gaugeAltBar" style="width: 0%;"></div></div>
-              <div class="gauge-footer" id="gaugeAltFooter">Techo: FL430</div>
-            </div>
-            <div class="gauge-card">
-              <div class="gauge-header"><span>Vel. Tierra</span><span>kts</span></div>
-              <div class="gauge-value" id="gaugeGs">--</div>
-              <div class="gauge-bar"><div id="gaugeGsBar" style="width: 0%;"></div></div>
-              <div class="gauge-footer" id="gaugeGsFooter">Máx: 530 kts</div>
-            </div>
-            <div class="gauge-card">
-              <div class="gauge-header"><span>Heading</span><span>° MAG</span></div>
-              <div class="gauge-value" id="gaugeHdg">--</div>
-              <div class="gauge-bar"><div id="gaugeHdgBar" style="width: 0%;"></div></div>
-              <div class="gauge-footer" id="gaugeHdgFooter">Rumbo magnético</div>
-            </div>
-            <div class="gauge-card">
-              <div class="gauge-header"><span>V/S</span><span>ft/min</span></div>
-              <div class="gauge-value" id="gaugeVs">--</div>
-              <div class="gauge-bar"><div id="gaugeVsBar" style="width: 0%;"></div></div>
-              <div class="gauge-footer" id="gaugeVsFooter">Vertical speed</div>
-            </div>
-            <div class="gauge-card lg:col-span-2">
-              <div class="gauge-header"><span>Carga Útil</span><span>kg</span></div>
-              <div class="gauge-value text-primary" id="gaugePayload">--</div>
-              <div class="gauge-bar"><div id="gaugePayloadBar" style="width: 0%;"></div></div>
-              <div class="gauge-footer" id="gaugePayloadFooter">MTOW: 186,880 kg</div>
-            </div>
-            <div class="gauge-card lg:col-span-2">
-              <div class="gauge-header"><span>Combustible</span><span>kg / %</span></div>
-              <div class="gauge-value" id="gaugeFuel">--</div>
-              <div class="gauge-bar"><div id="gaugeFuelBar" style="width: 0%;"></div></div>
-              <div class="gauge-footer" id="gaugeFuelFooter">Reserva: 30 min</div>
-            </div>
-          </div>
-        </section>
-
-        <section aria-labelledby="manifestTitle" class="border-t border-outline-variant pt-lg">
-          <header class="flex items-center justify-between mb-md">
-            <h4 id="manifestTitle" class="font-display text-label-badge text-secondary">Manifiesto de Carga</h4>
-            <span class="badge badge-info" id="manifestCount">0 AWB</span>
-          </header>
-          <div class="overflow-x-auto">
-            <table class="table" id="manifestTable">
-              <thead>
-                <tr>
-                  <th class="w-[80px]">AWB</th>
-                  <th>Descripción</th>
-                  <th class="w-[100px] text-right">Peso (kg)</th>
-                  <th class="w-[80px] text-right">Vol</th>
-                  <th class="w-[100px]">Prioridad</th>
-                  <th class="w-[120px]">Origen → Destino</th>
-                </tr>
-              </thead>
-              <tbody id="manifestBody"></tbody>
-            </table>
-          </div>
-        </section>
-
-        <section aria-labelledby="reassignTitle" class="border-t border-outline-variant pt-lg">
-          <header class="flex items-center justify-between mb-md">
-            <h4 id="reassignTitle" class="font-display text-label-badge text-secondary">Panel de Reasignación</h4>
-          </header>
-          <div id="reassignOptions" class="space-sm">
-            <p class="text-secondary text-body-sm text-center py-md">Seleccione una aeronave en ruta para ver opciones de reasignación.</p>
-          </div>
-        </section>
-
-        <section aria-labelledby="radarDetailTitle" class="border-t border-outline-variant pt-lg">
-          <header class="flex items-center justify-between mb-md">
-            <h4 id="radarDetailTitle" class="font-display text-label-badge text-secondary">Radar Táctico</h4>
-          </header>
-          <div class="radar-container" style="height: 220px; border-radius: var(--radius-lg);" id="unitRadarContainer">
-            <div class="radar-bg" style="opacity: 0.15;"></div>
-            <div class="radar-grid"></div>
-            <svg class="radar-svg" id="unitRadarSvg" aria-hidden="true"></svg>
-            <div id="unitRadarPins" class="absolute inset-0 pointer-events-none"></div>
-          </div>
-        </section>
-
-        <section aria-labelledby="acarsTitle" class="border-t border-outline-variant pt-lg">
-          <header class="flex items-center justify-between mb-md">
-            <h4 id="acarsTitle" class="font-display text-label-badge text-secondary">ACARS / Comunicaciones</h4>
-          </header>
-          <div class="acars-feed" id="acarsFeed" role="log" aria-live="polite" aria-label="Mensajes ACARS">
-            <div class="text-secondary text-body-sm text-center py-md">Sin mensajes recientes</div>
-          </div>
-          <div class="acars-input">
-            <input type="text" class="input" id="acarsInput" placeholder="Enviar mensaje ACARS..." aria-label="Mensaje ACARS saliente">
-            <button class="btn-primary btn-sm" id="acarsSend" aria-label="Enviar"><span class="material-symbols-outlined">send</span></button>
-          </div>
-        </section>
-      </div>
-
-      <footer class="border-t border-outline-variant pt-md flex-shrink-0">
-        <div class="flex flex-wrap gap-sm">
-          <button class="btn-primary flex-1 min-w-[140px]" id="btnReassign"><span class="material-symbols-outlined">flight_takeoff</span> Reasignar Ruta</button>
-          <button class="btn-critical flex-1 min-w-[140px]" id="btnDiversion"><span class="material-symbols-outlined">report_problem</span> Desvío Emergencia</button>
-          <button class="btn-secondary flex-1 min-w-[140px]" id="btnHold"><span class="material-symbols-outlined">schedule</span> Hold / Espera</button>
-          <button class="btn-secondary flex-1 min-w-[140px]" id="btnReturn"><span class="material-symbols-outlined">flight_land</span> Regresar Base</button>
-        </div>
-      </footer>
-    </div>
-  </div>
-
-  <div id="unitDetailOverlay" class="fixed inset-0 z-45 bg-black/50 hidden lg:hidden" aria-hidden="true"></div>
-
-  <div class="modal-overlay" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
-    <div class="modal-box">
-      <header class="modal-header">
-        <div class="icon" id="confirmIcon"><span class="material-symbols-outlined">warning</span></div>
-        <h3 id="confirmTitle" class="font-display text-headline-md">Confirmar Acción</h3>
-        <button class="modal-close" id="confirmClose" aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
-      </header>
-      <div class="modal-body" id="confirmBody"></div>
-      <footer class="modal-footer">
-        <button class="btn-secondary" id="confirmCancel">Cancelar</button>
-        <button class="btn-primary" id="confirmOk">Confirmar</button>
-      </footer>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="infoModal" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
-    <div class="modal-box" style="max-width: 480px;">
-      <header class="modal-header">
-        <div class="icon" id="infoIcon"><span class="material-symbols-outlined">info</span></div>
-        <h3 id="infoTitle" class="font-display text-headline-md">Información</h3>
-        <button class="modal-close" id="infoClose" aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
-      </header>
-      <div class="modal-body" id="infoBody"></div>
-      <footer class="modal-footer">
-        <button class="btn-primary" id="infoOk">Entendido</button>
-      </footer>
-    </div>
-  </div>
-
-  <div class="toast" id="toast" role="status" aria-live="polite">
-    <div class="content">
-      <span class="icon material-symbols-outlined">check_circle</span>
-      <span id="toastMessage">Operación completada</span>
-    </div>
-  </div>
-
-  <script type="module" src="app.js"></script>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<button class="px-space-md py-1.5 bg-surface-container-high hover:bg-surface-bright text-on-surface font-body-sm text-body-sm rounded-lg transition-colors flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[16px]">headset_mic</span>
+<span>Canal VHF 128.45</span>
+</button>
+<button class="px-space-md py-1.5 bg-surface-container-high hover:bg-surface-bright text-on-surface font-body-sm text-body-sm rounded-lg transition-colors flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[16px]">refresh</span>
+<span>Re-Sincronizar ADS-B</span>
+</button>
+</div>
+</div>
+</div>
+</main></div><script src="app.js"></script>
 </body>
 </html>

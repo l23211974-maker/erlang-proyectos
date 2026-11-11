@@ -95,7 +95,10 @@ estaticos_del_dashboard(Config) ->
     ?assertMatch({_Inicio, _Largo},
                  binary:match(Cuerpo1, <<"AeroCargo">>)),
     {200, _} = pedir(Config, get, <<"/unidad.html">>),
+    {200, _} = pedir(Config, get, <<"/unidad-enfocada.html">>),
     {200, _} = pedir(Config, get, <<"/historial.html">>),
+    {200, _} = pedir(Config, get, <<"/configuracion.html">>),
+    {200, _} = pedir(Config, get, <<"/stitch.css">>),
     {200, _} = pedir(Config, get, <<"/app.css">>),
 
     %% regresión de caché: el middleware instala Cache-Control: no-cache en

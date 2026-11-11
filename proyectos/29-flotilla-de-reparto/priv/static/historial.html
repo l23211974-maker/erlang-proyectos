@@ -1,226 +1,617 @@
 <!DOCTYPE html>
-<html lang="es">
+<html class="dark" lang="es">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0B1120">
+  <meta name="theme-color" content="#0b1326">
   <title>AeroCargo · Bitácora y Alertas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chivo:wght@600;700&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=airplanemode_active,radar,schedule,inventory_2,warning,check_circle,error,local_shipping,settings,chevron_left,flight_takeoff,flight_land,local_airport,directions_runway,speed,altitude,inventory,assignment,report_problem,chat,visibility,visibility_off,filter_list,refresh,close,expand_more,chevron_right,bolt,shield,verified,pending_actions,send,content_copy,download,print,fullscreen,more_vert,info,notifications,notifications_active,lock,unlock,key,date_range,timer,query_stats,download" rel="stylesheet">
-  <link rel="stylesheet" href="app.css">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="stitch.css">
 </head>
-<body>
-  <header class="fixed top-0 left-0 right-0 z-30 bg-surface-base border-b border-outline-variant" style="height: var(--header-h);" role="banner">
-    <div class="flex items-center justify-between px-gutter-desk h-full gap-md">
-      <a href="index.html" class="btn-ghost" aria-label="Volver al monitoreo">
-        <span class="material-symbols-outlined">chevron_left</span>
-      </a>
-      <div class="flex items-center gap-sm flex-1">
-        <span class="material-symbols-outlined text-primary" style="font-size: 28px;">airplanemode_active</span>
-        <h1 class="font-display text-headline-lg">AeroCargo</h1>
-      </div>
-      <nav class="tabs flex-1 justify-center" aria-label="Navegación principal">
-        <a href="index.html"><span class="material-symbols-outlined">radar</span> Monitoreo</a>
-        <a href="historial.html" aria-current="page"><span class="material-symbols-outlined">inventory_2</span> Bitácora</a>
-      </nav>
-      <div class="flex items-center gap-sm">
-        <div class="hidden sm:flex items-center gap-xs px-sm py-xs bg-surface-elevated rounded border border-outline-variant">
-          <span class="material-symbols-outlined text-info" style="font-size: 14px;">schedule</span>
-          <span id="clockUtc" class="font-mono text-label-code">--:--:--</span>
-          <span class="text-secondary text-label-sm">Z</span>
-        </div>
-      </div>
-    </div>
-  </header>
-
-  <main class="pt-[calc(var(--header-h)+var(--space-gutter-desk))] pb-[calc(var(--space-gutter-desk)+4rem)] px-gutter-desk">
-    <header class="flex flex-wrap items-center justify-between gap-md mb-lg">
-      <div>
-        <h2 class="font-display text-headline-lg">Bitácora y Alertas de Flota</h2>
-        <p class="text-secondary text-body-sm mt-xs">Stream cronológico de eventos de despacho, telemetría y alertas tácticas</p>
-      </div>
-      <div class="flex items-center gap-sm flex-wrap">
-        <button class="btn-primary" id="exportBtn" aria-label="Exportar IFR">
-          <span class="material-symbols-outlined">download</span>
-          Exportar IFR
-        </button>
-        <button class="btn-secondary" id="refreshBtn" aria-label="Actualizar">
-          <span class="material-symbols-outlined">refresh</span>
-          Actualizar
-        </button>
-      </div>
-    </header>
-
-    <section aria-labelledby="kpiTitle" class="grid grid-cols-1 sm:grid-cols-3 gap-md mb-lg" id="kpiSection">
-      <article class="kpi-card ok">
-        <header class="kpi-header">
-          <h3 class="kpi-title">MTTR</h3>
-          <span class="kpi-badge badge-ok"><span class="dot"></span> Operativo</span>
-        </header>
-        <div class="kpi-value" id="kpiMttr"><span class="font-display">--</span><span class="unit">min</span></div>
-        <div class="kpi-trend ok" id="kpiMttrTrend">
-          <span class="material-symbols-outlined">trending_down</span>
-          <span>vs jornada anterior</span>
-        </div>
-      </article>
-      <article class="kpi-card warn">
-        <header class="kpi-header">
-          <h3 class="kpi-title">OTP (On-Time Performance)</h3>
-          <span class="kpi-badge badge-warn"><span class="dot"></span> Monitoreo</span>
-        </header>
-        <div class="kpi-value" id="kpiOtp"><span class="font-display">--</span><span class="unit">%</span></div>
-        <div class="kpi-trend warn" id="kpiOtpTrend">
-          <span class="material-symbols-outlined">trending_up</span>
-          <span>vs jornada anterior</span>
-        </div>
-      </article>
-      <article class="kpi-card crit">
-        <header class="kpi-header">
-          <h3 class="kpi-title">Safety Events</h3>
-          <span class="kpi-badge badge-crit"><span class="dot"></span> Crítico</span>
-        </header>
-        <div class="kpi-value" id="kpiSafety"><span class="font-display">--</span><span class="unit">eventos</span></div>
-        <div class="kpi-trend crit" id="kpiSafetyTrend">
-          <span class="material-symbols-outlined">report_problem</span>
-          <span>incidentes abiertos</span>
-        </div>
-      </article>
-    </section>
-
-    <section aria-labelledby="filtersTitle" class="mb-lg">
-      <details class="drawer" open id="filtersDrawer">
-        <summary class="drawer-header" aria-expanded="true">
-          <span class="flex items-center gap-sm">
-            <span class="material-symbols-outlined text-primary">filter_list</span>
-            <span class="font-display text-label-badge">Filtros Tácticos</span>
-          </span>
-          <span class="material-symbols-outlined icon">expand_more</span>
-        </summary>
-        <div class="drawer-content grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-md">
-          <div class="input-wrapper">
-            <span class="material-symbols-outlined">search</span>
-            <input type="search" class="input" id="searchInput" placeholder="Buscar evento, AWB, unidad, código..." aria-label="Búsqueda libre">
-          </div>
-          <div>
-            <label for="severityFilter" class="block text-label-sm text-secondary mb-xs">Severidad</label>
-            <select class="select" id="severityFilter" aria-label="Filtrar por severidad">
-              <option value="">Todas</option>
-              <option value="critica">Crítica (Carmesí)</option>
-              <option value="alerta">Alerta (Ámbar)</option>
-              <option value="nominal">Nominal (Esmeralda)</option>
-              <option value="info">Info (Cian)</option>
-            </select>
-          </div>
-          <div>
-            <label for="timeFilter" class="block text-label-sm text-secondary mb-xs">Ventana Temporal</label>
-            <select class="select" id="timeFilter" aria-label="Filtrar por ventana temporal">
-              <option value="1h">Última hora</option>
-              <option value="6h" selected>Últimas 6 horas</option>
-              <option value="12h">Últimas 12 horas</option>
-              <option value="24h">Últimas 24 horas</option>
-              <option value="jornada">Jornada completa</option>
-              <option value="custom">Personalizado...</option>
-            </select>
-          </div>
-          <div>
-            <label for="segmentFilter" class="block text-label-sm text-secondary mb-xs">Segmento</label>
-            <select class="select" id="segmentFilter" aria-label="Filtrar por segmento">
-              <option value="">Todos</option>
-              <option value="aereo">Aéreo Internacional</option>
-              <option value="troncal">Troncal Terrestre</option>
-              <option value="ultima">Última Milla</option>
-              <option value="transbordo">Transbordo</option>
-            </select>
-          </div>
-          <div class="flex items-end gap-sm">
-            <button class="btn-secondary flex-1" id="clearFilters">Limpiar</button>
-            <button class="btn-primary flex-1" id="applyFilters">Aplicar</button>
-          </div>
-        </div>
-      </details>
-    </section>
-
-    <section aria-labelledby="eventsTitle" class="space-md" id="eventsSection">
-      <header class="flex items-center justify-between flex-wrap gap-sm">
-        <h3 id="eventsTitle" class="font-display text-label-badge text-secondary">Eventos de Despacho</h3>
-        <div class="flex items-center gap-sm">
-          <span id="eventsCount" class="font-mono text-label-code text-secondary">0 eventos</span>
-          <button class="btn-ghost btn-sm" id="pauseLive" aria-label="Pausar actualización en vivo">
-            <span class="material-symbols-outlined" id="pauseIcon">pause</span>
-            <span id="pauseText">Pausar</span>
-          </button>
-        </div>
-      </header>
-      <div id="eventsList" class="space-md" role="feed" aria-label="Lista de eventos cronológicos">
-        <div class="text-center py-xl text-secondary">
-          <span class="material-symbols-outlined text-muted" style="font-size: 48px;">inventory_2</span>
-          <p class="mt-sm">Cargando bitácora...</p>
-        </div>
-      </div>
-      <div id="loadMoreContainer" class="text-center hidden">
-        <button class="btn-secondary" id="loadMoreBtn">Cargar más eventos</button>
-      </div>
-    </section>
-  </main>
-
-  <footer class="fixed bottom-0 left-0 right-0 z-30 bg-surface-base/95 backdrop-blur border-t border-outline-variant lg:hidden" role="contentinfo">
-    <nav class="nav-bottom" aria-label="Navegación móvil">
-      <a href="index.html"><span class="material-symbols-outlined" style="font-size: 24px;">radar</span><span>Monitoreo</span></a>
-      <a href="historial.html" aria-current="page"><span class="material-symbols-outlined" style="font-size: 24px;">inventory_2</span><span>Bitácora</span></a>
-    </nav>
-  </footer>
-
-  <div class="modal-overlay" id="eventModal" role="dialog" aria-modal="true" aria-labelledby="eventModalTitle">
-    <div class="modal-box" style="max-width: 560px; max-height: 80vh; overflow-y-auto;">
-      <header class="modal-header">
-        <div class="icon" id="eventModalIcon"><span class="material-symbols-outlined">info</span></div>
-        <h3 id="eventModalTitle" class="font-display text-headline-md">Detalle de Evento</h3>
-        <button class="modal-close" id="eventModalClose" aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
-      </header>
-      <div class="modal-body" id="eventModalBody"></div>
-      <footer class="modal-footer">
-        <button class="btn-secondary" id="eventModalCancel">Cerrar</button>
-      </footer>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="gpsModal" role="dialog" aria-modal="true" aria-labelledby="gpsModalTitle">
-    <div class="modal-box" style="max-width: 480px;">
-      <header class="modal-header">
-        <div class="icon" style="background: var(--info-bg); color: var(--status-info);"><span class="material-symbols-outlined">local_airport</span></div>
-        <h3 id="gpsModalTitle" class="font-display text-headline-md">Posición GPS / Telemetría</h3>
-        <button class="modal-close" id="gpsModalClose" aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
-      </header>
-      <div class="modal-body" id="gpsModalBody"></div>
-      <footer class="modal-footer">
-        <button class="btn-primary" id="gpsModalOk">Entendido</button>
-      </footer>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="reassignModal" role="dialog" aria-modal="true" aria-labelledby="reassignModalTitle">
-    <div class="modal-box" style="max-width: 520px;">
-      <header class="modal-header">
-        <div class="icon" style="background: var(--primary-container); color: var(--primary);"><span class="material-symbols-outlined">flight_takeoff</span></div>
-        <h3 id="reassignModalTitle" class="font-display text-headline-md">Detalle de Reasignación</h3>
-        <button class="modal-close" id="reassignModalClose" aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
-      </header>
-      <div class="modal-body" id="reassignModalBody"></div>
-      <footer class="modal-footer">
-        <button class="btn-secondary" id="reassignModalCancel">Cerrar</button>
-      </footer>
-    </div>
-  </div>
-
-  <div class="toast" id="toast" role="status" aria-live="polite">
-    <div class="content">
-      <span class="icon material-symbols-outlined">check_circle</span>
-      <span id="toastMessage">Operación completada</span>
-    </div>
-  </div>
-
-  <script type="module" src="app.js"></script>
+<body class="bg-background font-body-md text-body-md text-on-surface antialiased" data-page="bitacora-y-alertas">
+<header class="fixed top-0 left-0 right-0 z-50 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.4)]"><div class="h-16 w-full px-gutter-desktop flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-md min-w-0"><span class="material-symbols-outlined text-primary" style="font-size:28px;">flight</span><div class="flex flex-col"><span class="font-headline-sm text-headline-sm text-primary tracking-wider uppercase">AeroCargo</span><span class="font-label-sm text-label-sm text-on-surface-variant hidden sm:inline">Centro de Operaciones Multimodal</span></div><div class="hidden xl:flex items-center gap-space-xs ml-space-md pl-space-md border-l border-outline-variant"><div class="flex items-center gap-space-xs px-space-sm py-1 bg-surface-container rounded-lg"><span class="w-2 h-2 rounded-full bg-secondary"></span><span class="font-label-badge text-label-badge text-on-surface uppercase">Operatividad 98.4%</span></div><div class="flex items-center gap-space-xs px-space-sm py-1 bg-surface-container rounded-lg"><span class="w-2 h-2 rounded-full bg-primary"></span><span class="font-label-badge text-label-badge text-on-surface uppercase">42 Unidades Activas</span></div><div class="flex items-center gap-space-xs px-space-sm py-1 bg-surface-container rounded-lg"><span class="w-2 h-2 rounded-full bg-error animate-pulse"></span><span class="font-label-badge text-label-badge text-error uppercase">3 Alertas</span></div></div></div><nav class="hidden lg:flex items-center gap-space-xs" data-active-classes="bg-primary-container text-on-primary-container font-semibold rounded-lg"><a class="px-space-md py-space-xs font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors rounded-lg" data-path="monitoreo-en-vivo" href="index.html">Monitoreo en Vivo (Dashboard)</a><a class="px-space-md py-space-xs font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors rounded-lg" data-path="detalle-de-unidad-y-reasignacion" href="unidad.html">Detalle de Unidad &amp; Reasignación</a><a aria-current="page" class="px-space-md py-space-xs transition-colors bg-primary-container text-on-primary-container font-semibold rounded-lg" data-path="bitacora-y-alertas" href="historial.html">Bitácora y Alertas</a><a class="px-space-md py-space-xs font-body-md text-body-md text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors rounded-lg" data-path="configuracion-de-flota" href="configuracion.html">Configuración de Flota</a></nav><div class="flex items-center gap-space-md shrink-0"><div class="hidden md:flex flex-col text-right"><span class="font-label-badge text-label-badge text-on-surface">Despachador en Turno</span><span class="font-label-sm text-label-sm text-on-surface-variant">Centro de Control Bogotá/Miami</span></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><aside class="fixed left-0 top-16 bottom-0 w-64 bg-surface-container-low shadow-[0_1px_8px_rgba(0,0,0,0.3)] z-40 hidden md:flex flex-col justify-between p-space-md"><div class="space-y-space-md"><div class="px-space-xs font-label-badge text-label-badge text-outline uppercase tracking-wider">Sectores de Despacho</div><nav class="space-y-space-xs" data-active-classes="bg-surface-container-high text-primary font-semibold"><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="monitoreo-en-vivo" href="index.html"><span class="material-symbols-outlined text-on-surface-variant text-[20px]">radar</span><span class="font-body-sm text-body-sm">Sector Aéreo Internacional</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="detalle-de-unidad-y-reasignacion" href="unidad.html"><span class="material-symbols-outlined text-on-surface-variant text-[20px]">flight_takeoff</span><span class="font-body-sm text-body-sm">Troncal Bogotá - Miami</span></a><a aria-current="page" class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg transition-colors bg-surface-container-high text-primary font-semibold" data-path="bitacora-y-alertas" href="historial.html"><span class="material-symbols-outlined text-on-surface-variant text-[20px]">warning</span><span class="font-body-sm text-body-sm">Vigilancia Meteorológica</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="configuracion-de-flota" href="configuracion.html"><span class="material-symbols-outlined text-on-surface-variant text-[20px]">hub</span><span class="font-body-sm text-body-sm">Rutas &amp; Balizas</span></a></nav></div><div class="p-space-sm bg-surface-container rounded-lg space-y-space-xs"><div class="flex justify-between items-center"><span class="font-label-badge text-label-badge text-on-surface-variant uppercase">Canal Telemetría</span><span class="w-2 h-2 rounded-full bg-secondary"></span></div><div class="font-label-code text-label-code text-primary truncate">BOG-HUB-VHF-128.45</div><div class="font-label-sm text-label-sm text-outline">Latencia: 24ms · UTC Sync</div></div></aside><div class="md:pl-64"><main class="w-full pt-16 bg-surface min-h-screen"><div class="flex flex-col w-full">
+<div class="p-margin sm:p-gutter-desktop space-y-space-lg max-w-[1720px] mx-auto w-full">
+<!-- Top Strategic Operations Bar -->
+<div class="relative overflow-hidden rounded-xl bg-surface-container-low p-space-lg shadow-xl">
+<div class="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
+<div class="absolute -bottom-24 -left-24 w-80 h-80 bg-secondary/10 rounded-full blur-3xl pointer-events-none"></div>
+<div class="relative z-10 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-space-lg">
+<div class="space-y-space-xs max-w-2xl">
+<div class="flex items-center gap-space-sm">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface-container font-label-badge text-label-badge text-primary uppercase tracking-wider">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
+              SISTEMA DE AUDITORÍA &amp; CONTROL OPERACIONAL
+            </span>
+<span class="font-label-code text-label-code text-on-surface-variant">SYS_REV: 4.8.2-LOGS</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">
+            Bitácora de Telemetría &amp; Centro de Alertas
+          </h2>
+<p class="font-body-md text-body-md text-on-surface-variant">
+            Monitoreo en tiempo real de contingencias, bitácoras de vuelo IFR y enlace terrestre multimodal de la red de carga aérea Bogotá / Miami / Red Andina.
+          </p>
+</div>
+<!-- Live Sync Status Card -->
+<div class="flex flex-wrap sm:flex-nowrap items-center gap-space-md w-full xl:w-auto">
+<div class="bg-surface-container px-space-md py-space-sm rounded-lg flex items-center gap-space-sm shadow-md min-w-[200px]">
+<div class="w-9 h-9 rounded-lg bg-surface-container-high flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[20px]">sync</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Sincronización ACARS</span>
+<span class="font-label-code text-label-code text-secondary font-bold"><span id="syncTime">14:14:52 UTC</span> · En Línea</span>
+</div>
+</div>
+<button class="px-space-md py-2.5 bg-primary-container text-on-primary-container font-headline-sm text-headline-sm rounded-lg hover:bg-primary transition-all duration-200 flex items-center gap-2 shadow-md" id="btn-export-log">
+<span class="material-symbols-outlined text-[18px]">download_for_offline</span>
+<span>Exportar Bitácora IFR</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Multi-Column Layout: Filter & Metrics + Timeline Stream -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-start">
+<!-- LEFT COLUMN: Advanced Filters + Operational Snapshot (5 cols) -->
+<div class="lg:col-span-4 xl:col-span-4 space-y-space-md">
+<!-- Filter Console Card -->
+<div class="bg-surface-container-low rounded-xl p-space-md shadow-lg space-y-space-md">
+<div class="flex items-center justify-between pb-space-xs">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[20px]">tune</span>
+<span class="font-headline-sm text-headline-sm text-on-surface">Filtros Tácticos de Auditoría</span>
+</div>
+<button class="font-label-sm text-label-sm text-primary hover:underline" id="btn-reset-filters">Restablecer</button>
+</div>
+<!-- Search Input: Dispatch ID, Registration, AWB -->
+<div class="space-y-space-xs">
+<label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Identificador de Despacho, Matrícula o AWB</label>
+<div class="relative">
+<span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-outline">
+<span class="material-symbols-outlined text-[18px]">search</span>
+</span>
+<input class="w-full bg-surface-container-lowest text-on-surface font-label-code text-label-code pl-10 pr-3 py-2.5 rounded-lg outline-none focus:bg-surface-container focus:text-primary placeholder:text-outline transition-colors" id="input-search" placeholder="Ej: HK-4890, AC-702, AWB-70192..." type="text"/>
+</div>
+</div>
+<!-- Severity Status Selector -->
+<div class="space-y-space-xs">
+<label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Nivel de Gravedad / Estado</label>
+<div class="grid grid-cols-2 gap-space-xs">
+<button class="filter-status-btn active px-space-sm py-2 rounded-lg bg-surface-container-high text-primary font-label-badge text-label-badge uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all" data-filter-status="all">
+<span>TODOS</span>
+<span id="countAll" class="px-1.5 py-0.2 rounded-full bg-surface font-bold">5</span>
+</button>
+<button class="filter-status-btn px-space-sm py-2 rounded-lg bg-surface-container-lowest text-secondary font-label-badge text-label-badge uppercase tracking-wider hover:bg-surface-container flex items-center justify-center gap-1.5 transition-all" data-filter-status="ok">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span>OK / NOMINAL</span>
+<span id="countOk" class="px-1.5 py-0.2 rounded-full bg-surface font-bold">2</span>
+</button>
+<button class="filter-status-btn px-space-sm py-2 rounded-lg bg-surface-container-lowest text-tertiary font-label-badge text-label-badge uppercase tracking-wider hover:bg-surface-container flex items-center justify-center gap-1.5 transition-all" data-filter-status="alert">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span>ALERTA / DEMORA</span>
+<span id="countAlert" class="px-1.5 py-0.2 rounded-full bg-surface font-bold">2</span>
+</button>
+<button class="filter-status-btn px-space-sm py-2 rounded-lg bg-surface-container-lowest text-error font-label-badge text-label-badge uppercase tracking-wider hover:bg-surface-container flex items-center justify-center gap-1.5 transition-all" data-filter-status="error">
+<span class="w-2 h-2 rounded-full bg-error animate-pulse"></span>
+<span>FALLA / AOG</span>
+<span id="countError" class="px-1.5 py-0.2 rounded-full bg-surface font-bold">1</span>
+</button>
+</div>
+</div>
+<!-- Time Range Selector -->
+<div class="space-y-space-xs">
+<label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Ventana Temporal de Análisis</label>
+<div class="flex items-center gap-space-xs bg-surface-container-lowest p-1 rounded-lg">
+<button class="range-btn flex-1 py-1.5 rounded-lg bg-surface text-primary font-label-badge text-label-badge text-center uppercase transition-all shadow-sm" data-range="24h">Últimas 24h</button>
+<button class="range-btn flex-1 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label-badge text-label-badge text-center uppercase transition-all" data-range="7d">7 Días</button>
+<button class="range-btn flex-1 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface font-label-badge text-label-badge text-center uppercase transition-all" data-range="30d">30 Días</button>
+</div>
+</div>
+<!-- Fleet Segment Selector -->
+<div class="space-y-space-xs">
+<label class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Segmento Operacional</label>
+<div class="space-y-1 bg-surface-container-lowest p-2 rounded-lg">
+<label class="flex items-center justify-between p-1.5 rounded-lg hover:bg-surface-container cursor-pointer select-none">
+<span class="flex items-center gap-2">
+<input checked="" class="accent-primary rounded h-4 w-4 bg-surface" type="checkbox"/>
+<span class="font-body-sm text-body-sm text-on-surface">Aeronaves Jet (B737F, B767F)</span>
+</span>
+<span class="font-label-code text-label-code text-outline">18 Activas</span>
+</label>
+<label class="flex items-center justify-between p-1.5 rounded-lg hover:bg-surface-container cursor-pointer select-none">
+<span class="flex items-center gap-2">
+<input checked="" class="accent-primary rounded h-4 w-4 bg-surface" type="checkbox"/>
+<span class="font-body-sm text-body-sm text-on-surface">Turbohélices Regionales (ATR-72F)</span>
+</span>
+<span class="font-label-code text-label-code text-outline">12 Activas</span>
+</label>
+<label class="flex items-center justify-between p-1.5 rounded-lg hover:bg-surface-container cursor-pointer select-none">
+<span class="flex items-center gap-2">
+<input checked="" class="accent-primary rounded h-4 w-4 bg-surface" type="checkbox"/>
+<span class="font-body-sm text-body-sm text-on-surface">Transporte de Enlace / Rampa</span>
+</span>
+<span class="font-label-code text-label-code text-outline">12 Camiones</span>
+</label>
+</div>
+</div>
+</div>
+<!-- Telemetry Summary Cards (KPI Benchmarks) -->
+<div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-space-md">
+<!-- MTTR Metric -->
+<div class="bg-surface-container-low rounded-xl p-space-md shadow-md relative overflow-hidden flex flex-col justify-between">
+<div class="flex items-center justify-between mb-2">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">MTTR (Resolución Media)</span>
+<span class="material-symbols-outlined text-primary text-[20px]">build_circle</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-telemetry-metric text-telemetry-metric text-primary">34.2</span>
+<span class="font-label-badge text-label-badge text-on-surface-variant">MINUTOS</span>
+</div>
+<div class="mt-3 flex items-center justify-between text-label-sm font-label-sm">
+<span class="text-secondary flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">trending_down</span>
+                -6.4 min vs mes anterior
+              </span>
+<span class="text-outline">Objetivo: &lt;45m</span>
+</div>
+</div>
+<!-- Compliance KPI with Inline Donut Chart -->
+<div class="bg-surface-container-low rounded-xl p-space-md shadow-md flex items-center justify-between gap-space-md">
+<div class="space-y-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Tasa de Cumplimiento OTP</span>
+<div class="font-telemetry-metric text-telemetry-metric text-secondary">97.8%</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">SLA Logístico de Red Aérea</span>
+</div>
+<div class="relative w-16 h-16 shrink-0 flex items-center justify-center">
+<svg class="w-full h-full transform -rotate-90" viewbox="0 0 36 36">
+<path class="text-surface-container-high" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3.5"></path>
+<path class="text-secondary" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="97.8, 100" stroke-linecap="round" stroke-width="3.5"></path>
+</svg>
+<span class="absolute font-label-badge text-[10px] text-on-surface">OTP</span>
+</div>
+</div>
+<!-- Safety Zero-Incident Record -->
+<div class="bg-surface-container-low rounded-xl p-space-md shadow-md flex items-center gap-space-md">
+<div class="w-12 h-12 rounded-xl bg-secondary-container/20 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-secondary text-[26px]">verified_user</span>
+</div>
+<div class="space-y-0.5">
+<div class="flex items-center gap-2">
+<span class="font-telemetry-metric text-telemetry-metric text-on-surface">0</span>
+<span class="font-label-badge text-label-badge text-secondary uppercase bg-surface-container px-2 py-0.5 rounded">Objetivo Cero</span>
+</div>
+<div class="font-body-sm text-body-sm text-on-surface">Incidentes Mayores / Pérdida de Casco</div>
+<div class="font-label-sm text-label-sm text-outline">1,248 días continuos en cumplimiento ICAO Annex 13</div>
+</div>
+</div>
+</div>
+<!-- Radar Hub Station Operational Photo Preview -->
+<div class="bg-surface-container-low rounded-xl overflow-hidden shadow-lg p-space-md space-y-space-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-badge text-label-badge text-primary uppercase">Estación de Mando Bogotá El Dorado</span>
+<span class="font-label-code text-label-code text-secondary">ACTIVO · SALA B-4</span>
+</div>
+<div class="relative h-44 rounded-lg overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Aerospace multimodal flight dispatch room with glowing avionics screens showing flight vectors and radar data, moody midnight blue ambiance, illuminated switches, and pilots analyzing air cargo manifests." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAq5rBo8awrIHU8K2SE_kQT4PYk43y2xRC-MG2PAOUTSRV1qTxnQKzrEaXGHaIg_M8sYbWQbI-gr51Xg-D2-tNx3euQPOeI5du1lVu-_acbjlakm6izR5MQze6LlWLj5oC5DeXI95RXqDvpsBcMBZXqcQ_-W-Xl_LxPp3eIrKHpvK0qezOYnn5G7QIHGTWAl5X3SiBIs-nh1X3FCi7larxqaROr2rGIHHKyBPVYuF0"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent"></div>
+<div class="absolute bottom-2 left-2 right-2 flex justify-between items-end">
+<div>
+<div class="font-label-badge text-label-badge text-on-surface">Centro Coordinador AOG</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Frecuencia VHF 121.90 MHz</div>
+</div>
+<span class="material-symbols-outlined text-primary text-[20px]">cell_tower</span>
+</div>
+</div>
+</div>
+</div>
+<!-- RIGHT COLUMN: Main Chronological Event Log Stream (8 cols) -->
+<div class="lg:col-span-8 xl:col-span-8 space-y-space-md">
+<!-- Chronology Header and Live Indicator -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-wrap items-center justify-between gap-space-sm shadow-md">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-secondary text-[22px]">history_toggle_off</span>
+<div>
+<span class="font-headline-sm text-headline-sm text-on-surface">Registro Cronológico de Operaciones</span>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Secuencia de eventos indexada con marca de tiempo UTC/Local (GMT-5)</div>
+</div>
+</div>
+<div class="flex items-center gap-space-xs font-label-code text-label-code text-outline">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span>FEED EN TIEMPO REAL · 5 REGISTROS AUDITADOS</span>
+</div>
+</div>
+<!-- Event Stream Container -->
+<div class="space-y-space-md" id="events-container">
+<!-- REGISTRO 1: FALLA CRÍTICA / DESVÍO AOG -->
+<article class="event-card group relative bg-surface-container rounded-xl p-space-md shadow-xl transition-all duration-200 hover:bg-surface-container-high" data-severity="error" style="box-shadow: 0 0 0 1px #ef4444, 0 0 16px rgba(239, 68, 68, 0.2);">
+<div class="flex flex-col md:flex-row md:items-start justify-between gap-space-sm pb-space-sm border-b border-surface-container-highest">
+<div class="flex items-center gap-space-sm flex-wrap">
+<span class="px-2.5 py-1 rounded bg-error/20 text-error font-label-badge text-label-badge flex items-center gap-1.5 uppercase font-bold">
+<span class="w-2 h-2 rounded-full bg-error animate-ping"></span>
+                  FALLA CRÍTICA / DESVÍO
+                </span>
+<span class="font-label-code text-label-code text-on-surface font-bold bg-surface-container-lowest px-2 py-1 rounded">
+                  B737-400F · HK-4890
+                </span>
+<span class="font-label-code text-label-code text-outline">AWB: 201-9844-3201</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high font-label-sm text-label-sm text-error">PRIORIDAD AOG-1</span>
+</div>
+<!-- Timecodes -->
+<div class="flex md:flex-col items-center md:items-end justify-between gap-1 text-right">
+<div class="font-telemetry-metric text-telemetry-metric text-error tracking-tight">14:12 <span class="text-sm font-normal text-on-surface-variant">UTC</span></div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">09:12 LOCAL (GMT-5)</div>
+</div>
+</div>
+<!-- Detail Message -->
+<div class="py-space-md space-y-space-sm">
+<p class="font-body-lg text-body-lg text-on-surface leading-relaxed">
+                Unidad <span class="font-bold text-on-surface">B737F HK-4890</span> reportó <span class="text-error font-medium">falla en presurización de bodega</span>. Aterrizaje técnico de emergencia ejecutado en Tocumen (<span class="font-label-code text-label-code text-primary">MPTO / PTY</span>). Requiere reasignación de carga urgente de 18.4 toneladas con destino final MIA.
+              </p>
+<!-- Diagnostic Telemetry Pills -->
+<div class="flex flex-wrap items-center gap-space-xs pt-1">
+<span class="bg-surface-container-lowest px-2.5 py-1 rounded font-label-code text-label-code text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-error">warning</span>
+                  Delta Presión: -4.2 PSI
+                </span>
+<span class="bg-surface-container-lowest px-2.5 py-1 rounded font-label-code text-label-code text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-primary">flight_land</span>
+                  Ruta Original: BOG → MIA
+                </span>
+<span class="bg-surface-container-lowest px-2.5 py-1 rounded font-label-code text-label-code text-tertiary flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">schedule</span>
+                  Impacto ETA: +4h 15m
+                </span>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="pt-space-sm flex flex-wrap items-center justify-between gap-space-sm">
+<div class="flex flex-wrap items-center gap-space-xs">
+<button class="action-btn px-space-sm py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface font-label-sm text-label-sm flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[16px] text-primary">picture_as_pdf</span>
+<span>Descargar reporte PDF/Telemetría</span>
+</button>
+<button class="action-btn px-space-sm py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface font-label-sm text-label-sm flex items-center gap-1.5 transition-colors" data-coords="09°04'N 079°23'W" data-modal="gps" data-unit="HK-4890">
+<span class="material-symbols-outlined text-[16px] text-secondary">explore</span>
+<span>Ver traza GPS</span>
+</button>
+</div>
+<button class="action-btn px-space-md py-1.5 rounded-lg bg-error hover:bg-error-container text-white font-label-badge text-label-badge uppercase flex items-center gap-1.5 transition-colors shadow-sm" data-modal="reassign" data-unit="HK-4890">
+<span class="material-symbols-outlined text-[16px]">swap_horiz</span>
+<span>Inspeccionar Reasignación</span>
+</button>
+</div>
+</article>
+<!-- REGISTRO 2: ALERTA METEOROLÓGICA -->
+<article class="event-card group relative bg-surface-container rounded-xl p-space-md shadow-md transition-all duration-200 hover:bg-surface-container-high" data-severity="alert" style="box-shadow: 0 0 0 1px #f59e0b, 0 0 12px rgba(245, 158, 11, 0.15);">
+<div class="flex flex-col md:flex-row md:items-start justify-between gap-space-sm pb-space-sm border-b border-surface-container-highest">
+<div class="flex items-center gap-space-sm flex-wrap">
+<span class="px-2.5 py-1 rounded bg-tertiary/20 text-tertiary font-label-badge text-label-badge flex items-center gap-1.5 uppercase font-bold">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+                  ALERTA METEOROLÓGICA
+                </span>
+<span class="font-label-code text-label-code text-on-surface font-bold bg-surface-container-lowest px-2 py-1 rounded">
+                  B767-300F · AC-702
+                </span>
+<span class="font-label-code text-label-code text-outline">AWB: 201-4491-8802</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high font-label-sm text-label-sm text-tertiary">RADAR WXR-ACTIVE</span>
+</div>
+<!-- Timecodes -->
+<div class="flex md:flex-col items-center md:items-end justify-between gap-1 text-right">
+<div class="font-telemetry-metric text-telemetry-metric text-tertiary tracking-tight">13:45 <span class="text-sm font-normal text-on-surface-variant">UTC</span></div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">08:45 LOCAL (GMT-5)</div>
+</div>
+</div>
+<div class="py-space-md space-y-space-sm">
+<p class="font-body-lg text-body-lg text-on-surface leading-relaxed">
+                Vuelo <span class="font-bold text-on-surface">AC-702</span> ejecutó <span class="text-tertiary font-medium">desvío preventivo por tormenta convectiva severa (CBs Nivel 4)</span> en ruta BOG-MDE. Nivel de vuelo mantenido FL280. ETA recalculado con incremento de <span class="font-bold text-tertiary">+38 minutos</span> hacia Rionegro.
+              </p>
+<div class="flex flex-wrap items-center gap-space-xs pt-1">
+<span class="bg-surface-container-lowest px-2.5 py-1 rounded font-label-code text-label-code text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-tertiary">thunderstorm</span>
+                  Vector Desvío: 30° Izq (Waypoint DILOK)
+                </span>
+<span class="bg-surface-container-lowest px-2.5 py-1 rounded font-label-code text-label-code text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-secondary">local_gas_station</span>
+                  Combustible de Reserva: 4,800 kg (Nominal)
+                </span>
+</div>
+</div>
+<div class="pt-space-sm flex flex-wrap items-center justify-between gap-space-sm">
+<div class="flex flex-wrap items-center gap-space-xs">
+<button class="action-btn px-space-sm py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface font-label-sm text-label-sm flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[16px] text-primary">picture_as_pdf</span>
+<span>Descargar reporte PDF/Telemetría</span>
+</button>
+<button class="action-btn px-space-sm py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface font-label-sm text-label-sm flex items-center gap-1.5 transition-colors" data-coords="05°42'N 075°18'W" data-modal="gps" data-unit="AC-702">
+<span class="material-symbols-outlined text-[16px] text-secondary">explore</span>
+<span>Ver traza GPS</span>
+</button>
+</div>
+<button class="action-btn px-space-md py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-bright text-primary font-label-badge text-label-badge uppercase flex items-center gap-1.5 transition-colors" data-modal="reassign" data-unit="AC-702">
+<span class="material-symbols-outlined text-[16px]">swap_horiz</span>
+<span>Inspeccionar Reasignación</span>
+</button>
+</div>
+</article>
+<!-- REGISTRO 3: NOMINAL / COMPLETADO SIN NOVEDAD -->
+<article class="event-card group relative bg-surface-container rounded-xl p-space-md shadow-md transition-all duration-200 hover:bg-surface-container-high" data-severity="ok" style="box-shadow: 0 0 0 1px #10b981, 0 0 10px rgba(16, 185, 129, 0.12);">
+<div class="flex flex-col md:flex-row md:items-start justify-between gap-space-sm pb-space-sm border-b border-surface-container-highest">
+<div class="flex items-center gap-space-sm flex-wrap">
+<span class="px-2.5 py-1 rounded bg-secondary/20 text-secondary font-label-badge text-label-badge flex items-center gap-1.5 uppercase font-bold">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+                  OPERACIÓN NOMINAL (OK)
+                </span>
+<span class="font-label-code text-label-code text-on-surface font-bold bg-surface-container-lowest px-2 py-1 rounded">
+                  TRANSPORTE · TRK-08
+                </span>
+<span class="font-label-code text-label-code text-outline">MANIFIESTO: ENLACE-772</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high font-label-sm text-label-sm text-secondary">A TIEMPO</span>
+</div>
+<!-- Timecodes -->
+<div class="flex md:flex-col items-center md:items-end justify-between gap-1 text-right">
+<div class="font-telemetry-metric text-telemetry-metric text-secondary tracking-tight">13:10 <span class="text-sm font-normal text-on-surface-variant">UTC</span></div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">08:10 LOCAL (GMT-5)</div>
+</div>
+</div>
+<div class="py-space-md space-y-space-sm">
+<p class="font-body-lg text-body-lg text-on-surface leading-relaxed">
+                Camión de plataforma pesada <span class="font-bold text-on-surface">TRK-08</span> completó exitosamente la entrega prioritaria de <span class="text-secondary font-medium">14 pallets aeronáuticos (ULD PMC)</span> en la terminal de carga internacional del aeropuerto El Dorado (BOG-CARGO HUB 1).
+              </p>
+<div class="flex flex-wrap items-center gap-space-xs pt-1">
+<span class="bg-surface-container-lowest px-2.5 py-1 rounded font-label-code text-label-code text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-secondary">check_circle</span>
+                  Cadena de Frío: 4.1°C (Conforme)
+                </span>
+<span class="bg-surface-container-lowest px-2.5 py-1 rounded font-label-code text-label-code text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-primary">inventory_2</span>
+                  Peso Total: 16,820 kg
+                </span>
+</div>
+</div>
+<div class="pt-space-sm flex flex-wrap items-center justify-between gap-space-sm">
+<div class="flex flex-wrap items-center gap-space-xs">
+<button class="action-btn px-space-sm py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface font-label-sm text-label-sm flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[16px] text-primary">picture_as_pdf</span>
+<span>Descargar reporte PDF/Telemetría</span>
+</button>
+<button class="action-btn px-space-sm py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface font-label-sm text-label-sm flex items-center gap-1.5 transition-colors" data-coords="04°42'N 074°08'W" data-modal="gps" data-unit="TRK-08">
+<span class="material-symbols-outlined text-[16px] text-secondary">explore</span>
+<span>Ver traza GPS</span>
+</button>
+</div>
+<button class="action-btn px-space-md py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface-variant font-label-badge text-label-badge uppercase flex items-center gap-1.5 transition-colors" data-modal="reassign" data-unit="TRK-08">
+<span class="material-symbols-outlined text-[16px]">swap_horiz</span>
+<span>Inspeccionar Reasignación</span>
+</button>
+</div>
+</article>
+<!-- REGISTRO 4: ALERTA ADMINISTRATIVA / ADUANERA -->
+<article class="event-card group relative bg-surface-container rounded-xl p-space-md shadow-md transition-all duration-200 hover:bg-surface-container-high" data-severity="alert" style="box-shadow: 0 0 0 1px #f59e0b, 0 0 10px rgba(245, 158, 11, 0.12);">
+<div class="flex flex-col md:flex-row md:items-start justify-between gap-space-sm pb-space-sm border-b border-surface-container-highest">
+<div class="flex items-center gap-space-sm flex-wrap">
+<span class="px-2.5 py-1 rounded bg-tertiary/20 text-tertiary font-label-badge text-label-badge flex items-center gap-1.5 uppercase font-bold">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+                  DEMORA DE DESPACHO
+                </span>
+<span class="font-label-code text-label-code text-on-surface font-bold bg-surface-container-lowest px-2 py-1 rounded">
+                  B767-300F · N-812AC
+                </span>
+<span class="font-label-code text-label-code text-outline">AWB: 201-3091-6677</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high font-label-sm text-label-sm text-tertiary">ADUANA CBP</span>
+</div>
+<!-- Timecodes -->
+<div class="flex md:flex-col items-center md:items-end justify-between gap-1 text-right">
+<div class="font-telemetry-metric text-telemetry-metric text-tertiary tracking-tight">12:20 <span class="text-sm font-normal text-on-surface-variant">UTC</span></div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">07:20 LOCAL (MIA EDT)</div>
+</div>
+</div>
+<div class="py-space-md space-y-space-sm">
+<p class="font-body-lg text-body-lg text-on-surface leading-relaxed">
+                Inspección de prevuelo demorada por <span class="text-tertiary font-medium">discrepancia en documentación aduanera en Miami (KMIA / MIA Ramp 3)</span>. Retraso acumulado de +55 min en liberación del manifiesto de exportación hacia Quito (UIO).
+              </p>
+<div class="flex flex-wrap items-center gap-space-xs pt-1">
+<span class="bg-surface-container-lowest px-2.5 py-1 rounded font-label-code text-label-code text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-tertiary">policy</span>
+                  Estatus: Revisión Secundaria CBP
+                </span>
+<span class="bg-surface-container-lowest px-2.5 py-1 rounded font-label-code text-label-code text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-primary">update</span>
+                  Slot de Salida Reprogramado: 13:30 UTC
+                </span>
+</div>
+</div>
+<div class="pt-space-sm flex flex-wrap items-center justify-between gap-space-sm">
+<div class="flex flex-wrap items-center gap-space-xs">
+<button class="action-btn px-space-sm py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface font-label-sm text-label-sm flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[16px] text-primary">picture_as_pdf</span>
+<span>Descargar reporte PDF/Telemetría</span>
+</button>
+<button class="action-btn px-space-sm py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface font-label-sm text-label-sm flex items-center gap-1.5 transition-colors" data-coords="25°47'N 080°17'W" data-modal="gps" data-unit="N-812AC">
+<span class="material-symbols-outlined text-[16px] text-secondary">explore</span>
+<span>Ver traza GPS</span>
+</button>
+</div>
+<button class="action-btn px-space-md py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-bright text-primary font-label-badge text-label-badge uppercase flex items-center gap-1.5 transition-colors" data-modal="reassign" data-unit="N-812AC">
+<span class="material-symbols-outlined text-[16px]">swap_horiz</span>
+<span>Inspeccionar Reasignación</span>
+</button>
+</div>
+</article>
+<!-- REGISTRO 5: NOMINAL / TURBOHÉLICE REGIONAL -->
+<article class="event-card group relative bg-surface-container rounded-xl p-space-md shadow-md transition-all duration-200 hover:bg-surface-container-high" data-severity="ok" style="box-shadow: 0 0 0 1px #10b981, 0 0 10px rgba(16, 185, 129, 0.12);">
+<div class="flex flex-col md:flex-row md:items-start justify-between gap-space-sm pb-space-sm border-b border-surface-container-highest">
+<div class="flex items-center gap-space-sm flex-wrap">
+<span class="px-2.5 py-1 rounded bg-secondary/20 text-secondary font-label-badge text-label-badge flex items-center gap-1.5 uppercase font-bold">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+                  OPERACIÓN NOMINAL (OK)
+                </span>
+<span class="font-label-code text-label-code text-on-surface font-bold bg-surface-container-lowest px-2 py-1 rounded">
+                  ATR-72-600F · HK-3201
+                </span>
+<span class="font-label-code text-label-code text-outline">AWB: 201-5120-1194</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high font-label-sm text-label-sm text-secondary">ATERRIZAJE FINAL</span>
+</div>
+<!-- Timecodes -->
+<div class="flex md:flex-col items-center md:items-end justify-between gap-1 text-right">
+<div class="font-telemetry-metric text-telemetry-metric text-secondary tracking-tight">11:50 <span class="text-sm font-normal text-on-surface-variant">UTC</span></div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">06:50 LOCAL (GMT-5)</div>
+</div>
+</div>
+<div class="py-space-md space-y-space-sm">
+<p class="font-body-lg text-body-lg text-on-surface leading-relaxed">
+                Aeronave turbohélice <span class="font-bold text-on-surface">ATR-72F HK-3201</span> completó aterrizaje en Pista 13R de El Dorado (BOG) <span class="text-secondary font-medium">según plan de vuelo IFR sin novedad</span>. Rodaje hacia plataforma de carga sur finalizado a las 11:58 UTC.
+              </p>
+<div class="flex flex-wrap items-center gap-space-xs pt-1">
+<span class="bg-surface-container-lowest px-2.5 py-1 rounded font-label-code text-label-code text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-secondary">flight_land</span>
+                  Ruta: Bucaramanga (BGA) → Bogotá (BOG)
+                </span>
+<span class="bg-surface-container-lowest px-2.5 py-1 rounded font-label-code text-label-code text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-outline">weight</span>
+                  Carga Desembarcada: 6,450 kg
+                </span>
+</div>
+</div>
+<div class="pt-space-sm flex flex-wrap items-center justify-between gap-space-sm">
+<div class="flex flex-wrap items-center gap-space-xs">
+<button class="action-btn px-space-sm py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface font-label-sm text-label-sm flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[16px] text-primary">picture_as_pdf</span>
+<span>Descargar reporte PDF/Telemetría</span>
+</button>
+<button class="action-btn px-space-sm py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface font-label-sm text-label-sm flex items-center gap-1.5 transition-colors" data-coords="04°42'N 074°08'W" data-modal="gps" data-unit="HK-3201">
+<span class="material-symbols-outlined text-[16px] text-secondary">explore</span>
+<span>Ver traza GPS</span>
+</button>
+</div>
+<button class="action-btn px-space-md py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-bright text-on-surface-variant font-label-badge text-label-badge uppercase flex items-center gap-1.5 transition-colors" data-modal="reassign" data-unit="HK-3201">
+<span class="material-symbols-outlined text-[16px]">swap_horiz</span>
+<span>Inspeccionar Reasignación</span>
+</button>
+</div>
+</article>
+</div>
+<!-- Empty state placeholder for filters -->
+<div class="hidden bg-surface-container-low rounded-xl p-space-xl text-center space-y-space-sm" id="no-results">
+<span class="material-symbols-outlined text-outline text-[40px]">search_off</span>
+<h3 class="font-headline-md text-headline-md text-on-surface">No se encontraron eventos coincidentes</h3>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-md mx-auto">
+            Ajuste los criterios de búsqueda, el selector de gravedad o verifique el filtro de ventana temporal seleccionado.
+          </p>
+</div>
+</div>
+</div>
+<!-- Modal Interactive Overlay: Traza GPS & Meteorología -->
+<div class="fixed inset-0 z-50 bg-surface-container-lowest/80 backdrop-blur-md hidden items-center justify-center p-space-md" id="gps-modal">
+<div class="bg-surface-container rounded-xl w-full max-w-3xl overflow-hidden shadow-2xl relative" style="box-shadow: 0 8px 32px rgba(0,0,0,0.8), 0 0 0 1px #334155;">
+<div class="px-space-md py-space-sm bg-surface-container-high flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-secondary text-[20px]">radar</span>
+<span class="font-headline-sm text-headline-sm text-on-surface">Inspección de Traza GPS &amp; Posición ADS-B</span>
+</div>
+<button class="w-8 h-8 rounded-lg bg-surface flex items-center justify-center text-on-surface hover:text-error transition-colors" id="close-gps-modal">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<div class="p-space-md space-y-space-md">
+<div class="flex flex-wrap items-center justify-between gap-space-sm text-sm">
+<div class="font-label-code text-label-code text-primary" id="gps-modal-unit">UNIDAD: CARGANDO...</div>
+<div class="font-label-code text-label-code text-secondary" id="gps-modal-coords">COORDENADAS: LAT/LON</div>
+</div>
+<div class="w-full h-72 rounded-lg bg-cover bg-center relative overflow-hidden" data-location="Tocumen International Airport, Panama" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCcwJtGaJ-Sred7F4qgvbFN3-UYaxZUzZZ0BcICwL5lkET-Zr6Pl45w4e0KzJuJsfQQKcgXk_EhXeC1ALQQ8gjHHRXQfaJlFcctughih_LnlYJqLdvYpAT-xMkZAJmE-IklZ27t1GnFwKn8N_9n4c9pY3l0CMCZjuqj9vSrMyudl1MKSu4BOGwJz8pz-mx6DeRNdTojDIrJ3tL1ki47ecBTvOhRg2aoFe7DC_6KDBQ');">
+<div class="absolute inset-0 bg-surface/30 backdrop-blur-[1px]"></div>
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="flex flex-col items-center gap-2 bg-surface-container-lowest/90 px-4 py-2.5 rounded-lg border border-primary/20 shadow-xl">
+<span class="w-3 h-3 rounded-full bg-secondary animate-ping"></span>
+<span class="font-label-badge text-label-badge text-on-surface uppercase">Vector Satelital Activo</span>
+<span class="font-label-code text-label-code text-primary">ADS-B Transponder 1090 MHz</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-space-sm text-center">
+<div class="bg-surface-container-lowest p-2 rounded-lg">
+<div class="font-label-sm text-label-sm text-outline">Velocidad Terrestre</div>
+<div class="font-telemetry-metric text-[18px] text-on-surface">432 kts</div>
+</div>
+<div class="bg-surface-container-lowest p-2 rounded-lg">
+<div class="font-label-sm text-label-sm text-outline">Altitud Barométrica</div>
+<div class="font-telemetry-metric text-[18px] text-primary">FL240</div>
+</div>
+<div class="bg-surface-container-lowest p-2 rounded-lg">
+<div class="font-label-sm text-label-sm text-outline">Rumbo Magnético</div>
+<div class="font-telemetry-metric text-[18px] text-secondary">312° NW</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Modal Interactive Overlay: Inspeccionar Reasignación -->
+<div class="fixed inset-0 z-50 bg-surface-container-lowest/80 backdrop-blur-md hidden items-center justify-center p-space-md" id="reassign-modal">
+<div class="bg-surface-container rounded-xl w-full max-w-2xl overflow-hidden shadow-2xl relative" style="box-shadow: 0 8px 32px rgba(0,0,0,0.8), 0 0 0 1px #334155;">
+<div class="px-space-md py-space-sm bg-surface-container-high flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary text-[20px]">swap_horizontal_circle</span>
+<span class="font-headline-sm text-headline-sm text-on-surface">Protocolo de Reasignación Logística</span>
+</div>
+<button class="w-8 h-8 rounded-lg bg-surface flex items-center justify-center text-on-surface hover:text-error transition-colors" id="close-reassign-modal">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<div class="p-space-md space-y-space-md">
+<div class="bg-surface-container-lowest p-space-sm rounded-lg flex items-center justify-between">
+<div>
+<span class="font-label-sm text-label-sm text-outline uppercase">Aeronave / Unidad Afectada</span>
+<div class="font-headline-sm text-headline-sm text-error" id="reassign-modal-unit">HK-4890</div>
+</div>
+<span class="font-label-badge text-label-badge px-2 py-1 rounded bg-error/20 text-error">CONTINGENCIA AOG</span>
+</div>
+<div class="space-y-space-xs">
+<label class="font-label-sm text-label-sm text-on-surface-variant uppercase">Seleccionar Unidad de Relevo Disponible</label>
+<div class="space-y-2">
+<label class="flex items-center justify-between p-3 rounded-lg bg-surface-container-lowest hover:bg-surface-container-high cursor-pointer transition-colors">
+<div class="flex items-center gap-3">
+<input checked="" class="accent-primary h-4 w-4" name="reassign-option" type="radio"/>
+<div>
+<div class="font-label-code text-label-code text-on-surface font-bold">HK-5192 (B767-300F)</div>
+<div class="font-body-sm text-body-sm text-secondary">Disponible en Tocumen (PTY) · Tiempo rampa: 45 min</div>
+</div>
+</div>
+<span class="font-label-badge text-label-badge text-primary">CAP: 52 Ton</span>
+</label>
+<label class="flex items-center justify-between p-3 rounded-lg bg-surface-container-lowest hover:bg-surface-container-high cursor-pointer transition-colors">
+<div class="flex items-center gap-3">
+<input class="accent-primary h-4 w-4" name="reassign-option" type="radio"/>
+<div>
+<div class="font-label-code text-label-code text-on-surface font-bold">HK-4401 (B737-400F)</div>
+<div class="font-body-sm text-body-sm text-tertiary">En tránsito BOG → PTY · ETA PTY: 15:30 UTC</div>
+</div>
+</div>
+<span class="font-label-badge text-label-badge text-primary">CAP: 20 Ton</span>
+</label>
+</div>
+</div>
+<div class="pt-space-sm flex items-center justify-end gap-space-sm">
+<button class="px-space-md py-2 rounded-lg bg-surface-container-high text-on-surface font-label-badge text-label-badge uppercase hover:bg-surface-bright transition-colors" id="cancel-reassign">
+              Cancelar
+            </button>
+<button class="px-space-md py-2 rounded-lg bg-primary-container text-on-primary-container font-headline-sm text-headline-sm hover:bg-primary transition-colors flex items-center gap-1.5 shadow-md" id="confirm-reassign">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+<span>Emitir Orden de Transbordo</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Notification Toast (Feedback) -->
+<div class="fixed bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 pointer-events-none" id="toast">
+<div class="bg-surface-container-high border border-primary/30 text-on-surface px-space-md py- space-sm rounded-xl shadow-2xl flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-secondary" id="toast-icon">check_circle</span>
+<span class="font-body-md text-body-md" id="toast-message">Notificación</span>
+</div>
+</div>
+</div>
+</div>
+</main></div><script src="app.js"></script>
 </body>
 </html>
