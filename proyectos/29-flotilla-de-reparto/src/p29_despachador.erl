@@ -236,9 +236,9 @@ arrancar_envio(Datos) ->
 
 %% Generacion determinista de envios (reemplaza datos_entrega)
 datos_envio(I) ->
-  %% Test override: if capacidad_kg is set, generate very small weights
-  %% so all envios are easily assignable (test is about assignment logic, not capacity)
-  Peso = case application:get_env(p29_flotilla_de_reparto, capacidad_kg) of
+  %% Solo las suites de test usan pesos pequenos (flota homogenea): el
+  %% escenario comprueba asignacion, no capacidad.
+  Peso = case application:get_env(p29_flotilla_de_reparto, flota_uniforme_kg) of
            {ok, _Cap} when is_integer(_Cap), _Cap > 0 ->
              100 + (erlang:phash2(I) rem 400);  %% 100-499 kg (test: all fit easily)
            _ ->
@@ -295,7 +295,18 @@ tipo_aeronave_aleatorio(Seed) ->
 procesar_tick(N, State) ->
   State1 = watchdog(N, State),
   completar_llegadas(N),
-  State1#{tick := N}.
+  State2 = reintentar_pendientes(N, State1),
+  State2#{tick := N}.
+
+%% Al mismo ritmo que las entregas (ticks_por_parada) se libera capacidad de
+%% bodega; es el momento de reintentar los envios que quedaron esperando.
+reintentar_pendientes(N, State) ->
+  TicksParada = application:get_env(p29_flotilla_de_reparto, ticks_por_parada, 60),
+  case N rem TicksParada =:= 0
+       andalso p29_datos:envios_por_estado(pendiente) =/= [] of
+    true -> reasignar_ahora(State);
+    false -> State
+  end.
 
 %% detecta aeronaves caidas (proceso muerto) y aeronaves sin reportar ADS-B
 watchdog(N, State) ->
@@ -343,10 +354,9 @@ completar_llegadas_ahora(N) ->
             R = rand:uniform(),
             if
               R < ProbaDesvio ->
-                %% Desvio a alterno: reasignar a otra aeronave
-                p29_envio:fallar(Pid, desvio_meteo),
-                %% El despachador la reasignara en el proximo tick
-                ok;
+                %% Desvio a alterno: vuelve a pendiente y el despachador la
+                %% reasigna en el siguiente reintento (nunca queda fallida).
+                p29_envio:devolver(Pid);
               R < ProbaDesvio + ProbaFallida ->
                 p29_envio:fallar(Pid, cliente_ausente);
               true ->
@@ -465,7 +475,13 @@ reasignar_ahora(State = #{reasignaciones := Cont, arranque_asignado := Arrancado
           {Delta, CargasAcc2} =
             case buscar_cupo(Envio, CargasAcc) of
               undefined ->
-                p29_envio:fallar(pid_de(Envio), sin_cupo),
+                %% Sin cupo ahora no es un fallo definitivo: si algun tipo de
+                %% la flota puede volar la ruta, el envio se queda pendiente y
+                %% se reintenta cuando las entregas liberen capacidad.
+                case ruta_cubierta(Envio) of
+                  true -> ok;
+                  false -> p29_envio:fallar(pid_de(Envio), sin_cupo)
+                end,
                 {0, CargasAcc};
               Aid ->
                 p29_envio:asignar(pid_de(Envio), Aid, TickAsignacion),
@@ -474,7 +490,13 @@ reasignar_ahora(State = #{reasignaciones := Cont, arranque_asignado := Arrancado
                 CargasAccN = maps:update_with(
                   Aid, fun(N) -> N + peso_de(Envio) end,
                   peso_de(Envio), CargasAcc),
-                {1, CargasAccN}
+                %% Solo cuenta reasignacion si el envio ya habia volado:
+                %% el primer despacho de la cola de espera no lo es.
+                DeltaN = case maps:get(tick_asignado, Envio, undefined) of
+                           undefined -> 0;
+                           _ -> 1
+                         end,
+                {DeltaN, CargasAccN}
             end,
           case Tipo of
             reasignacion -> {Acc + Delta, CargasAcc2};
@@ -506,6 +528,13 @@ buscar_cupo(Envio, Cargas) ->
     [] -> undefined;
     [{_CargaMinima, Aid, _Cap} | _] -> Aid
   end.
+
+%% Hay al menos un tipo de la flota que puede volar la ruta del envio
+%% (capacidad > 0, techo y alcance suficientes), aunque hoy este llena.
+ruta_cubierta(Envio) ->
+  Ruta = p29_datos:ruta(maps:get(ruta_id, Envio)),
+  lists:any(fun(Fila) -> compatible_con_ruta(Fila, Ruta) end,
+            p29_datos:aeronaves_todas()).
 
 compatible_con_ruta(#{tipo := Tipo, capacidad := Cap}, #{distancia_nm := Dist, fl_optimo := FL}) ->
   %% Verificar que la aeronave puede volar la ruta

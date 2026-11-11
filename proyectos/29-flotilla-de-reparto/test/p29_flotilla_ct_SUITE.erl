@@ -33,7 +33,7 @@ init_per_suite(Config) ->
        {ticks_jornada, 500000},             %% la jornada no cierra en la suite
        {ticks_por_parada, 999999},          %% nada se entrega a medio test
        {sin_senal_ticks, 60}, {prob_fallida, 0.0},
-       {capacidad_kg, 6000}, {asignar_al_inicio, true}]),
+       {flota_uniforme_kg, 6000}, {asignar_al_inicio, true}]),
     {ok, _} = application:ensure_all_started(?APP),
     Puerto = ranch:get_port(p29_web_http),
     inets:start(),

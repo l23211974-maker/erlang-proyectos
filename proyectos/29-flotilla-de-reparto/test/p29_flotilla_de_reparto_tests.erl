@@ -20,7 +20,7 @@ arrancar(EnvsExtra) ->
      {aeronaves, 2}, {envios, 12}, {reloj_auto, false},
      {tick_interval_ms, 3600000}, {prob_fallida, 0.0}, {prob_desvio, 0.0},
      {sin_senal_ticks, 100}, {ticks_por_parada, 999999},
-     {capacidad_kg, 6000}, {asignar_al_inicio, true},
+     {flota_uniforme_kg, 6000}, {asignar_al_inicio, true},
      %% web en puerto efimero: cada escenario levanta su propio cowboy
      {web_port, 0}
     ] ++ EnvsExtra),

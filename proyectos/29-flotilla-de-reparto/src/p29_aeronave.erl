@@ -226,8 +226,8 @@ mover_en_ruta(Fila, _Tick) ->
 
 %% Deterministic aircraft type assignment
 tipo_por_id(Id) ->
-  %% Test override: if capacidad_kg is set, use uniform capacity for testing
-  case application:get_env(p29_flotilla_de_reparto, capacidad_kg) of
+  %% Solo las suites de test piden flota homogenea (tipos reales fuera).
+  case application:get_env(p29_flotilla_de_reparto, flota_uniforme_kg) of
     {ok, Cap} when is_integer(Cap), Cap > 0 ->
       {test_uniform, Cap};
     _ ->
