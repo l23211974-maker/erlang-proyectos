@@ -177,7 +177,7 @@ Tomadas con Chromium headless (Playwright) contra el release desplegado en la RP
 | Bitácora con modal de reasignación | ![](docs/capturas/04b-bitacora-modal.png) |
 | Configuración | ![](docs/capturas/05-configuracion.png) |
 
-La cabecera ya no arrastra las cifras de la maqueta: unidades activas, alertas y operatividad se reescriben desde el SSE (antes decía «42 unidades» fijo mientras el KPI marcaba 15). Queda pendiente que `configuracion.html` lea las claves reales (`aeronaves`/`envios`) en vez de las legacy `vehiculos`/`entregas`.
+La cabecera ya no arrastra las cifras de la maqueta: unidades activas, alertas y operatividad se reescriben desde el SSE (antes decía «42 unidades» fijo mientras el KPI marcaba 15), y el panel de configuración muestra las llaves reales de `sys.config` (`aeronaves`/`envios`, no `vehiculos`/`entregas`).
 
 ### Optimizaciones de rendimiento (app.js)
 
@@ -295,7 +295,7 @@ Se mató un proceso de cada capa con `exit(Pid, kill)` contra la app real y se m
 - ~~Modelo de retraso~~: ventanas repartidas sobre la jornada; `retraso_medio` ≈ 12 min en vez de 2.7 h.
 - ~~Endurecer systemd~~: `Restart=always`, `StartLimit`, `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=full`, timeouts y logrotate (`deploy/`). Verificado en la RPi: `KILL` → arriba en 12 s con HTTP 200.
 - ~~Cookie fuera del repo~~: `-setcookie ${P29_COOKIE}` sustituido por relx en runtime; la cookie vive en `/etc/p29-flotilla.env` (chmod 600). Verificado: cookie nueva `pong`, la vieja `pang`.
-- ~~Verificar OTP 25~~: job `test-p29-otp25` del CI (compile + eunit + ct en OTP 25), porque `curso-plf` ya no está disponible.
+- ~~Verificar OTP 25~~: compila y pasa **12/12 eunit + 3/3 ct** con OTP 25.3.2.8 (erts 13.2.2.5) en WSL, instalado con kerl y un rebar3 3.24.0 compilado con ese mismo OTP (`--disable-jit`, `CFLAGS=-std=gnu17`: GCC 15 rompe OTP 25 por el `bool` de C23). El job `test-p29-otp25` del CI queda como red de seguridad.
 - ~~Capturas~~: seis capturas reales en [`docs/capturas/`](docs/capturas) enlazadas arriba.
 
 **Pendiente**
@@ -304,8 +304,8 @@ Se mató un proceso de cada capa con `exit(Pid, kill)` contra la app real y se m
 2. **Cobertura de dominio**: `p29_meteo`, `p29_transbordo` y `p29_ruta_vectorial` no tienen test directo (sí se ejercitan desde `eunit`/`ct`).
 3. **Estrangular el SSE** cuando termina `ticks_jornada` (hoy sigue a 30 Hz con la flota idle).
 4. **Seguridad restante**: contraseña por defecto del Pi (`pi`/`raspberry`); la cookie ya no está en el repo.
-5. **Código legacy**: `p29_vehiculo`, `p29_entrega`, `p29_flota_sup` y `p29_entregas_sup` ya no están en el árbol de supervisión (quedaron del pivot tierra→aire); decidir si se borran o se marcan `deprecated`. `configuracion.html` todavía lee las claves legacy `vehiculos`/`entregas`.
-6. **UI**: `configuracion.html` sigue leyendo las claves legacy `vehiculos`/`entregas`; la cabecera ya está arreglada (`app.js` la pinta desde el SSE).
+5. **Código legacy**: `p29_vehiculo`, `p29_entrega`, `p29_flota_sup` y `p29_entregas_sup` ya no están en el árbol de supervisión (quedaron del pivot tierra→aire); decidir si se borran o se marcan `deprecated` (`p29_entregas_sup` arranca un `p29_entrega` que llama a `p29_despachador:reportar_gps/4`, función que no existe).
+6. **UI**: repintar el mapa sin mover los tooltips abiertos y revisar los textos fijos que quedan en KPIs («vectores CB en Golfo MEX»).
 
 ---
 
