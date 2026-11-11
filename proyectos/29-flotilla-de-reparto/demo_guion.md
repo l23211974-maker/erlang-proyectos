@@ -52,11 +52,11 @@ ssh -J <token>@proxy.app.avh.corellium.com -L 8080:127.0.0.1:8080 pi@10.11.0.3
      atiende antes que los demás (urgente primero en el greedy);
    - si piden la jornada COMPLETA en vivo: `rebar3 shell` +
      `p29_simulador:demo().` (~72 s), o mostrar el resumen del log del
-     servicio con `demo fin de jornada:` (entregada 810, fallida 91, 31
-     reasignaciones, retraso medio 983, invariantes ok).
+     servicio con `demo fin de jornada:` (entregada 814, fallida 87, 23
+     reasignaciones, retraso medio 73 ticks ≈ 12 min, invariantes ok).
 
 4. **La calidad técnica (2 min).** En terminal:
-   - `rebar3 eunit` — 11 casos, 0 fallos, en 9 escenarios del dominio;
+   - `rebar3 eunit` — 12 casos, 0 fallos, en 9 escenarios del dominio;
    - `rebar3 ct` — 3 casos de integración contra la app completa
      (estáticos, `/api/*`, caos por HTTP y la regresión del crash del SSE);
    - `/metrics` en el dashboard (Prometheus) y `recon` para diagnóstico;

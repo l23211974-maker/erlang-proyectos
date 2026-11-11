@@ -15,6 +15,8 @@
 - [API y Endpoints web](#api-y-endpoints-web)
 - [Diseño visual (Stitch)](#diseño-visual-stitch)
 - [Pantallas implementadas](#pantallas-implementadas)
+- [Supuestos y cifras verificadas](#supuestos-y-cifras-verificadas)
+- [Prueba de caos](#prueba-de-caos)
 - [Despliegue en Raspberry Pi](#despliegue-en-raspberry-pi)
 - [Referencias](#referencias)
 
@@ -58,7 +60,7 @@ Todos los comandos se ejecutan **desde la raíz del proyecto** (`C:\Users\Max\de
 
 ```powershell
 rebar3 compile      # warnings_as_errors: un solo warning rompe el build
-rebar3 eunit        # 11 casos en 9 escenarios (árbol, asignación, statem, avería, señal, caos, demo, web)
+rebar3 eunit        # 12 casos en 9 escenarios (árbol, asignación, statem, avería, señal, caos, demo, web, adsb)
 rebar3 ct           # 3 casos de integración (app completa: estáticos, /api/*, regresión SSE)
 rebar3 shell        # web en :8080 + de aquí: p29_simulador:demo().
 ```
@@ -156,7 +158,11 @@ p29_flotilla_reasignaciones_total
 |---|---|---|
 | `priv/static/index.html` | Dashboard | Consola de mando, 4 KPIs tácticos, mapa vectorial multimodal, tabla de flota activa con filtros, terminal de alertas |
 | `priv/static/unidad.html` | Detalle Aeronave | Cabecera aeronave, 6 gauges telemetría (Altitud, Vel. Tierra, Heading, V/S, Combustible, Carga Útil), manifiesto crítico, panel decisión reasignación (radio options + calculador impacto), mapa radar con fixes de decisión, intercom ACARS |
+| `priv/static/unidad-enfocada.html` | Detalle Enfocado | Variante de foco de la ficha de unidad: una sola aeronave a pantalla completa, para seguir un desvío o una avería en la demo |
 | `priv/static/historial.html` | Bitácora/Alertas | Filtros tácticos (búsqueda, severidad, ventana temporal, segmento), 3 KPIs (MTTR, OTP, Safety), stream cronológico de eventos con modales GPS/Reasignación, export IFR |
+| `priv/static/configuracion.html` | Configuración | Panel de parámetros de la simulación y de las familias Prometheus, sin tocar `sys.config` a mano |
+
+Las cinco pantallas se generan desde las maquetas de Stitch con `tools/stitch_port/port.py` y se hidratan con `priv/static/app.js` (dispatcher por `body[data-page]`).
 
 ### Optimizaciones de rendimiento (app.js)
 
@@ -173,6 +179,66 @@ p29_flotilla_reasignaciones_total
 - **Visibility change handling** - pausa rendering cuando tab hidden
 
 **Resultado:** Elimina congelación de botones, asegura respuesta inmediata de UI bajo carga pesada de datos SSE.
+
+---
+
+## Supuestos y cifras verificadas
+
+La consigna pide separar lo que viene del enunciado de lo que asumimos nosotros, y verificar las fuentes vivas antes de citar cifras. Esto es lo que usa esta implementación.
+
+### Cifras del enunciado
+
+| Cifra | Valor usado | Dónde vive | Verificación |
+|---|---|---|---|
+| Última milla = más de la mitad del costo del envío | 53 % del costo total (2023) | Contexto, no parámetro | **Verificado**: World Economic Forum, *Transforming Urban Logistics* (2024), p. 4: 53 % en 2023, desde 41 % en 2018 |
+| Entregas fallidas | 5–15 % → **10 %** | `prob_fallida` en `config/sys.config` | Enunciado. Contraste: fallo en primer intento 8–20 % (FreightWaves/HBR, recogido por SmartRoutes 2024) y 8 % en reparto doméstico (Enterprise Times, 2021). El 10 % elegido cae dentro de ambos rangos |
+| Entregas por unidad y día | 60–150 → **60** (900 envíos / 15 unidades) | `envios` y `aeronaves` en `sys.config` | Enunciado. Se toma el extremo bajo porque la jornada simulada es de 6 h, no de un turno completo |
+| Tiempo por parada | 2–5 min → **6 min** | `ticks_por_parada = 36` (36 × 10 s) | Enunciado. El modelo suma conducción entre waypoints, por eso queda por encima del rango de servicio puro |
+| Telemetría GPS | cada 5–15 s → **10 s** | `tick_interval_ms = 33` + 1 tick = 10 s simulados | Enunciado |
+| Ventanas de entrega ("entre 2 y 4 pm") | ventanas de **1–3 h** repartidas en la jornada | `p29_despachador:ventana_aleatoria/1` | Enunciado. Duraciones menores generaban un retraso medio irreal (ver «Modelo de ventanas») |
+| VRP es NP-difícil: solución buena y rápida | **greedy first-fit**, O(envíos × unidades) por pasada | `p29_despachador` | Enunciado |
+| Escenario | 15 unidades, 900 envíos, avería a las 11 a. m. (46 % de la jornada), urgente a media jornada (75 %) | `sys.config` + `p29_simulador` | Enunciado |
+
+### Supuestos propios
+
+1. **Jornada de 6 h (08:00–14:00) = 2160 ticks** de 10 s, comprimida a ~33 ms por tick (×300). La jornada termina en `ticks_jornada`; la simulación sigue drenando la cola, como un día real con entregas en vuelo.
+2. **Pivot aéreo**: el escenario original es de última milla terrestre. Se conserva la topología (unidades, envíos, reasignación, ventanas, capacidad) y se cambia el vehículo por flota AeroCargo (B767, B737, ATR-72, B777, A330) con waypoints IATA y rutas Great Circle.
+3. **Capacidad por tipo de aeronave** (kg de bodega). Si el envío no cabe, queda `pendiente` en cola y se reintenta cada `ticks_por_parada`; solo es `fallida/sin_cupo` si ningún tipo de la flota cubre la ruta.
+4. **Fallo de entrega**: 10 % determinista por `phash2(id)`. El envío fallido **no** se reprograma (no hay segundo intento). Es una simplificación consciente: modelar el reintento duplicaría el costo sin cambiar la lección de reasignación.
+5. **Desvío por meteo**: `prob_desvio` devuelve el envío a `pendiente` (nunca directo a `fallida`), para que el despachador lo reasigne.
+6. **Un hub por ruta**; el transbordo ocurre en el waypoint intermedio con mayor ahorro y se registra en la tabla de transbordos.
+7. **Hueco de conectividad**: `sin_senal_ticks = 6` (60 s sin GPS) dispara alerta y reasignación; al reconectar se descarta el reporte más viejo (el más nuevo manda).
+8. **Determinismo total**: flota, pesos, rutas, ventanas y fallos salen de `erlang:phash2`, nunca de `rand`. La misma corrida produce las mismas cifras.
+
+### Modelo de ventanas (corregido 2026-11-11)
+
+Las ventanas se generaban en los ticks 20–408 sobre una jornada de 2160, así que casi toda entrega quedaba "tarde" contra una ventana que había cerrado en el primer 19 % del día, y `retraso_medio` trepaba a ~972 ticks (2.7 h). Ahora `ventana_aleatoria/1` reparte el inicio sobre `ticks_jornada` con duración de 1–3 h.
+
+### Corrida de referencia (RPi 4, OTP 27.3.4.19, `config/sys.config`)
+
+| Métrica | Valor |
+|---|---|
+| Entregadas / fallidas | 814 / 87 sobre 901 envíos (90.3 % / 9.7 %) |
+| Reasignaciones | 23 |
+| Retraso medio | **73 ticks ≈ 12 min** |
+| Invariantes | `ok` |
+| Transbordos | 0 en esta corrida (el escenario no fuerza un hub intermedio) |
+
+---
+
+## Prueba de caos
+
+Se mató un proceso de cada capa con `exit(Pid, kill)` contra la app real y se midió qué pasó. Detalle completo, comandos de reproducción y salida cruda en [`docs/prueba-de-caos.md`](docs/prueba-de-caos.md).
+
+| Qué se mató | Qué se esperaba | Qué ocurrió |
+|---|---|---|
+| `p29_aeronave` (unidad 3) | El supervisor la relanza vacía; el despachador reasigna su carga | Recreada en **101 ms**; `invariantes: ok`; la entrega siguió avanzando |
+| `p29_envio` (gen_statem) | El despachador detecta el `'DOWN'` y reasigna; el supervisor relanza el proceso | Reasignación +1; 900 hijos vivos; `invariantes: ok` |
+| `p29_despachador` | `rest_for_one` reinicia despachador y todo lo que está después | Reiniciado en **101 ms**, pero **la jornada vuelve a empezar** (entregadas 357 → 12): el estado vive en los procesos hijos, no en ETS |
+| `p29_web` | La web es un observador: cae sola y el dominio sigue | HTTP 200 de nuevo en **24 ms**; entregadas 354 → 366 sin pausa |
+| `p29_datos` | Dueño de las tablas ETS: `rest_for_one` reinicia todo el árbol | Todo el árbol arriba en **101 ms**; simulación desde cero (tick 61), `invariantes: ok` |
+
+**Conclusión honesta**: el árbol sobrevive a cualquier muerte y nunca deja envíos huérfanos ni duplicados (`invariantes: ok` en los cinco casos). La debilidad conocida es que el estado de la jornada es **en memoria**: perder `p29_datos` o `p29_despachador` reinicia la simulación. Para una demo es aceptable; para producción pediría persistencia o un árbol que aísle el estado del dominio.
 
 ---
 
@@ -206,10 +272,23 @@ p29_flotilla_reasignaciones_total
 
 ## Próximos pasos
 
-1. **Actualizar sys.config** con parámetros de aviación reales (waypoints AIP, FL máximos por tipo, kts por régimen, payload tons, SLA ventanas, meteo SIGMET)
-2. **Tests de caos extendidos**: pérdida de señal ADS-B por sector, meteo severa generalizada, fallo de hub principal
-3. **Verificar OTP 25**: `rebar3 compile` + `rebar3 eunit` en curso-plf antes de merge
-4. **Desplegar en Pi**: validar release, systemd, métricas, SSE en vivo
+**Hecho**
+
+- ~~Desplegar en Pi~~: release autocontenido (ERTS embebido), `systemd`, métricas y SSE en vivo verificados en la RPi.
+- ~~Supuestos y cifras verificadas~~: sección propia en este README, con las fuentes del enunciado contrastadas.
+- ~~Prueba de caos~~: cinco escenarios con evidencia en [`docs/prueba-de-caos.md`](docs/prueba-de-caos.md).
+- ~~Modelo de retraso~~: ventanas repartidas sobre la jornada; `retraso_medio` ≈ 12 min en vez de 2.7 h.
+
+**Pendiente**
+
+1. **Tests de caos automatizados**: los cinco escenarios de `docs/prueba-de-caos.md` corren a mano; pasarlos a `p29_flotilla_ct_SUITE` (pérdida de señal ADS-B por sector, meteo severa generalizada, fallo de hub principal).
+2. **Verificar OTP 25**: `rebar3 compile` + `rebar3 eunit` en curso-plf antes de merge, y agregar la matriz `otp-version: ["25","27"]` al CI.
+3. **Cobertura de dominio**: `p29_meteo`, `p29_transbordo` y `p29_ruta_vectorial` no tienen test directo (sí se ejercitan desde `eunit`/`ct`).
+4. **Endurecer systemd**: `Restart=always`, `WatchdogSec`, rotación de logs de `run_erl`.
+5. **Estrangular el SSE** cuando termina `ticks_jornada` (hoy sigue a 30 Hz con la flota idle).
+6. **Seguridad**: cambiar la cookie `cambiar_en_produccion` de `config/vm.args` y la contraseña por defecto del Pi antes de exponerlo.
+7. **Capturas**: guardar en `docs/` screenshots de las cinco pantallas y de las maquetas de Stitch para la entrega escrita.
+8. **Código legacy**: `p29_vehiculo`, `p29_entrega`, `p29_flota_sup` y `p29_entregas_sup` ya no están en el árbol de supervisión (quedaron del pivot tierra→aire); decidir si se borran o se marcan `deprecated`.
 
 ---
 
