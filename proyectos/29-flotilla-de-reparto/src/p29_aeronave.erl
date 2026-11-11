@@ -36,7 +36,8 @@ modo(Id) ->
 
 %% ---- API para despachador: asignar ruta y carga ------------------------------
 
-%% Called by despachador when assigning a shipment
+%% Called by despachador when assigning a shipment. La ruta es el mapa de
+%% p29_ruta_vectorial (waypoints + FL optimo); el FL se mantiene en crucero.
 asignar_ruta(Id, Ruta, PayloadKg) ->
   gen_server:cast(nombre(Id), {asignar_ruta, Ruta, PayloadKg}).
 
@@ -86,19 +87,20 @@ handle_call(desconocido, _From, State) ->
   {reply, {error, desconocido}, State}.
 
 handle_cast({asignar_ruta, Ruta, PayloadKg}, State = #{id := Id}) ->
-  %% Take off: set initial position to first waypoint, climb to FL
-  %% Ruta contains waypoint IDs (binaries); look up coordinates
-  [PrimeroID | _] = Ruta,
-  case p29_datos:waypoint(PrimeroID) of
-    undefined ->
-      %% Fallback: use default MEX coordinates
-      {Lat, Lon, FL} = {19.4363, -99.0721, 250};
-    #{coord := {Lat, Lon, Elev}} ->
-      FL = Elev
-  end,
+  %% Take off: set initial position to first waypoint at the route cruise FL.
+  %% Ruta contiene waypoint IDs (binaries); look up coordinates.
+  #{waypoints := [PrimeroID | _] = Waypoints, fl_optimo := FLOptimo} = Ruta,
+  {Lat, Lon} =
+    case p29_datos:waypoint(PrimeroID) of
+      undefined ->
+        %% Fallback: use default MEX coordinates
+        {19.4363, -99.0721};
+      #{coord := {LatWP, LonWP, _ElevFt}} ->
+        {LatWP, LonWP}
+    end,
   p29_datos:aeronave_actualizar(Id, #{
-    pos => {Lat, Lon}, fl => FL, gs => 400,
-    waypoint_actual => PrimeroID, ruta => Ruta,
+    pos => {Lat, Lon}, fl => FLOptimo, gs => 400,
+    waypoint_actual => PrimeroID, ruta => Waypoints,
     estado => en_ruta, payload_kg => PayloadKg,
     combustible_pct => 100
   }),
@@ -208,12 +210,11 @@ mover_en_ruta(Fila, _Tick) ->
           %% Fallback: stay at current position
           {PosActual, FLActual, GSActual, WPActual,
            max(0, Combustible - 0.5), Payload, Rest};
-        #{coord := {Lat, Lon, Elev}} ->
-          FL_WP = Elev,
+        #{coord := {Lat, Lon, _ElevFt}} ->
           %% Calculate bearing and distance (simplified for simulation)
           {NuevaLat, NuevaLon} = interpolar_hacia(PosActual, {Lat, Lon}, GSActual),
-          %% Adjust FL towards target FL
-          NuevoFL = ajustar_fl(FLActual, FL_WP),
+          %% FL constante en crucero (el waypoint trae elevacion en pies, no FL)
+          NuevoFL = FLActual,
           %% GS varies slightly with wind/conditions, clamped to limits
           NuevaGS = clamp(GSActual + (erlang:phash2({turbulencia, _Tick}) rem 20) - 10,
                           ?GS_MIN, ?GS_MAX),
@@ -262,14 +263,6 @@ distancia_nm({Lat1, Lon1}, {Lat2, Lon2}) ->
       math:sin(DLon/2)*math:sin(DLon/2) * math:cos(Lat1Rad) * math:cos(Lat2Rad),
   C = 2 * math:atan2(math:sqrt(A), math:sqrt(1-A)),
   R * C.
-
-ajustar_fl(Actual, Objetivo) ->
-  Diff = Objetivo - Actual,
-  case Diff of
-    D when D > 10 -> Actual + 10;
-    D when D < -10 -> Actual - 10;
-    _ -> Objetivo
-  end.
 
 clamp(V, Min, Max) -> max(Min, min(Max, V)).
 

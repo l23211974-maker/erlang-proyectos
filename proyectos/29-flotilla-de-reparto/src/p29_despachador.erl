@@ -561,9 +561,8 @@ alcance_por_tipo(_) -> 2000.
 asignar_ruta_aeronave(Aid, Envio) ->
   RutaId = maps:get(ruta_id, Envio),
   Ruta = p29_datos:ruta(RutaId),
-  Waypoints = maps:get(waypoints, Ruta),
   PayloadKg = maps:get(peso_kg, Envio),
-  p29_aeronave:asignar_ruta(Aid, Waypoints, PayloadKg).
+  p29_aeronave:asignar_ruta(Aid, Ruta, PayloadKg).
 
 %% ---- transbordo --------------------------------------------------------------------
 
