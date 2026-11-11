@@ -68,6 +68,16 @@ rebar3 release      # _build/default/rel/p29_flotilla_de_reparto (NO prod: ver d
   `design/Plantilla Flotilla de Reparto/aeroterra_dispatch_telematics/DESIGN.md`; **no**
   en `design/DESIGN.md`, que no existe. Los `code.html` son Tailwind por CDN con
   `onclick` inline: se portan a estáticos de cowboy, no se sirven tal cual.
+- **Port completo de AeroCargo (2026-11-10)**: las 5 pantallas viven en
+  `priv/static/` (`index`, `unidad`, `unidad-enfocada`, `historial`,
+  `configuracion`) y las genera/actualiza `tools/stitch_port/port.py`; el CSS sale
+  de `tools/stitch_port/gen_css.py` → `priv/static/stitch.css` (no editar a mano).
+  `app.js` es la única hoja de hidratación y decide por `body[data-page]`
+  (`monitoreo-en-vivo`, `detalle-de-unidad-y-reasignacion`, `detalle-enfocado`,
+  `bitacora-y-alertas`, `configuracion`). Los `script` inline de las maquetas se
+  quitaron de `index`/`historial` y se reimplementaron en `app.js`; en las de
+  detalle se conservan pero `triggerReassignment`/`confirmDispatch` se
+  sobrescriben para POSTear `/api/averiar`.
 
 ## UI bajo carga: botones que parecen muertos (diagnóstico verificado 2026-11-08)
 
@@ -197,6 +207,38 @@ en OTP 25 si reintroduces:
 - **En la instantánea SSE** la lista de unidades va con la llave `"unidades"` para
   no chocar con los contadores `"vehiculos"` del resumen.
 
+## AeroCargo: flota real, cola de espera y release autocontenido (2026-11-10)
+
+- **`flota_uniforme_kg` es SOLO de los tests**. Antes el override colgaba de
+  `capacidad_kg`, que estaba en `sys.config`: en producción toda la flota salía
+  como `test_uniform` (2.5 t) y, al asignar los 900 envíos de golpe, el resto se
+  marcaba `fallida/sin_cupo` (~87 %). Si ves `tipo: test_uniform` en
+  `/api/aeronaves` del Pi, alguien volvió a meter ese env en producción.
+- **`sin_cupo` ya no es terminal**: si hay algún tipo de la flota que puede
+  volar la ruta, el envío queda `pendiente` y `reintentar_pendientes/2` lo
+  reintenta cada `ticks_por_parada` (cuando las entregas liberan bodega). Solo
+  es `fallida` si ningún tipo cubre la ruta. Un desvío (`prob_desvio`) vuelve a
+  `pendiente` con `p29_envio:devolver/1`, no a `fallida`.
+- **`reasignaciones` cuenta solo envíos que ya habían volado**: el primer
+  despacho de la cola de espera no infla la métrica (si no, marcaba cientos).
+- **`altitud_ft` = FL × 100**: el waypoint trae elevación en **pies**, no un
+  flight level. Usarla como FL mandaba el avión a FL ~7000 (697 600 ft en la
+  UI). Ahora `p29_aeronave` vuela al `fl_optimo` de la ruta y mantiene el FL en
+  crucero (sin descender a la elevación de los FIX, que es 0).
+- **`sys.config` usa las llaves reales**: `aeronaves` y `envios` (no
+  `vehiculos`/`entregas`, que eran claves muertas que solo funcionaban por los
+  defaults del despachador).
+- **Release en la RPi**: `systemd` arrancaba con `bash -lc`; un login shell
+  reescribe `PATH` en Debian y el script de relx resolvía `/usr/bin/erl`
+  (OTP 23, ERTS 11.1.8) en vez del OTP 27 del `Environment`, y el arranque moría
+  por timeout. Ahora la unidad usa `bash -c` **y** `rebar.config` lleva
+  `{include_erts, true}, {system_libs, true}`: el release es autocontenido
+  (`_build/default/rel/.../erts-15.2.7.14` + `lib/kernel-*`). Si cambias a
+  `include_erts, false`, el ERTS del sistema manda otra vez.
+- **`rebar.config` del Pi tenía un parche local viejo** (`jsx` + `include_erts
+  false`): se copió a `/tmp/rebar.config.local.bak` antes de restaurar el de
+  `origin/main`. No lo reintroduzcas.
+
 ## Trampas previas (fase dominio)
 
 - **BOM UTF-8**: `>` y `Out-File` de PowerShell 5.1 escriben BOM y `erlc` falla con
@@ -219,8 +261,11 @@ en OTP 25 si reintroduces:
 - `p29_despachador:invariantes/0` devuelve `ok` o `{error, Lista}`: pendientes con
   unidad asignada, `en_ruta` sin unidad, o `en_ruta` con una unidad muerta. Es la
   verificación de negocio, más útil que contar procesos.
-- Corrida de referencia (`config/sys.config`): 901 entregas, ~785 entregadas, ~9–10 %
-  fallidas, 15/15 unidades vivas, ~40 reasignaciones, `invariantes ok`.
+- Corrida de referencia (`config/sys.config`, jornada de 2160 ticks): flota real
+  (B767/B737/ATR-72/B777/A330), ~670 entregadas al cerrar la jornada y el reloj
+  sigue; al final convergen ~830 entregadas, ~9–10 % fallidas, 15/15 unidades
+  vivas, `invariantes ok`. Hay cola de espera (`pendiente`) por diseño: el
+  despachador no puede embarcar 900 envíos a la vez.
 - El `retraso_medio` de la corrida (~930–945 ticks) es un artefacto del modelo de paradas
   (`ticks_por_parada`), no un bug de la reasignación.
 - Las cifras del README (paradas/día, entregas falladas, coste de la última milla) están
