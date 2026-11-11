@@ -34,7 +34,7 @@ init([]) ->
     false ->
       ok
   end,
-  {ok, #{ticks => 0, suscriptores => sets:new([{version, 2}])}}.
+  {ok, #{ticks => 0, suscriptores => sets:new()}}.
 
 %% Broadcast: nadie espera al resto (los GPS vuelan en cast), los tests usan
 %% polling con el helper espera/2 para sincronizar.
