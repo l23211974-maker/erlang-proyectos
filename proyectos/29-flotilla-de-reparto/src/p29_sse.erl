@@ -33,6 +33,10 @@ init(Req0, _Estado) ->
 info({p29_estado, _N, JSON}, Req, Estado) ->
   _ = cowboy_req:stream_body(evento(JSON), nofin, Req),
   {ok, Req, Estado};
+info({p29_latido, _N}, Req, Estado) ->
+  %% Latido simple sin datos: keep-alive para SSE tras jornada
+  _ = cowboy_req:stream_body(<<": latido\n\n">>, nofin, Req),
+  {ok, Req, Estado};
 info(timeout, Req, Estado) ->
   _ = cowboy_req:stream_body(<<": latido\n\n">>, nofin, Req),
   {ok, Req, Estado};

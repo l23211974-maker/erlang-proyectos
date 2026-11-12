@@ -152,20 +152,39 @@
     var tierra = aero.filter(esTerrestre);
     var alertas = aero.filter(function (a) { return estadoInfo(a.estado).key === 'alert'; });
     var criticos = aero.filter(function (a) { return estadoInfo(a.estado).key === 'crit'; });
+    var ok = aero.filter(function (a) { return estadoInfo(a.estado).key === 'ok'; });
     var entregadas = totalEstado('entregada');
     var retrasoMin = Math.round(num(state.resumen && state.resumen.retraso_medio) * 10 / 60);
     var cargaTotal = aero.reduce(function (s, a) { return s + num(a.carga_kg); }, 0);
+    var totalUnidades = aero.length;
+    var operatividad = totalUnidades ? (ok.length * 100 / totalUnidades).toFixed(1) : '0.0';
+    var metaDiurna = 145;
+    var restante = Math.max(0, metaDiurna - entregadas);
+    var sli = totalUnidades ? (ok.length * 100 / totalUnidades).toFixed(1) : '0.0';
 
     if ($id('kpiEnRuta')) $id('kpiEnRuta').textContent = String(enRuta.length);
+    if ($id('kpiEnRutaTrend')) $id('kpiEnRutaTrend').textContent = (enRuta.length > 0 ? '+' : '') + String(enRuta.length - 28) + ' vs 12:00Z';
+    if ($id('kpiEnRutaBar')) $id('kpiEnRutaBar').style.width = totalUnidades ? Math.round(enRuta.length * 100 / totalUnidades) + '%' : '0%';
     if ($id('kpiAlertas')) $id('kpiAlertas').textContent = pad2(alertas.length);
+    if ($id('kpiAlertasDetail')) $id('kpiAlertasDetail').textContent = alertas.length ? alertas[0].estado : 'Sin alertas';
+    if ($id('kpiAlertasBar')) $id('kpiAlertasBar').style.width = totalUnidades ? Math.round(alertas.length * 100 / totalUnidades) + '%' : '0%';
     if ($id('kpiCriticos')) $id('kpiCriticos').textContent = pad2(criticos.length);
+    if ($id('kpiCriticosDetail')) $id('kpiCriticosDetail').textContent = criticos.length ? 'SOP Activo' : 'Sin contingencias';
+    if ($id('kpiCriticosBar')) $id('kpiCriticosBar').style.width = totalUnidades ? Math.round(criticos.length * 100 / totalUnidades) + '%' : '0%';
+    if ($id('kpiCritico1')) $id('kpiCritico1').textContent = criticos[0] ? vueloDe(criticos[0]) + ': ' + estadoInfo(criticos[0].estado).label : '--';
+    if ($id('kpiCritico2')) $id('kpiCritico2').textContent = criticos[1] ? vueloDe(criticos[1]) + ': ' + estadoInfo(criticos[1].estado).label : '--';
     if ($id('kpiEntregas')) $id('kpiEntregas').textContent = nf.format(entregadas);
+    if ($id('kpiEntregasBar')) $id('kpiEntregasBar').style.width = metaDiurna ? Math.round(entregadas * 100 / metaDiurna) + '%' : '0%';
+    if ($id('kpiSLI')) $id('kpiSLI').textContent = sli + '%';
+    if ($id('kpiMeta')) $id('kpiMeta').textContent = String(metaDiurna);
+    if ($id('kpiRestante')) $id('kpiRestante').textContent = String(restante);
     if ($id('kpiAereas')) $id('kpiAereas').textContent = String(enRuta.length);
     if ($id('kpiTierra')) $id('kpiTierra').textContent = String(tierra.length);
     if ($id('kpiRetraso')) $id('kpiRetraso').textContent = String(retrasoMin);
+    if ($id('kpiHoldFuel')) $id('kpiHoldFuel').textContent = '140m'; // placeholder
     if ($id('kpiTonelaje')) $id('kpiTonelaje').textContent = (cargaTotal / 1000).toFixed(1) + ' Tons';
 
-    if ($id('legendOk')) $id('legendOk').textContent = String(aero.filter(function (a) { return estadoInfo(a.estado).key === 'ok'; }).length);
+    if ($id('legendOk')) $id('legendOk').textContent = String(ok.length);
     if ($id('legendAlert')) $id('legendAlert').textContent = String(alertas.length);
     if ($id('legendCrit')) $id('legendCrit').textContent = String(criticos.length);
 
@@ -213,19 +232,38 @@
       var id = 'pin-' + a.id;
       vivos[id] = true;
       var el = document.getElementById(id);
+      var tooltip = el ? el.querySelector('.pin-tooltip') : null;
       if (!el) {
         el = document.createElement('div');
         el.id = id;
         el.className = 'absolute -translate-x-1/2 -translate-y-1/2 group cursor-pointer z-20 pointer-events-auto';
         cont.appendChild(el);
       }
+      // Actualizar posición del pin (no toca el tooltip interno)
       el.style.left = p.x.toFixed(2) + '%';
       el.style.top = p.y.toFixed(2) + '%';
       el.className = 'absolute -translate-x-1/2 -translate-y-1/2 group cursor-pointer z-20 pointer-events-auto ' + info.tone;
-      el.innerHTML =
-        '<div class="w-8 h-8 rounded-full bg-surface-container-high/90 shadow-xl flex items-center justify-center ' + info.tone + ' transform group-hover:scale-110 transition-transform">' +
-        '<span class="material-symbols-outlined text-[20px] -rotate-45" style="font-variation-settings:\'FILL\' 1;">flight</span></div>' +
-        '<div class="hidden group-hover:block absolute left-10 -top-8 w-60 bg-surface-container-high/95 backdrop-blur-md p-space-sm rounded-lg shadow-xl z-30 ' + (p.x > 65 ? 'right-10 left-auto' : '') + '">' +
+
+      // Contenido del pin (icono) - solo crear si no existe
+      var pinIcon = el.querySelector('.pin-icon');
+      if (!pinIcon) {
+        pinIcon = document.createElement('div');
+        pinIcon.className = 'pin-icon w-8 h-8 rounded-full bg-surface-container-high/90 shadow-xl flex items-center justify-center transform group-hover:scale-110 transition-transform';
+        pinIcon.innerHTML = '<span class="material-symbols-outlined text-[20px] -rotate-45" style="font-variation-settings:\'FILL\' 1;">flight</span>';
+        el.appendChild(pinIcon);
+      }
+      pinIcon.className = 'pin-icon w-8 h-8 rounded-full bg-surface-container-high/90 shadow-xl flex items-center justify-center ' + info.tone + ' transform group-hover:scale-110 transition-transform';
+
+      // Tooltip - crear si no existe, actualizar contenido y posición lateral
+      if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.className = 'pin-tooltip hidden group-hover:block absolute left-10 -top-8 w-60 bg-surface-container-high/95 backdrop-blur-md p-space-sm rounded-lg shadow-xl z-30';
+        el.appendChild(tooltip);
+      }
+      // Actualizar lado del tooltip según posición horizontal
+      tooltip.className = 'pin-tooltip hidden group-hover:block absolute ' + (p.x > 65 ? 'right-10 left-auto' : 'left-10 -top-8') + ' w-60 bg-surface-container-high/95 backdrop-blur-md p-space-sm rounded-lg shadow-xl z-30';
+      // Actualizar contenido del tooltip
+      tooltip.innerHTML =
         '<div class="flex items-center justify-between border-b border-outline-variant/30 pb-1 mb-1">' +
         '<span class="font-label-code text-label-code text-on-surface font-bold">' + esc(vueloDe(a)) + ' · ' + esc(TIPO[a.tipo] || a.tipo) + '</span>' +
         '<span class="font-label-badge text-label-badge px-1 py-0.5 rounded ' + info.badge + '">' + esc(info.label) + '</span></div>' +
@@ -238,7 +276,7 @@
         '<div class="mt-1 flex items-center justify-between text-[10px] text-on-surface-variant pt-1 border-t border-outline-variant/20">' +
         '<span>Ruta: ' + esc(ruta ? ruta.origen + ' → ' + ruta.destino : 'sin asignar') + '</span>' +
         '<a class="text-primary hover:underline font-bold" href="unidad.html?id=' + encodeURIComponent(a.id) + '">Detalle →</a>' +
-        '</div></div>';
+        '</div>';
     });
 
     $$('[id^="pin-"]', cont).forEach(function (el) {

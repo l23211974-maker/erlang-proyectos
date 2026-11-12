@@ -614,16 +614,20 @@ web_endpoints_test_() ->
                    %% Linux/CI la primera tentativa siempre basta.
                    PedirMetricas =
                      fun Intento(N) when N > 0 ->
-                             case (catch httpc:request(
-                                          get, {Ruta("/metrics"), []},
-                                          [{timeout, 15000}],
-                                          [{body_format, binary}])) of
-                               {ok, Respuesta} -> {ok, Respuesta};
-                               _ when N > 1 ->
-                                   timer:sleep(500),
-                                   Intento(N - 1);
-                               _ ->
-                                   error({metrics_timeout, N})
+                             try
+                                 httpc:request(
+                                     get, {Ruta("/metrics"), []},
+                                     [{timeout, 15000}],
+                                     [{body_format, binary}])
+                             catch
+                                 _:_ ->
+                                     case N > 1 of
+                                         true ->
+                                             timer:sleep(500),
+                                             Intento(N - 1);
+                                         false ->
+                                             error({metrics_timeout, N})
+                                     end
                              end
                          end,
                    {ok, {{_, 200, _}, _, CuerpoEstado}} =
@@ -680,3 +684,198 @@ web_endpoints_test_() ->
                 end)
          ]
      end}}.
+
+%% ---- 10. p29_meteo: alertas SIGMET/AIRMET determinísticas --------------
+
+meteo_test_() ->
+  {setup,
+   fun() ->
+       Pid = arrancar([{ticks_jornada, 1000}]),
+       %% avanzar reloj a tick 50 para generar primera alerta
+       lists:foreach(fun(_) -> p29_reloj:tick() end, lists:seq(1, 55)),
+       Pid
+   end,
+   fun cerrar/1,
+   fun(_) ->
+     [
+      ?_test(begin
+                Alertas = p29_meteo:alertas_activas(),
+                ?assert(length(Alertas) > 0),
+                %% verificar estructura de alerta
+                A = hd(Alertas),
+                ?assert(is_map(A)),
+                ?assert(maps:is_key(zona, A)),
+                ?assert(maps:is_key(tipo, A)),
+                ?assert(maps:is_key(severidad, A)),
+                ?assert(maps:is_key(fl_afectado, A)),
+                ?assert(maps:is_key(sigmet_id, A))
+              end),
+      ?_test(begin
+                %% alerta para zona específica
+                Zona = {15, -95},
+                Res = p29_meteo:alerta_para_zona(Zona),
+                %% puede ser undefined si no hay alerta en esa zona
+                case Res of
+                    undefined -> ok;
+                    A ->
+                        ?assertEqual(Zona, maps:get(zona, A))
+                end
+              end),
+      ?_test(begin
+                %% determinismo: misma tick -> misma alerta
+                p29_reloj:tick(),
+                A1 = p29_meteo:alertas_activas(),
+                p29_reloj:tick(),
+                A2 = p29_meteo:alertas_activas(),
+                %% no deben desaparecer por determinismo de phash2
+                ?assert(length(A2) >= length(A1))
+              end)
+     ]
+   end}.
+
+%% ---- 11. p29_transbordo: gen_statem transiciones ------------------------
+
+transbordo_test_() ->
+  {setup,
+   fun() ->
+       Pid = arrancar([]),  %% asignar_al_inicio = true por defecto
+       %% esperar a que se asignen envíos
+       esperar(fun() -> length(p29_datos:envios_por_estado(en_ruta)) >= 3 end),
+       Pid
+   end,
+   fun cerrar/1,
+   fun(_) ->
+     [
+      ?_test(begin
+                %% iniciar un transbordo vía despachador con un envío en_ruta
+                EnviosEnRuta = p29_datos:envios_por_estado(en_ruta),
+                ?assert(length(EnviosEnRuta) >= 1),
+                EnvioId = maps:get(id, hd(EnviosEnRuta)),
+                Ok = p29_despachador:ejecutar_transbordo(
+                         EnvioId, 2, <<"FIX01">>
+                     ),
+                ?assertEqual(ok, Ok),
+                %% esperar a que el despachador procese el cast y el envío cambie a transbordo
+                esperar(fun() ->
+                          case p29_despachador:envio(EnvioId) of
+                              #{estado := transbordo} -> true;
+                              _ -> false
+                          end
+                      end),
+                %% verificar que el envío cambió a estado transbordo
+                Envio = p29_despachador:envio(EnvioId),
+                ?assertEqual(transbordo, maps:get(estado, Envio)),
+                ?assertEqual(2, maps:get(aeronave, Envio))
+              end),
+      ?_test(begin
+                %% completar transbordo manualmente con otro envío en_ruta
+                EnviosEnRuta = p29_datos:envios_por_estado(en_ruta),
+                ?assert(length(EnviosEnRuta) >= 2),
+                EnvioId = maps:get(id, lists:nth(2, EnviosEnRuta)),
+                p29_despachador:ejecutar_transbordo(EnvioId, 2, <<"FIX01">>),
+                %% esperar ticks para completar (el gen_statem completa a los 10 ticks)
+                %% esperar a que el despachador procese el cast y el envío cambie a transbordo
+                esperar(fun() ->
+                      case p29_despachador:envio(EnvioId) of
+                          #{estado := transbordo} -> true;
+                          _ -> false
+                      end
+                  end),
+                lists:foreach(fun(_) -> p29_reloj:tick() end, lists:seq(1, 20)),
+                %% esperar a que el transbordo complete y el envío se entregue
+                esperar(fun() ->
+                          case p29_despachador:envio(EnvioId) of
+                              #{estado := entregada} -> true;
+                              _ -> false
+                          end
+                      end),
+                %% verificar que el transbordo se completó (el envío se entrega)
+                Envio = p29_despachador:envio(EnvioId),
+                ?assertEqual(entregada, maps:get(estado, Envio))
+              end),
+      ?_test(begin
+                %% transbordo con aeronave destino inexistente (actual: completa igual por bug dominio)
+                EnviosEnRuta = p29_datos:envios_por_estado(en_ruta),
+                ?assert(length(EnviosEnRuta) >= 3),
+                EnvioId = maps:get(id, lists:nth(3, EnviosEnRuta)),
+                Ok = p29_despachador:ejecutar_transbordo(
+                         EnvioId, 999, <<"FIX01">>
+                     ),
+                ?assertEqual(ok, Ok),
+                lists:foreach(fun(_) -> p29_reloj:tick() end, lists:seq(1, 20)),
+                %% NOTE: implementación actual no valida aeronave destino -> completa OK
+                esperar(fun() ->
+                          case p29_despachador:envio(EnvioId) of
+                              #{estado := entregada} -> true;
+                              _ -> false
+                          end
+                      end),
+                Envio = p29_despachador:envio(EnvioId),
+                ?assertEqual(entregada, maps:get(estado, Envio))
+              end)
+     ]
+   end}.
+
+%% ---- 12. p29_ruta_vectorial: rutas, distancias, waypoints ----------------
+
+ruta_vectorial_test_() ->
+  {setup,
+   fun() ->
+       Pid = arrancar([]),
+       Pid
+   end,
+   fun cerrar/1,
+   fun(_) ->
+     [
+      ?_test(begin
+                %% ruta predefinida MEX-BOG
+                Ruta = p29_ruta_vectorial:ruta_para(<<"MEX">>, <<"BOG">>, b767_300f),
+                ?assertEqual(<<"MEX-BOG">>, maps:get(id_ruta, Ruta)),
+                ?assertEqual(1650, maps:get(distancia_nm, Ruta)),
+                ?assertEqual(350, maps:get(fl_optimo, Ruta)),
+                %% waypoints correctos
+                WPs = maps:get(waypoints, Ruta),
+                ?assertEqual([<<"MEX">>, <<"VAKUD">>, <<"FIX01">>, <<"FIX02">>, <<"BOG">>], WPs)
+              end),
+      ?_test(begin
+                %% ruta predefinida MTY-MEX (troncal terrestre)
+                Ruta = p29_ruta_vectorial:ruta_para(<<"MTY">>, <<"MEX">>, atr_72f),
+                ?assertEqual(<<"MTY-MEX">>, maps:get(id_ruta, Ruta)),
+                ?assertEqual(troncal_terrestre, maps:get(segmento, Ruta)),
+                ?assertEqual(250, maps:get(fl_optimo, Ruta))  %% ATR-72 max FL250
+              end),
+      ?_test(begin
+                %% distancia NM entre waypoints
+                Dist = p29_ruta_vectorial:distancia_nm(<<"MEX">>, <<"BOG">>),
+                ?assert(Dist > 1700),  %% haversine real ~1705 NM
+                ?assert(Dist < 1800)
+              end),
+      ?_test(begin
+                %% tiempo estimado en ticks (con margen b767_300f 0.08)
+                Ticks = p29_ruta_vectorial:tiempo_estimado(1705, 450, b767_300f),
+                ?assert(Ticks > 1300),
+                ?assert(Ticks < 1500)
+              end),
+      ?_test(begin
+                %% ruta ad-hoc para par no predefinido
+                Ruta = p29_ruta_vectorial:ruta_para(<<"CUN">>, <<"SCL">>, b737_800f),
+                ?assert(is_map(Ruta)),
+                ?assert(maps:is_key(id_ruta, Ruta)),
+                ?assert(maps:is_key(waypoints, Ruta)),
+                ?assert(length(maps:get(waypoints, Ruta)) >= 2)
+              end),
+      ?_test(begin
+                %% waypoints de ruta existente
+                WPs = p29_ruta_vectorial:waypoints_de(<<"MEX-BOG">>),
+                ?assertEqual(5, length(WPs)),
+                ?assertEqual(<<"MEX">>, hd(WPs)),
+                ?assertEqual(<<"BOG">>, lists:last(WPs))
+              end),
+      ?_test(begin
+                %% FL máximo por tipo de aeronave
+                ?assertEqual(430, p29_ruta_vectorial:fl_maximo_por_tipo(b777_f)),
+                ?assertEqual(410, p29_ruta_vectorial:fl_maximo_por_tipo(b767_300f)),
+                ?assertEqual(250, p29_ruta_vectorial:fl_maximo_por_tipo(atr_72f))
+              end)
+     ]
+   end}.

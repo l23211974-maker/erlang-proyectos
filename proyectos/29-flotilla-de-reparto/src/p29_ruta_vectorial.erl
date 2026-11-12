@@ -5,7 +5,8 @@
 %% Rutas predefinidas y generacion de rutas ad-hoc para reasignaciones/desvios.
 
 -export([start_link/0, ruta_para/3, ruta_alternativa/4,
-         distancia_nm/2, tiempo_estimado/3, waypoints_de/1]).
+         distancia_nm/2, tiempo_estimado/3, waypoints_de/1,
+         fl_maximo_por_tipo/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
 %% Waypoints base del espacio aereo (subset realistas para simulacion)
@@ -46,41 +47,41 @@
   <<"FIX10">> => #{coord => {35.0000, -100.0000, 0}, tipo => fix, fir => <<"KZFW">>}
 }).
 
-%% Rutas predefinidas por segmento
+%% Rutas predefinidas por segmento (keys como tuplas {Origen, Destino})
 -define(RUTAS_PREDEFINIDAS, #{
-  <<"MEX-BOG">> => #{id_ruta => <<"MEX-BOG">>, nombre => <<"MEX → BOG">>,
+  {<<"MEX">>, <<"BOG">>} => #{id_ruta => <<"MEX-BOG">>, nombre => <<"MEX → BOG">>,
                        waypoints => [<<"MEX">>, <<"VAKUD">>, <<"FIX01">>, <<"FIX02">>, <<"BOG">>],
                        segmento => aereo_internacional, distancia_nm => 1650,
                        fl_optimo => 350, tiempo_estimado_ticks => 540},
-  <<"MEX-PTY">> => #{id_ruta => <<"MEX-PTY">>, nombre => <<"MEX → PTY">>,
+  {<<"MEX">>, <<"PTY">>} => #{id_ruta => <<"MEX-PTY">>, nombre => <<"MEX → PTY">>,
                        waypoints => [<<"MEX">>, <<"OTUBA">>, <<"FIX01">>, <<"FIX03">>, <<"PTY">>],
                        segmento => aereo_internacional, distancia_nm => 1350,
                        fl_optimo => 330, tiempo_estimado_ticks => 450},
-  <<"MEX-EZE">> => #{id_ruta => <<"MEX-EZE">>, nombre => <<"MEX → EZE">>,
+  {<<"MEX">>, <<"EZE">>} => #{id_ruta => <<"MEX-EZE">>, nombre => <<"MEX → EZE">>,
                        waypoints => [<<"MEX">>, <<"GIRAR">>, <<"FIX01">>, <<"FIX02">>, <<"FIX04">>, <<"FIX05">>, <<"FIX06">>, <<"FIX07">>, <<"EZE">>],
                        segmento => aereo_internacional, distancia_nm => 4500,
                        fl_optimo => 370, tiempo_estimado_ticks => 1500},
-  <<"MEX-LIM">> => #{id_ruta => <<"MEX-LIM">>, nombre => <<"MEX → LIM">>,
+  {<<"MEX">>, <<"LIM">>} => #{id_ruta => <<"MEX-LIM">>, nombre => <<"MEX → LIM">>,
                        waypoints => [<<"MEX">>, <<"VAKUD">>, <<"FIX01">>, <<"FIX03">>, <<"FIX05">>, <<"LIM">>],
                        segmento => aereo_internacional, distancia_nm => 2100,
                        fl_optimo => 350, tiempo_estimado_ticks => 700},
-  <<"BOG-EZE">> => #{id_ruta => <<"BOG-EZE">>, nombre => <<"BOG → EZE">>,
+  {<<"BOG">>, <<"EZE">>} => #{id_ruta => <<"BOG-EZE">>, nombre => <<"BOG → EZE">>,
                        waypoints => [<<"BOG">>, <<"FIX04">>, <<"FIX05">>, <<"FIX06">>, <<"EZE">>],
                        segmento => aereo_internacional, distancia_nm => 2850,
                        fl_optimo => 370, tiempo_estimado_ticks => 950},
-  <<"PTY-BOG">> => #{id_ruta => <<"PTY-BOG">>, nombre => <<"PTY → BOG">>,
+  {<<"PTY">>, <<"BOG">>} => #{id_ruta => <<"PTY-BOG">>, nombre => <<"PTY → BOG">>,
                        waypoints => [<<"PTY">>, <<"FIX03">>, <<"BOG">>],
                        segmento => aereo_internacional, distancia_nm => 750,
                        fl_optimo => 330, tiempo_estimado_ticks => 250},
-  <<"MTY-MEX">> => #{id_ruta => <<"MTY-MEX">>, nombre => <<"MTY → MEX">>,
+  {<<"MTY">>, <<"MEX">>} => #{id_ruta => <<"MTY-MEX">>, nombre => <<"MTY → MEX">>,
                        waypoints => [<<"MTY">>, <<"OTUBA">>, <<"MEX">>],
                        segmento => troncal_terrestre, distancia_nm => 450,
                        fl_optimo => 250, tiempo_estimado_ticks => 150},
-  <<"GDL-MEX">> => #{id_ruta => <<"GDL-MEX">>, nombre => <<"GDL → MEX">>,
+  {<<"GDL">>, <<"MEX">>} => #{id_ruta => <<"GDL-MEX">>, nombre => <<"GDL → MEX">>,
                        waypoints => [<<"GDL">>, <<"ULQ">>, <<"MEX">>],
                        segmento => troncal_terrestre, distancia_nm => 350,
                        fl_optimo => 250, tiempo_estimado_ticks => 120},
-  <<"CUN-MEX">> => #{id_ruta => <<"CUN-MEX">>, nombre => <<"CUN → MEX">>,
+  {<<"CUN">>, <<"MEX">>} => #{id_ruta => <<"CUN-MEX">>, nombre => <<"CUN → MEX">>,
                        waypoints => [<<"CUN">>, <<"FIX08">>, <<"MEX">>],
                        segmento => aereo_internacional, distancia_nm => 1050,
                        fl_optimo => 330, tiempo_estimado_ticks => 350}

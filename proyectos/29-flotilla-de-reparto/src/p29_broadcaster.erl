@@ -21,7 +21,7 @@ desuscribir(Pid) when is_pid(Pid) ->
 
 %% La demo ancla su jornada [T0, Fin) con una llamada sincrona: a partir de
 %% Fin el difusor deja de emitir por tick (30 Hz) y pasa a un latido de
-%% CADENCIA_IDLE ticks (~1 s real a 33 ms/tick). Sin jornada registrada el
+%% 300 ticks (30s a 10s/tick) para keep-alive. Sin jornada registrada el
 %% comportamiento es el de siempre: un evento por tick.
 registrar_jornada(T0, Fin) when is_integer(T0), is_integer(Fin), Fin > T0 ->
   gen_server:call(?MODULE, {registrar_jornada, T0, Fin}).
@@ -29,15 +29,19 @@ registrar_jornada(T0, Fin) when is_integer(T0), is_integer(Fin), Fin > T0 ->
 jornada_actual() ->
   gen_server:call(?MODULE, jornada_actual).
 
-%% latido post-jornada: 30 ticks a 33 ms ~ 1 s real de pared
--define(CADENCIA_IDLE, 30).
+%% latido post-jornada: 300 ticks a 10s = 30 min simulados
+-define(CADENCIA_IDLE, 300).
 
 init([]) ->
   case whereis(p29_reloj) of
     undefined -> ok;
     _ -> gen_server:call(p29_reloj, {subscribe, self()})
   end,
-  {ok, #{watchers => #{}, jornada => undefined}}.
+  TicksJornada = case application:get_env(p29_flotilla_de_reparto, ticks_jornada) of
+                   {ok, V} -> V;
+                   _ -> 2160
+                 end,
+  {ok, #{watchers => #{}, jornada => undefined, ticks_jornada => TicksJornada, jornada_terminada => false}}.
 
 handle_call({subscribe, Pid}, _From, State = #{watchers := Watch}) ->
   Mon = erlang:monitor(process, Pid),
@@ -51,7 +55,7 @@ handle_call({desuscribir, Pid}, _From, State = #{watchers := Watch}) ->
       {reply, ok, State}
   end;
 handle_call({registrar_jornada, T0, Fin}, _From, State) ->
-  {reply, ok, State#{jornada := {T0, Fin}}};
+  {reply, ok, State#{jornada := {T0, Fin}, ticks_jornada => Fin, jornada_terminada => false}};
 handle_call(jornada_actual, _From, State) ->
   {reply, maps:get(jornada, State), State};
 handle_call(desconocido, _From, State) ->
@@ -60,10 +64,12 @@ handle_call(desconocido, _From, State) ->
 handle_cast(_Msg, State) ->
   {noreply, State}.
 
-%% sin watchers no se fabrica JSON por tick: el reloj tira a 33 ms.
-%% Con jornada registrada, tras Fin la flota ya no cambia: latido de
-%% ?CADENCIA_IDLE ticks en vez de 30 Hz eternos (diagnostico 2026-11-08).
-handle_info({p29_tick, N}, State = #{watchers := Watch, jornada := Jornada}) ->
+%% sin watchers no se fabrica JSON por tick: el reloj tira a 33 ms
+%% tras ticks_jornada: solo latidos cada 300 ticks (30s) para keep-alive
+handle_info({p29_tick, N}, State = #{watchers := Watch,
+                                     jornada := Jornada,
+                                     ticks_jornada := TicksJornada,
+                                     jornada_terminada := Terminada}) ->
   Emitir = case Jornada of
              {_T0, Fin} when is_integer(Fin), N >= Fin ->
                (N - Fin) rem ?CADENCIA_IDLE =:= 0;
@@ -74,8 +80,13 @@ handle_info({p29_tick, N}, State = #{watchers := Watch, jornada := Jornada}) ->
     false ->
       ok;
     true ->
-      JSON = p29_json:instantanea(N),
-      maps:foreach(fun(Pid, _Mon) -> Pid ! {p29_estado, N, JSON} end, Watch)
+      case Jornada of
+        {_T0, Fin} when is_integer(Fin), N >= Fin ->
+          maps:foreach(fun(Pid, _Mon) -> Pid ! {p29_latido, N} end, Watch);
+        _ ->
+          JSON = p29_json:instantanea(N),
+          maps:foreach(fun(Pid, _Mon) -> Pid ! {p29_estado, N, JSON} end, Watch)
+      end
   end,
   {noreply, State};
 handle_info({'DOWN', _Mon, process, Pid, _Motivo}, State = #{watchers := Watch}) ->
