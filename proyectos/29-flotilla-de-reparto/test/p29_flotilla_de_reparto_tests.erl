@@ -66,7 +66,7 @@ esperar_asignadas(Total) ->
           end).
 
 %% colector de eventos SSE para los tests del difusor: cuenta los
-%% {p29_estado, _, _} que le llegan sin bloquear el mailbox del test.
+%% {p29_estado, _, _} y {p29_latido, _} que le llegan sin bloquear el mailbox del test.
 %% OJO: spawn/1 exige fun de aridad 0; el contador va en bucle/1.
 colector() ->
   spawn(fun() -> bucle_colector(0) end).
@@ -74,6 +74,7 @@ colector() ->
 bucle_colector(K) ->
   receive
     {p29_estado, _, _} -> bucle_colector(K + 1);
+    {p29_latido, _} -> bucle_colector(K + 1);
     {consulta, From} -> From ! {conteo, K}, bucle_colector(K);
     stop -> ok
   end.
@@ -402,6 +403,7 @@ sse_estrangulado_tras_jornada_test_() ->
   {setup,
    fun() ->
        Sup = arrancar([{reloj_auto, false}, {ticks_jornada, 5},
+                       {cadencia_idle, 30},
                        {ticks_por_parada, 999999}, {sin_senal_ticks, 100}]),
        esperar_asignadas(12),
        Colector = colector(),
