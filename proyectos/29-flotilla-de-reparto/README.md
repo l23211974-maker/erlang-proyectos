@@ -177,7 +177,7 @@ Tomadas con Chromium headless (Playwright) contra el release desplegado en la RP
 | Bitácora con modal de reasignación | ![](docs/capturas/04b-bitacora-modal.png) |
 | Configuración | ![](docs/capturas/05-configuracion.png) |
 
-La cabecera ya no arrastra las cifras de la maqueta: unidades activas, alertas y operatividad se reescriben desde el SSE (antes decía «42 unidades» fijo mientras el KPI marcaba 15), y el panel de configuración muestra las llaves reales de `sys.config` (`aeronaves`/`envios`, no `vehiculos`/`entregas`).
+La cabecera ya no arrastra las cifras de la maqueta: unidades activas, alertas y operatividad se reescriben desde el SSE en el dashboard y, desde el fix de `hidratarCabecera` (2026-11-12), también en las páginas de detalle, bitácora y configuración vía `/api/aeronaves` (antes decían «42 unidades» fijo mientras el KPI marcaba 15), y el panel de configuración muestra las llaves reales de `sys.config` (`aeronaves`/`envios`, no `vehiculos`/`entregas`).
 
 ### Video de la interfaz y sesión de verificación (2026-11-12)
 
@@ -187,6 +187,19 @@ La cabecera ya no arrastra las cifras de la maqueta: unidades activas, alertas y
 | **Verificación en terminal** (7:48) | `compile`, EUnit 29/29, CT 8/8, `release`, `systemd`, `/api/*`, `/metrics`, SSE, caos por HTTP y jornada completa de 2160 ticks, tecleado comando a comando | https://asciinema.org/a/2O7xFBHGzvDX6zHp · copia permamente en [`docs/verificacion-asciinema.cast`](docs/verificacion-asciinema.cast) |
 
 Ambas se grabaron contra el release desplegado en la RPi: el video con Chromium headless (Playwright + Brave) sobre un túnel SSH a `:8080`, y la sesión de terminal con `asciinema` dentro de la propia Pi. La subida anónima a asciinema.org caduca a los 7 días, así que el `.cast` versionado es la copia que manda; se reproduce con `asciinema play docs/verificacion-asciinema.cast`.
+
+### Grabación del escenario de última milla (2026-11-12, noche)
+
+Segunda demo de la UI (2:20, 1440×900, H.264) centrada en el enunciado de última milla: 15 unidades, 900 envíos del día y GPS simulado cada 10 s, con **avería a media jornada** y **pedido urgente** inyectados por HTTP durante la grabación.
+
+| Grabación | Qué muestra | Archivo |
+|---|---|---|
+| **Demo última milla** (140 s) | 9 pasos narrados: panel en vivo, flota con capacidad/ocupación, telemetría con ETA, manifiesto con ventanas de entrega, **avería** (12 envíos devueltos, reasignaciones 5→16, 0 huérfanas, ids únicos 900/900, `invariantes ok`), **pedido urgente** AOG despachado en el mismo tick, bitácora de fallos (`cliente_ausente`) y parámetros de `sys.config` | [`docs/capturas/demo-interfaz-ultima-milla.mp4`](docs/capturas/demo-interfaz-ultima-milla.mp4) |
+| Avería + reasignación (verificación en pantalla) | `POST /api/averiar {"unidad":15}` → 200, carga devuelta y repartida, unidad relanzada por el supervisor | ![](docs/capturas/06-averia-reasignacion.png) |
+| Pedido urgente | `POST /api/urgente` → 200, envío `#901` tipo `aog`, ventana 11:20–11:30, asignado a AC-701 | ![](docs/capturas/07-pedido-urgente.png) |
+| Bitácora de fallos | Entregas fallidas con motivo real (`cliente_ausente`), ruta, peso y ventana comprometida | ![](docs/capturas/08-bitacora-fallas.png) |
+
+La grabación usa el mismo release de la RPi por el túnel SSH. Para que la jornada se vea completa se bajó el reloj a **120 ms/tick** en runtime (`application:set_env`, `tick_interval_ms`); `sys.config` sigue en 33 ms y la app no se modifica.
 
 ### Optimizaciones de rendimiento (app.js)
 
