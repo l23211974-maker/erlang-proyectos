@@ -118,6 +118,7 @@ init([]) ->
   end,
   self() ! arrancar,
   {ok, #{aeronaves => #{}, monitores => #{}, reasignaciones => 0,
+         transbordos => #{},
          tick => 0, arranque_asignado => false}}.
 
 handle_call({tick, N}, _From, State) ->
@@ -170,13 +171,40 @@ handle_cast(desconocido, State) ->
 handle_info(arrancar, State) ->
   {noreply, arrancar_flota(State)};
 
-handle_info({'DOWN', _Ref, process, Pid, Motivo}, State) ->
-  case aeronave_por_pid(Pid, State) of
-    undefined -> {noreply, State};
-    Aid ->
-      logger:info("aeronave ~p caida (~p): reasignando cargas", [Aid, Motivo],
-                  #{dominio => aerocargo}),
-      {noreply, manejar_caida(Aid, State)}
+handle_info({'DOWN', Ref, process, Pid, Motivo}, State) ->
+  Transbordos = maps:get(transbordos, State, #{}),
+  case maps:find(Ref, Transbordos) of
+    {ok, {EnvioId, PidEnvio}} ->
+      %% El hub murio con el envio en estado transbordo: sin el proceso el
+      %% envio quedaria atascado para siempre (el relevo del supervisor no
+      %% recibe ticks). Se devuelve a pendiente y se reasigna, igual que con
+      %% una aeronave caida. El chequeo de estado evita revertir un
+      %% transbordo ya completado (DOWN normal).
+      Revierte = is_pid(PidEnvio)
+                 andalso erlang:is_process_alive(PidEnvio)
+                 andalso Motivo =/= normal
+                 andalso case p29_datos:envio(EnvioId) of
+                           undefined -> false;
+                           E -> maps:get(estado, E) =:= transbordo
+                         end,
+      case Revierte of
+        true ->
+          logger:info("transbordo de ~p caido (~p): envio devuelto y reasignado",
+                      [EnvioId, Motivo], #{dominio => aerocargo}),
+          ok = p29_envio:devolver(PidEnvio);
+        false ->
+          ok
+      end,
+      {noreply, reasignar_ahora(
+                  State#{transbordos := maps:remove(Ref, Transbordos)})};
+    error ->
+      case aeronave_por_pid(Pid, State) of
+        undefined -> {noreply, State};
+        Aid ->
+          logger:info("aeronave ~p caida (~p): reasignando cargas", [Aid, Motivo],
+                      #{dominio => aerocargo}),
+          {noreply, manejar_caida(Aid, State)}
+      end
   end;
 
 handle_info({p29_tick, N}, State) ->
@@ -596,16 +624,24 @@ ejecutar_transbordo_int(EnvioId, NuevaAeronave, WaypointIATA, State) ->
       case Sup of
         undefined -> State;
         _ ->
-          supervisor:start_child(Sup, [#{id_transbordo => TransbordoId,
-                                         envio_id => EnvioId,
-                                         aeronave_origen => maps:get(aeronave, Envio),
-                                         aeronave_destino => NuevaAeronave,
-                                         waypoint_transbordo => WaypointIATA,
-                                         tick_programado => maps:get(tick, State),
-                                         tick_timeout => maps:get(tick, State) + 200}]),
-          %% Cambiar estado del envio a transbordo
-          p29_envio:transbordo(Pid, NuevaAeronave, WaypointIATA),
-          State
+          case supervisor:start_child(Sup, [#{id_transbordo => TransbordoId,
+                                              envio_id => EnvioId,
+                                              aeronave_origen => maps:get(aeronave, Envio),
+                                              aeronave_destino => NuevaAeronave,
+                                              waypoint_transbordo => WaypointIATA,
+                                              tick_programado => maps:get(tick, State),
+                                              tick_timeout => maps:get(tick, State) + 200}]) of
+            {ok, PidT} ->
+              %% vigilamos el proceso del hub: si muere, el envio no se queda
+              %% atascado en estado transbordo (ver el 'DOWN' de arriba)
+              Mon = erlang:monitor(process, PidT),
+              _ = p29_envio:transbordo(Pid, NuevaAeronave, WaypointIATA),
+              State#{transbordos =>
+                       maps:put(Mon, {EnvioId, Pid},
+                                maps:get(transbordos, State, #{}))};
+            _ ->
+              State
+          end
       end
   end.
 
