@@ -179,6 +179,15 @@ Tomadas con Chromium headless (Playwright) contra el release desplegado en la RP
 
 La cabecera ya no arrastra las cifras de la maqueta: unidades activas, alertas y operatividad se reescriben desde el SSE (antes decía «42 unidades» fijo mientras el KPI marcaba 15), y el panel de configuración muestra las llaves reales de `sys.config` (`aeronaves`/`envios`, no `vehiculos`/`entregas`).
 
+### Video de la interfaz y sesión de verificación (2026-11-12)
+
+| Grabación | Qué muestra | Archivo |
+|---|---|---|
+| **Demo de la UI** (83 s, 1440×900, H.264) | Panel en vivo con SSE, listado de flota, tooltip de una unidad, detalle + reasignación real (`POST /api/averiar`), bitácora con filtros y configuración de flota, con narración en pantalla | [`docs/capturas/demo-interfaz-aerocargo.mp4`](docs/capturas/demo-interfaz-aerocargo.mp4) |
+| **Verificación en terminal** (7:48) | `compile`, EUnit 29/29, CT 8/8, `release`, `systemd`, `/api/*`, `/metrics`, SSE, caos por HTTP y jornada completa de 2160 ticks, tecleado comando a comando | https://asciinema.org/a/2O7xFBHGzvDX6zHp · copia permamente en [`docs/verificacion-asciinema.cast`](docs/verificacion-asciinema.cast) |
+
+Ambas se grabaron contra el release desplegado en la RPi: el video con Chromium headless (Playwright + Brave) sobre un túnel SSH a `:8080`, y la sesión de terminal con `asciinema` dentro de la propia Pi. La subida anónima a asciinema.org caduca a los 7 días, así que el `.cast` versionado es la copia que manda; se reproduce con `asciinema play docs/verificacion-asciinema.cast`.
+
 ### Optimizaciones de rendimiento (app.js)
 
 - **requestAnimationFrame** para todas las actualizaciones visuales (batched rendering at max 2Hz)
