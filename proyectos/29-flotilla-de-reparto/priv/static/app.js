@@ -396,6 +396,18 @@
     if ($id('hdrOperatividad')) $id('hdrOperatividad').textContent = 'Operatividad ' + pct + '%';
   }
 
+  // Las páginas de detalle/bitácora/configuración no abren SSE: la cabecera
+  // seguía mostrando las cifras de la maqueta (42 unidades, 98.4 %, 3 alertas).
+  // Se hidrata con /api/aeronaves y se refresca despacio.
+  function hidratarCabecera() {
+    fetchJSON('/api/aeronaves').then(function (lista) { pintarCabecera(lista); }).catch(function () {});
+  }
+
+  if (page !== 'monitoreo-en-vivo') {
+    hidratarCabecera();
+    setInterval(function () { if (!document.hidden) hidratarCabecera(); }, 10000);
+  }
+
   // ---- SSE con coalescencia (máx. ~6 pintadas/s) --------------------------
 
   function conectarSSE(alRecibir) {
