@@ -276,7 +276,7 @@ input, select, textarea { font: inherit; color: inherit; }
 .h-\[520px\]{ height: 520px; }
 .h-\[600px\]{ height: 600px; }
 .h-full{ height: 100%; }
-.hidden{ display: hidden; }
+.hidden{ display: none; }
 .inline-flex{ display: inline-flex; }
 .inset-0{ inset: 0; }
 .inset-y-0{ top: 0; bottom: 0; }
@@ -284,9 +284,9 @@ input, select, textarea { font: inherit; color: inherit; }
 .items-center{ align-items: center; }
 .items-end{ align-items: end; }
 .items-start{ align-items: start; }
-.justify-between{ justify-content: between; }
+.justify-between{ justify-content: space-between; }
 .justify-center{ justify-content: center; }
-.justify-end{ justify-content: end; }
+.justify-end{ justify-content: flex-end; }
 .leading-relaxed{ line-height: 1.625; }
 .left-0{ left: 0; }
 .left-10{ left: 2.5rem; }
@@ -590,7 +590,7 @@ input, select, textarea { font: inherit; color: inherit; }
 .focus\:ring-primary:focus{ --tw-ring-color: #93ccff; }
 .focus\:text-primary:focus{ color: #93ccff; }
 .group:hover .group-hover\:border-primary\/40{ border-color: rgba(147,204,255,0.4); }
-.group:hover .group-hover\:scale-110{ scale: 110; }
+.group:hover .group-hover\:scale-110{ scale: 1.1; }
 .selection\:bg-primary\/20::selection{ background-color: rgba(147,204,255,0.2); }
 .selection\:text-primary::selection{ color: #93ccff; }
 .placeholder\:text-outline::placeholder{ color: #89929b; }

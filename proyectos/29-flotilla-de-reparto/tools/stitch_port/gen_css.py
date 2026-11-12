@@ -343,7 +343,16 @@ def cls_to_css(cls):
 
     m = re.fullmatch(r"scale-(.+)", u)
     if m:
-        return ("arb", f"{{ scale: {m.group(1).strip('[]')}; }}")
+        raw = m.group(1).strip("[]")
+        # Tailwind usa escala 0-100 como porcentaje: scale-110 -> 1.1
+        try:
+            val = float(raw)
+            if val >= 10:
+                val = val / 100.0
+            val = ("%g" % val)
+        except ValueError:
+            val = raw
+        return ("arb", f"{{ scale: {val}; }}")
 
     # ---- grid / flex ------------------------------------------------------
     m = re.fullmatch(r"grid-cols-(\d+)", u)
@@ -354,7 +363,10 @@ def cls_to_css(cls):
     if m:
         return ("arb", f"{{ grid-column: span {m.group(1)} / span {m.group(1)}; }}")
     if u in ("flex", "inline-flex", "grid", "block", "hidden", "inline", "table"):
-        return ("arb", f"{{ display: {u}; }}")
+        # OJO: `display: hidden` no existe en CSS y el navegador tira la regla:
+        # todos los tooltips/menús con .hidden quedaban visibles a la vez.
+        valor = "none" if u == "hidden" else u
+        return ("arb", f"{{ display: {valor}; }}")
     if u in ("flex-col", "flex-row", "flex-wrap", "flex-nowrap", "flex-initial"):
         prop = {"flex-col": "flex-direction: column;", "flex-row": "flex-direction: row;",
                 "flex-wrap": "flex-wrap: wrap;", "flex-nowrap": "flex-wrap: nowrap;",
@@ -369,9 +381,15 @@ def cls_to_css(cls):
     m = re.fullmatch(r"items-(.+)", u)
     if m:
         return ("arb", f"{{ align-items: {m.group(1)}; }}")
-    m = re.fullmatch(r"justify-(.+)", u)
+    m = re.fullmatch(r"justify-((?!items-|self-).+)", u)
     if m:
-        return ("arb", f"{{ justify-content: {m.group(1)}; }}")
+        val = m.group(1)
+        # `between`/`around`/`evenly` no existen como valor de justify-content:
+        # el navegador tiraba la regla y todo quedaba pegado a la izquierda.
+        val = {"between": "space-between", "around": "space-around",
+               "evenly": "space-evenly", "start": "flex-start",
+               "end": "flex-end"}.get(val, val)
+        return ("arb", f"{{ justify-content: {val}; }}")
     m = re.fullmatch(r"self-(.+)", u)
     if m:
         return ("arb", f"{{ align-self: {m.group(1)}; }}")

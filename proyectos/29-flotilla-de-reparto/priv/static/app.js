@@ -725,7 +725,7 @@
         '<span class="font-label-sm text-label-sm text-outline">' + kg(e.peso_kg) + '</span></div></div>' +
         '<div class="flex items-center justify-between pt-1 font-body-sm text-body-sm text-on-surface-variant">' +
         '<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px] text-outline">flight_land</span> Destino: <strong class="text-on-surface">' + esc(e.destino_iata) + '</strong></span>' +
-        '<span class="font-label-badge text-label-badge text-secondary">' + esc(e.estado) + '</span></div></div>';
+        '<span class="font-label-badge text-label-badge text-secondary">' + esc(estadoInfo(e.estado).label) + '</span></div></div>';
     }).join('');
 
     var etiqueta = $$('span').filter(function (s) { return /Envíos Primarios$/.test((s.textContent || '').trim()); })[0];
