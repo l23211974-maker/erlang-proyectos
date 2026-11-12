@@ -1,12 +1,12 @@
 # Prueba de caos — #29 Flotilla de reparto
 
 La consigna pide tres cosas: **qué mataste, qué esperabas y qué ocurrió**. Este
-documento registra las cinco pruebas con evidencia de la corrida real en la
+documento registra las seis pruebas con evidencia de la corrida real en la
 Raspberry Pi 4 (Debian 11, OTP 27.3.4.19, `config/sys.config` por defecto).
 
-- Fecha: 2026-11-11
+- Fecha: 2026-11-11 (escenarios 1–5) y 2026-11-12 (escenario 6)
 - Máquina: `raspberrypi` (RPi 4 Model B, 4 cores, 3.8 GB, Corellium)
-- Commit: `1bd4ed3`
+- Commits: `1bd4ed3` (1–5) y `f27e046` (6)
 - Reloj automático, jornada de 2160 ticks (33 ms por tick)
 
 ## Cómo reproducir
@@ -155,6 +155,60 @@ despues  #{tick => 61, entregada => 13, pendiente => 777, en_ruta => 108,
 
 ---
 
+## Escenario 6 — unidad que deja de reportar (`sys:suspend` sobre `p29_aeronave` de la unidad 15, 2,5 s)
+
+Reproduce el caso del enunciado **«conductor sin señal por una hora que luego
+reporta todo junto»**: el proceso no muere, simplemente deja de mandar GPS.
+Medido el 2026-11-12 sobre el release `f27e046` de la RPi, con el servicio
+recién arrancado (tick 551, 117 envíos en ruta, 567 pendientes).
+
+**Qué se esperaba**: el watchdog del despachador (`sin_senal_ticks = 6`, 6
+ticks sin reporte = 60 s simulados) marca la unidad `sin_senal` y devuelve sus
+envíos a la cola; al reanudar, la unidad vuelve a reportar, se recupera a
+`en_ruta` y sigue operando. Nunca debe quedar un envío asignado a una unidad
+muda.
+
+**Qué ocurrió**:
+
+```
+antes de suspender:            estado=en_ruta  envios_en_ruta=13
+                               pendientes=567  reasignaciones=9
+tras 2,5 s suspendida:         estado=sin_senal
+                               pendientes=551  reasignaciones=20
+tras reanudar (2,5 s después):  estado=en_ruta
+                               pendientes=517  reasignaciones=25
+invariantes=ok
+```
+
+- La unidad pasó a `sin_senal` sola, sin matar el proceso: el watchdog detectó
+  el hueco de telemetría.
+- `reasignaciones` **9 → 20 → 25**: los 13 envíos que llevaba salieron de la
+  unidad muda y se repartieron entre el resto de la flota.
+- Al reanudar, la unidad volvió a `en_ruta` y el proceso siguió vivo
+  (`is_process_alive = true`): no hizo falta relanzarla, el estado se recuperó.
+- `invariantes = ok` en todo el episodio: ningún envío huérfano ni duplicado.
+
+**Cómo reproducirlo** (contra el nodo vivo, sin parar el servicio):
+
+```bash
+cd ~/erlang-proyectos/proyectos/29-flotilla-de-reparto
+export P29_COOKIE=$(sudo grep '^P29_COOKIE=' /etc/p29-flotilla.env | cut -d= -f2)
+export RELX_REPLACE_OS_VARS=true
+_build/default/rel/p29_flotilla_de_reparto/bin/p29_flotilla_de_reparto eval '
+Id = 15,
+Pid = whereis(list_to_atom("p29_aeronave_" ++ integer_to_list(Id))),
+sys:suspend(Pid), timer:sleep(2500),
+p29_datos:aeronave(Id),          %% estado => sin_senal
+sys:resume(Pid), timer:sleep(2500),
+p29_datos:aeronave(Id),          %% estado => en_ruta
+p29_despachador:invariantes().'
+```
+
+(Las unidades se registran como `p29_aeronave_<Id>`; `p29_despachador:estado()`
+devuelve conteos, no PIDs, así que el PID se resuelve con `whereis/1`.)
+
+---
+
 ## Conclusión
 
 | Capa | ¿Se recuperó? | ¿Se perdió la jornada? | Invariantes |
@@ -164,6 +218,7 @@ despues  #{tick => 61, entregada => 13, pendiente => 777, en_ruta => 108,
 | Despachador | Sí, 101 ms | **Sí** | ok |
 | Web | Sí, 24 ms | No | ok |
 | Datos | Sí, 101 ms | **Sí** | ok |
+| Unidad sin señal (`sys:suspend`) | Sí, vuelve a `en_ruta` | No | ok |
 
 - La garantía que se cumple en los cinco casos es la de negocio: **nunca quedan
   envíos huérfanos, duplicados ni asignados a unidades muertas**.

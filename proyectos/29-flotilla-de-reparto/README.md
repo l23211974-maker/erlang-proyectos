@@ -265,7 +265,7 @@ Las ventanas se generaban en los ticks 20–408 sobre una jornada de 2160, así 
 
 ## Prueba de caos
 
-Se mató un proceso de cada capa con `exit(Pid, kill)` contra la app real y se midió qué pasó. Detalle completo, comandos de reproducción y salida cruda en [`docs/prueba-de-caos.md`](docs/prueba-de-caos.md).
+Se mató un proceso de cada capa con `exit(Pid, kill)` contra la app real y se midió qué pasó; el sexto escenario reproduce el «conductor sin señal» del enunciado con `sys:suspend` (proceso vivo, telemetría muda). Detalle completo, comandos de reproducción y salida cruda en [`docs/prueba-de-caos.md`](docs/prueba-de-caos.md).
 
 | Qué se mató | Qué se esperaba | Qué ocurrió |
 |---|---|---|
@@ -274,8 +274,9 @@ Se mató un proceso de cada capa con `exit(Pid, kill)` contra la app real y se m
 | `p29_despachador` | `rest_for_one` reinicia despachador y todo lo que está después | Reiniciado en **101 ms**, pero **la jornada vuelve a empezar** (entregadas 357 → 12): el estado vive en los procesos hijos, no en ETS |
 | `p29_web` | La web es un observador: cae sola y el dominio sigue | HTTP 200 de nuevo en **24 ms**; entregadas 354 → 366 sin pausa |
 | `p29_datos` | Dueño de las tablas ETS: `rest_for_one` reinicia todo el árbol | Todo el árbol arriba en **101 ms**; simulación desde cero (tick 61), `invariantes: ok` |
+| `p29_aeronave` **sin señal** (`sys:suspend` 2,5 s, unidad 15) | El watchdog la marca `sin_senal` y devuelve su carga; al reanudar se recupera | `sin_senal` con 13 envíos devueltos, reasignaciones **9 → 20 → 25**, vuelve a `en_ruta` sin relanzar el proceso, `invariantes: ok` |
 
-**Conclusión honesta**: el árbol sobrevive a cualquier muerte y nunca deja envíos huérfanos ni duplicados (`invariantes: ok` en los cinco casos). La debilidad conocida es que el estado de la jornada es **en memoria**: perder `p29_datos` o `p29_despachador` reinicia la simulación. Para una demo es aceptable; para producción pediría persistencia o un árbol que aísle el estado del dominio.
+**Conclusión honesta**: el árbol sobrevive a cualquier muerte y nunca deja envíos huérfanos ni duplicados (`invariantes: ok` en los seis casos). La debilidad conocida es que el estado de la jornada es **en memoria**: perder `p29_datos` o `p29_despachador` reinicia la simulación. Para una demo es aceptable; para producción pediría persistencia o un árbol que aísle el estado del dominio.
 
 ---
 
@@ -313,7 +314,7 @@ Se mató un proceso de cada capa con `exit(Pid, kill)` contra la app real y se m
 
 - ~~Desplegar en Pi~~: release autocontenido (ERTS embebido), `systemd`, métricas y SSE en vivo verificados en la RPi.
 - ~~Supuestos y cifras verificadas~~: sección propia en este README, con las fuentes del enunciado contrastadas.
-- ~~Prueba de caos~~: cinco escenarios con evidencia en [`docs/prueba-de-caos.md`](docs/prueba-de-caos.md).
+- ~~Prueba de caos~~: seis escenarios con evidencia en [`docs/prueba-de-caos.md`](docs/prueba-de-caos.md).
 - ~~Modelo de retraso~~: ventanas repartidas sobre la jornada; `retraso_medio` ≈ 12 min en vez de 2.7 h.
 - ~~Endurecer systemd~~: `Restart=always`, `StartLimit`, `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=full`, timeouts y logrotate (`deploy/`). Verificado en la RPi: `KILL` → arriba en 12 s con HTTP 200.
 - ~~Cookie fuera del repo~~: `-setcookie ${P29_COOKIE}` sustituido por relx en runtime; la cookie vive en `/etc/p29-flotilla.env` (chmod 600). Verificado: cookie nueva `pong`, la vieja `pang`.
@@ -322,7 +323,7 @@ Se mató un proceso de cada capa con `exit(Pid, kill)` contra la app real y se m
 
 **Pendiente**
 
-1. **Tests de caos automatizados**: los cinco escenarios de `docs/prueba-de-caos.md` corren a mano; pasarlos a `p29_flotilla_ct_SUITE` (pérdida de señal ADS-B por sector, meteo severa generalizada, fallo de hub principal).
+1. **Tests de caos automatizados**: los seis escenarios de `docs/prueba-de-caos.md` corren a mano; pasarlos a `p29_flotilla_ct_SUITE` (pérdida de señal ADS-B por sector, meteo severa generalizada, fallo de hub principal).
 2. **Cobertura de dominio**: `p29_meteo`, `p29_transbordo` y `p29_ruta_vectorial` no tienen test directo (sí se ejercitan desde `eunit`/`ct`).
 3. **Estrangular el SSE** cuando termina `ticks_jornada` (hoy sigue a 30 Hz con la flota idle).
 4. **Seguridad restante**: contraseña por defecto del Pi (`pi`/`raspberry`); la cookie ya no está en el repo.
