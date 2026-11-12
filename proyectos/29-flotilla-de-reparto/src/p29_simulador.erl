@@ -23,6 +23,7 @@ inicio() ->
   Fin = T0 + T,
   TickAveria = T0 + trunc(T * 0.4583),   %% ~11 a.m. en una jornada de 6 h (8 a 2 pm)
   TickUrgente = T0 + (T * 3) div 4,      %% urgente a media tarde
+  anunciar_jornada(T0, Fin),
   esperar_flota(),
   logger:info("demo #29 AeroCargo: jornada de ~p ticks ADS-B (10 s cada uno simulados); "
               "averia en el tick ~p; urgente AOG en el tick ~p",
@@ -97,6 +98,14 @@ desuscribir() ->
   case whereis(p29_reloj) of
     undefined -> ok;
     _ -> gen_server:call(p29_reloj, {desuscribir, self()})
+  end.
+
+%% el difusor estrangula el SSE tras Fin: llamada sincrona para que cuando
+%% el primer tick de la jornada llegue, la jornada ya este registrada
+anunciar_jornada(T0, Fin) ->
+  case whereis(p29_broadcaster) of
+    undefined -> ok;
+    _ -> p29_broadcaster:registrar_jornada(T0, Fin)
   end.
 
 tick_actual() ->

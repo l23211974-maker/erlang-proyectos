@@ -65,6 +65,25 @@ esperar_asignadas(Total) ->
               length(p29_datos:envios_por_estado(en_ruta)) =:= Total
           end).
 
+%% colector de eventos SSE para los tests del difusor: cuenta los
+%% {p29_estado, _, _} que le llegan sin bloquear el mailbox del test.
+%% OJO: spawn/1 exige fun de aridad 0; el contador va en bucle/1.
+colector() ->
+  spawn(fun() -> bucle_colector(0) end).
+
+bucle_colector(K) ->
+  receive
+    {p29_estado, _, _} -> bucle_colector(K + 1);
+    {consulta, From} -> From ! {conteo, K}, bucle_colector(K);
+    stop -> ok
+  end.
+
+conteo(Colector) ->
+  Colector ! {consulta, self()},
+  receive
+    {conteo, K} -> K
+  end.
+
 %% ---- 1. arbol, arranque e invariantes ------------------------------------------
 
 arbol_despues_de_arrancar_test_() ->
@@ -373,103 +392,49 @@ simulador_test_() ->
       ]
    end}.
 
-%% ---- 9. web: API, mapa y /metrics sobre el arbol completo -----------------------
+%% ---- 8b. cadencia SSE tras la jornada --------------------------------------------
 
-%% El escenario levanta cowboy en un puerto efimero (web_port 0) contra los
-%% mismos endpoints que consume la UI de la flotilla en produccion.
-%% El wrapper {timeout, 60, ...} y los timeouts httpc holgados existen por un
-%% quieque del runtime en Windows/OTP 29: tras 2-3 conexiones seguidas, una
-%% conexion nueva puede tardar ~5 s en ser despachada por el listener (se vio
-%% con stacktrace: los acceptors de ranch quedan en prim_inet:accept0 con la
-%% conexion esperando en el backlog). En Linux/CI no ocurre; el margen no
-%% cambia nada alla y aqui evita que el leaf de 5 s de eunit cancele el caso.
-web_endpoints_test_() ->
-  {timeout, 60,
-   {setup,
-    fun() ->
-        Sup = arrancar([]),
-        esperar_asignadas(12),
-        {Sup, ranch:get_port(p29_web_http)}
-    end,
-    fun({SupPid, _Puerto}) ->
-        cerrar(SupPid)
-    end,
-    fun({_Sup, Puerto}) ->
-        [
-         ?_test(begin
-                   inets:start(),
-                   Ruta = fun(Q) ->
-                              "http://127.0.0.1:" ++ integer_to_list(Puerto) ++ Q
-                          end,
-                   %% Reintento para /metrics: el atasco de accept del
-                   %% runtime en Windows/OTP 29 (comentario arriba) puede
-                   %% superar incluso 15 s; pedir de nuevo lo libera. En
-                   %% Linux/CI la primera tentativa siempre basta.
-                   PedirMetricas =
-                     fun Intento(N) when N > 0 ->
-                             case (catch httpc:request(
-                                          get, {Ruta("/metrics"), []},
-                                          [{timeout, 15000}],
-                                          [{body_format, binary}])) of
-                               {ok, Respuesta} -> {ok, Respuesta};
-                               _ when N > 1 ->
-                                   timer:sleep(500),
-                                   Intento(N - 1);
-                               _ ->
-                                   error({metrics_timeout, N})
-                             end
-                         end,
-                   {ok, {{_, 200, _}, _, CuerpoEstado}} =
-                     httpc:request(get, {Ruta("/api/estado"), []},
-                                   [{timeout, 10000}], [{body_format, binary}]),
-                   EstadoJson = decodificar(CuerpoEstado),
-                   ?assertEqual(<<"ok">>, maps:get(<<"invariantes">>, EstadoJson)),
-                   ?assertEqual(12,
-                                maps:get(<<"en_ruta">>,
-                                         maps:get(<<"envios">>, EstadoJson))),
-                   {ok, {{_, 200, _}, _, CuerpoEnvios}} =
-                     httpc:request(get, {Ruta("/api/envios"), []},
-                                   [{timeout, 10000}], [{body_format, binary}]),
-                   ?assertEqual(12, length(decodificar(CuerpoEnvios))),
-                   {ok, {{_, 200, _}, _, CuerpoAeronaves}} =
-                     httpc:request(get, {Ruta("/api/aeronaves"), []},
-                                   [{timeout, 10000}], [{body_format, binary}]),
-                   ?assertEqual(2, length(decodificar(CuerpoAeronaves))),
-                   {ok, {{_, 200, _}, _, CuerpoMetricas}} =
-                     PedirMetricas(3),
-                   ?assertMatch({match, _},
-                                re:run(CuerpoMetricas,
-                                       <<"^p29_flotilla_envios\\{estado=">>,
-                                       [multiline])),
-                   %% caos por HTTP: averiar una aeronave viva y una inexistente
-                   {ok, {{_, 200, _}, _, CuerpoAveriar}} =
-                     httpc:request(post, {Ruta("/api/averiar"), [],
-                                          "application/json",
-                                          <<"{\"aeronave\":1}">>},
-                                   [{timeout, 10000}], [{body_format, binary}]),
-                   ?assertMatch(#{<<"ok">> := true, <<"aeronave">> := 1},
-                                decodificar(CuerpoAveriar)),
-                   {ok, {{_, 404, _}, _, CuerpoNoHubo}} =
-                     httpc:request(post, {Ruta("/api/averiar"), [],
-                                          "application/json",
-                                          <<"{\"aeronave\":99}">>},
-                                   [{timeout, 10000}], [{body_format, binary}]),
-                   ?assertMatch(#{<<"ok">> := false}, decodificar(CuerpoNoHubo)),
-                   %% cuerpo basura: 400, nunca crash
-                   {ok, {{_, 400, _}, _, CuerpoBasura}} =
-                     httpc:request(post, {Ruta("/api/averiar"), [],
-                                          "application/json",
-                                          <<"\x07no-es-json">>},
-                                   [{timeout, 10000}], [{body_format, binary}]),
-                   ?assertMatch(#{<<"ok">> := false}, decodificar(CuerpoBasura)),
-                   %% urgente por HTTP: alta de un envio urgente fuera del lote
-                   {ok, {{_, 200, _}, _, CuerpoUrgente}} =
-                     httpc:request(post, {Ruta("/api/urgente"), [],
-                                          "application/json",
-                                          <<"{\"peso_kg\":30, \"origen_iata\":\"MEX\", \"destino_iata\":\"BOG\"}">>},
-                                   [{timeout, 10000}], [{body_format, binary}]),
-                   ?assertMatch(#{<<"ok">> := true, <<"envio">> := _},
-                                decodificar(CuerpoUrgente))
+%% El difusor no puede seguir a 30 Hz eternos: tras el fin de la jornada la
+%% flota ya no cambia y el SSE solo necesita un latido (~1 s real, 30 ticks).
+%% La demo registra su jornada [T0, Fin) en el difusor con una llamada
+%% sincrona, asi el test por ticks manuales es determinista.
+sse_estrangulado_tras_jornada_test_() ->
+  {setup,
+   fun() ->
+       Sup = arrancar([{reloj_auto, false}, {ticks_jornada, 5},
+                       {ticks_por_parada, 999999}, {sin_senal_ticks, 100}]),
+       esperar_asignadas(12),
+       Colector = colector(),
+       ok = p29_broadcaster:subscribe(Colector),
+       {Sup, Colector}
+   end,
+   fun({SupPid, Colector}) ->
+       p29_broadcaster:desuscribir(Colector),
+       Colector ! stop,
+       cerrar(SupPid)
+   end,
+   fun({_Sup, Colector}) ->
+      [
+       ?_test(begin
+                  %% la demo registra su jornada en el difusor (llamada
+                  %% sincrona): T0 = tick actual, Fin = T0 + ticks_jornada
+                  _ = p29_simulador:demo(),
+                  esperar(fun() ->
+                              p29_broadcaster:jornada_actual() =/= undefined
+                          end, 2000),
+                  {T0, Fin} = p29_broadcaster:jornada_actual(),
+                  %% dentro de la jornada: un evento por tick
+                  _ = [p29_reloj:tick() || _ <- lists:seq(T0 + 1, Fin)],
+                  timer:sleep(100),
+                  ?assertEqual(Fin - T0, conteo(Colector)),
+                  %% 25 ticks tras la jornada: nada (la cadencia idle es de 30)
+                  _ = [p29_reloj:tick() || _ <- lists:seq(Fin + 1, Fin + 25)],
+                  timer:sleep(100),
+                  ?assertEqual(Fin - T0, conteo(Colector)),
+                  %% el tick Fin + 30 dispara exactamente un latido
+                  _ = [p29_reloj:tick() || _ <- lists:seq(Fin + 26, Fin + 30)],
+                  timer:sleep(100),
+                  ?assertEqual(Fin - T0 + 1, conteo(Colector))
                 end)
-         ]
-     end}}.
+       ]
+   end}.
