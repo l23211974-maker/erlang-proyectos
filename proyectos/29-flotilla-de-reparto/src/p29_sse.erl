@@ -37,6 +37,12 @@ info({p29_latido, _N}, Req, Estado) ->
   %% Latido simple sin datos: keep-alive para SSE tras jornada
   _ = cowboy_req:stream_body(<<": latido\n\n">>, nofin, Req),
   {ok, Req, Estado};
+info({p29_jornada_fin, EventoFin}, Req, Estado) ->
+  %% Jornada terminada: enviamos el evento final y NO cerramos la conexión.
+  %% El timeout de cowboy (15s) seguirá enviando ': latido' como keep-alive.
+  %% El broadcaster ya se desuscribió del reloj, así que no habrá más eventos estado.
+  _ = cowboy_req:stream_body(EventoFin, nofin, Req),
+  {ok, Req, Estado};
 info(timeout, Req, Estado) ->
   _ = cowboy_req:stream_body(<<": latido\n\n">>, nofin, Req),
   {ok, Req, Estado};

@@ -29,13 +29,6 @@ registrar_jornada(T0, Fin) when is_integer(T0), is_integer(Fin), Fin > T0 ->
 jornada_actual() ->
   gen_server:call(?MODULE, jornada_actual).
 
-%% latido post-jornada: 300 ticks a 10s = 30 min simulados (configurable via app env)
-cadencia_idle() ->
-    case application:get_env(p29_flotilla_de_reparto, cadencia_idle) of
-        {ok, V} when is_integer(V), V > 0 -> V;
-        _ -> 300
-    end.
-
 init([]) ->
   case whereis(p29_reloj) of
     undefined -> ok;
@@ -69,27 +62,36 @@ handle_cast(_Msg, State) ->
   {noreply, State}.
 
 %% sin watchers no se fabrica JSON por tick: el reloj tira a 33 ms
-%% tras ticks_jornada (Fin): solo latidos cada 300 ticks (30s) para keep-alive
-handle_info({p29_tick, N}, State = #{watchers := Watch, jornada := Jornada}) ->
-  {Emitir, EsJornadaFin} = case Jornada of
-                               {_T0, Fin} when is_integer(Fin), N >= Fin ->
-                                   {((N - Fin) rem cadencia_idle() =:= 0), true};
-                               _ ->
-                                   {true, false}
-                           end,
-  case Emitir andalso maps:size(Watch) > 0 of
-    false ->
-      ok;
-    true ->
-      case EsJornadaFin of
+%% tras ticks_jornada (Fin): envía un evento final 'jornada_fin' y se
+%% desuscribe del reloj; así el SSE se detiene en vez de latidos eternos.
+handle_info({p29_tick, N}, State = #{watchers := Watch, jornada := Jornada,
+                                      jornada_terminada := Terminada}) ->
+  case Jornada of
+    {_T0, Fin} when is_integer(Fin), N >= Fin, not Terminada ->
+      %% Jornada acaba de terminar: evento final y nos bajamos del reloj
+      JSON = p29_json:instantanea(N),
+      EventoFin = [<<"event: jornada_fin\ndata: ">>, JSON, <<"\n\n">>],
+      maps:foreach(fun(Pid, _Mon) ->
+                       Pid ! {p29_estado, N, JSON},
+                       Pid ! {p29_jornada_fin, EventoFin}
+                   end, Watch),
+      %% desuscribir del reloj para no recibir más ticks
+      gen_server:call(p29_reloj, {desuscribir, self()}),
+      {noreply, State#{jornada_terminada => true}};
+    {_T0, Fin} when is_integer(Fin), N >= Fin, Terminada ->
+      %% Ya terminamos y nos desuscribimos: no deberíamos llegar aquí,
+      %% pero por seguridad ignoramos
+      {noreply, State};
+    _ ->
+      %% Durante la jornada: evento normal por tick
+      case maps:size(Watch) > 0 of
+        false -> ok;
         true ->
-          maps:foreach(fun(Pid, _Mon) -> Pid ! {p29_latido, N} end, Watch);
-        false ->
           JSON = p29_json:instantanea(N),
           maps:foreach(fun(Pid, _Mon) -> Pid ! {p29_estado, N, JSON} end, Watch)
-      end
-  end,
-  {noreply, State};
+      end,
+      {noreply, State}
+  end;
 handle_info({'DOWN', _Mon, process, Pid, _Motivo}, State = #{watchers := Watch}) ->
   {noreply, State#{watchers := maps:remove(Pid, Watch)}};
 

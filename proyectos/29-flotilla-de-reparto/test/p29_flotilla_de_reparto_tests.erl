@@ -438,7 +438,6 @@ sse_estrangulado_tras_jornada_test_() ->
   {setup,
    fun() ->
        Sup = arrancar([{reloj_auto, false}, {ticks_jornada, 5},
-                       {cadencia_idle, 30},
                        {ticks_por_parada, 999999}, {sin_senal_ticks, 100}]),
        esperar_asignadas(12),
        Colector = colector(),
@@ -464,14 +463,11 @@ sse_estrangulado_tras_jornada_test_() ->
                   _ = [p29_reloj:tick() || _ <- lists:seq(T0 + 1, Fin)],
                   timer:sleep(100),
                   ?assertEqual(Fin - T0, conteo(Colector)),
-                  %% 25 ticks tras la jornada: nada (la cadencia idle es de 30)
-                  _ = [p29_reloj:tick() || _ <- lists:seq(Fin + 1, Fin + 25)],
+                  %% tras la jornada: el broadcaster se desuscribe del reloj,
+                  %% no hay mas eventos (ni latidos)
+                  _ = [p29_reloj:tick() || _ <- lists:seq(Fin + 1, Fin + 30)],
                   timer:sleep(100),
-                  ?assertEqual(Fin - T0, conteo(Colector)),
-                  %% el tick Fin + 30 dispara exactamente un latido
-                  _ = [p29_reloj:tick() || _ <- lists:seq(Fin + 26, Fin + 30)],
-                  timer:sleep(100),
-                  ?assertEqual(Fin - T0 + 1, conteo(Colector))
+                  ?assertEqual(Fin - T0, conteo(Colector))
                 end)
        ]
    end}.

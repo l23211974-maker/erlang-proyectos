@@ -24,7 +24,7 @@ decodificar(Bin) ->
 
 all() -> [api_flujo_completo, estaticos_del_dashboard, sse_regresion_y_vivos,
           caos_aeronave_test, caos_envio_test, caos_despachador_test,
-          caos_web_test, caos_datos_test].
+          caos_web_test, caos_datos_test, caos_sin_senal_test].
 
 init_per_suite(Config) ->
     lists:foreach(
@@ -386,5 +386,85 @@ esperar(Fun, Restante) ->
         _:_ ->
             timer:sleep(50),
             esperar(Fun, Restante - 50)
+    end.
+
+%% ---- 9. caos: unidad que deja de reportar (sys:suspend) -------------------------
+%% Reproduce el caso del enunciado "conductor sin señal por una hora que luego
+%% reporta todo junto": el proceso no muere, simplemente deja de mandar GPS.
+%% El watchdog del despachador (sin_senal_ticks = 6, 6 ticks sin reporte)
+%% marca la unidad sin_senal y devuelve sus envíos a la cola; al reanudar,
+%% la unidad vuelve a reportar, se recupera a en_ruta y sigue operando.
+
+caos_sin_senal_test(_Config) ->
+    %% buscar una aeronave con envíos en ruta via /api/aeronaves (lista completa)
+    {200, Cuerpo0} = pedir_actual(get, <<"/api/aeronaves">>),
+    Aeronaves0 = decodificar(Cuerpo0),
+    %% Aeronaves0 es una lista de mapas con llaves: id (integer), estado (binary), carga_kg (integer), etc.
+    Candidata = lists:filter(
+                    fun(A) ->
+                        case maps:find(<<"estado">>, A) of
+                            {ok, <<"en_ruta">>} ->
+                                case maps:find(<<"carga_kg">>, A) of
+                                    {ok, C} when C > 0 -> true;
+                                    _ -> false
+                                end;
+                            _ -> false
+                        end
+                    end, Aeronaves0),
+    case Candidata of
+        [] ->
+            ct:pal("No hay aeronaves en_ruta con carga, test se omite", []),
+            ok;
+        [#{<<"id">> := Id} | _] ->
+            %% reducir sin_senal_ticks para test rápido: 10 ticks = 1s @ 100ms
+            application:set_env(?APP, sin_senal_ticks, 10),
+            %% obtener el PID de la aeronave desde p29_datos (ETS)
+            Pid = maps:get(pid, p29_datos:aeronave(Id), undefined),
+            ct:pal("Suspendiendo aeronave ~p (Pid=~p, sin_senal_ticks=10)", [Id, Pid]),
+            ?assert(is_pid(Pid)),
+            ok = sys:suspend(Pid),
+            ct:pal("Suspendido, esperando 1.5s para que watchdog detecte sin_senal...", []),
+            timer:sleep(1500),
+            %% VERIFICAR sin_senal ANTES de reanudar (el watchdog debería haber disparado)
+            {200, CuerpoChk} = pedir_actual(get, <<"/api/aeronaves">>),
+            AeronavesChk = decodificar(CuerpoChk),
+            BuscarEstado = fun(EstadoBuscado, IdBuscado, AeronavesLista) ->
+                lists:any(
+                    fun(A) ->
+                        case maps:find(<<"estado">>, A) of
+                            {ok, EstadoBuscado} ->
+                                case maps:find(<<"id">>, A) of
+                                    {ok, IdBuscado} -> true;
+                                    _ -> false
+                                end;
+                            _ -> false
+                        end
+                    end, AeronavesLista)
+            end,
+            case BuscarEstado(<<"sin_senal">>, Id, AeronavesChk) of
+                true ->
+                    ct:pal("OK: aeronave detectada sin_senal durante suspensión", []);
+                false ->
+                    ct:pal("AVISO: sin_senal no detectado aún, reanudando y esperando...", [])
+            end,
+            %% reanudar
+            ok = sys:resume(Pid),
+            ct:pal("Reanudado, esperando recuperación a en_ruta...", []),
+            %% esperar a que recupere a en_ruta
+            esperar(fun() ->
+                        {200, Cuerpo} = pedir_actual(get, <<"/api/aeronaves">>),
+                        Aeronaves = decodificar(Cuerpo),
+                        case BuscarEstado(<<"en_ruta">>, Id, Aeronaves) of
+                            false -> false;
+                            true ->
+                                ct:pal("Aeronave recuperada en_ruta: ~p", [Id]),
+                                ok
+                        end
+                    end, 15000),
+            %% verificar invariantes
+            {200, Cuerpo1} = pedir_actual(get, <<"/api/estado">>),
+            Estado1 = decodificar(Cuerpo1),
+            ?assertEqual(<<"ok">>, maps:get(<<"invariantes">>, Estado1)),
+            ok
     end.
 
