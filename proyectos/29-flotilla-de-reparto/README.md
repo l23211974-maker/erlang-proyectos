@@ -60,8 +60,8 @@ Todos los comandos se ejecutan **desde la raíz del proyecto** (`C:\Users\Max\de
 
 ```powershell
 rebar3 compile      # warnings_as_errors: un solo warning rompe el build
-rebar3 eunit        # 12 casos en 9 escenarios (árbol, asignación, statem, avería, señal, caos, demo, web, adsb)
-rebar3 ct           # 3 casos de integración (app completa: estáticos, /api/*, regresión SSE)
+rebar3 eunit        # 29 casos en 9 escenarios (árbol, asignación, statem, avería, señal, caos, demo, web, adsb)
+rebar3 ct           # 8 casos de integración (app completa: estáticos, /api/*, caos por HTTP, regresión SSE)
 rebar3 shell        # web en :8080 + de aquí: p29_simulador:demo().
 ```
 
@@ -110,7 +110,7 @@ p29_flotilla_reasignaciones_total
 
 ## Diseño visual (Stitch)
 
-### Paleta táctica (source of truth: `design/stitch_aerocargo/aerocargo_telematics_dispatch_operations/DESIGN.md`)
+### Paleta táctica (source of truth: `design/Plantilla Flotilla de Reparto/aeroterra_dispatch_telematics/DESIGN.md`)
 
 ```css
 /* Superficies */
@@ -304,7 +304,7 @@ Se mató un proceso de cada capa con `exit(Pid, kill)` contra la app real y se m
 - **Fork con trabajo actual (AeroCargo)**: https://github.com/l23211974-maker/erlang-proyectos/tree/main/proyectos/29-flotilla-de-reparto
 - **Manual Pi + métricas (gist)**: https://gist.github.com/l23211974-maker/f754a5fa477b148f2cdc2f36a10a76a8
 - **Documento "Importancia de Erlang"**: https://gist.github.com/l23211974-maker/7aa4a94d57b4eb7b17b89f21d18928cb
-- **Diseño Stitch AeroCargo**: `C:\Users\Max\Downloads\stitch_gestor_de_flotilla_a_rea.zip` (descomprimido en `design/stitch_aerocargo/`)
+- **Diseño Stitch AeroCargo**: `design/Plantilla Flotilla de Reparto/` (export de Google Stitch; tokens en `aeroterra_dispatch_telematics/DESIGN.md`, pantallas en `dashboard_*`, `detalle_de_unidad*`, `historial_y_*`)
 
 ---
 
@@ -318,7 +318,7 @@ Se mató un proceso de cada capa con `exit(Pid, kill)` contra la app real y se m
 - ~~Modelo de retraso~~: ventanas repartidas sobre la jornada; `retraso_medio` ≈ 12 min en vez de 2.7 h.
 - ~~Endurecer systemd~~: `Restart=always`, `StartLimit`, `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=full`, timeouts y logrotate (`deploy/`). Verificado en la RPi: `KILL` → arriba en 12 s con HTTP 200.
 - ~~Cookie fuera del repo~~: `-setcookie ${P29_COOKIE}` sustituido por relx en runtime; la cookie vive en `/etc/p29-flotilla.env` (chmod 600). Verificado: cookie nueva `pong`, la vieja `pang`.
-- ~~Verificar OTP 25~~: compila y pasa **12/12 eunit + 3/3 ct** con OTP 25.3.2.8 (erts 13.2.2.5) en WSL, instalado con kerl y un rebar3 3.24.0 compilado con ese mismo OTP (`--disable-jit`, `CFLAGS=-std=gnu17`: GCC 15 rompe OTP 25 por el `bool` de C23). El job `test-p29-otp25` del CI queda como red de seguridad.
+- ~~Verificar OTP 25~~: compila y pasa la suite con OTP 25.3.2.8 (erts 13.2.2.5) en WSL, instalado con kerl y un rebar3 3.24.0 compilado con ese mismo OTP (`--disable-jit`, `CFLAGS=-std=gnu17`: GCC 15 rompe OTP 25 por el `bool` de C23). Aquella verificación se hizo con la suite de entonces (**12/12 eunit + 3/3 ct**); hoy la suite es 29 eunit + 8 ct y el job `test-p29-otp25` del CI queda como red de seguridad.
 - ~~Capturas~~: seis capturas reales en [`docs/capturas/`](docs/capturas) enlazadas arriba.
 
 **Pendiente**

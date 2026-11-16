@@ -14,6 +14,12 @@ decodificar(Bin) ->
 %% ---- infraestructura de escenarios ------------------------------------------
 
 arrancar(EnvsExtra) ->
+  %% prometheus es app aparte: en la app real la arranca el .app.src, pero
+  %% estos escenarios levantan el supervisor a mano. Arrancarla aqui (una
+  %% sola vez, es idempotente) evita que el primer /metrics la arranque
+  %% dentro del request: en Windows ese arranque tarda segundos y desbordaba
+  %% el presupuesto del caso.
+  {ok, _} = application:ensure_all_started(prometheus),
   lists:foreach(
     fun({K, V}) -> application:set_env(?APP, K, V) end,
     [
@@ -84,6 +90,35 @@ conteo(Colector) ->
   receive
     {conteo, K} -> K
   end.
+
+%% httpc contra el listener de cowboy del propio nodo. En Windows/OTP 29 una
+%% conexion nueva puede quedarse esperando en el backlog de ranch y volver
+%% {error, timeout} (o lanzar) aunque el listener este sano; reintentar la
+%% libera. En Linux/CI la primera tentativa basta. Un estado HTTP inesperado
+%% NO se reintenta: sigue siendo un fallo real del test.
+pedir_http(Peticion) -> pedir_http(Peticion, [200]).
+%% 5 intentos de 5 s: el peor caso (25 s + pausas) cabe de sobra en el
+%% presupuesto de 60 s del caso; 8 x 15 s lo desbordaba y eunit cancelaba.
+pedir_http(Peticion, Estados) -> pedir_http(Peticion, Estados, 5).
+
+pedir_http(Peticion, Estados, N) ->
+  Resultado =
+    try {ok, Peticion()}
+    catch Clase:Razon -> {error, {Clase, Razon}}
+    end,
+  case Resultado of
+    {ok, {ok, {{_, Estado, _}, _, _}} = Ok} ->
+      case lists:member(Estado, Estados) of
+        true -> Ok;
+        false -> error({estado_http_inesperado, Estado, Estados})
+      end;
+    _ when N > 1 ->
+      timer:sleep(300),
+      pedir_http(Peticion, Estados, N - 1);
+    _ ->
+      error({http_sin_respuesta, Resultado})
+  end.
+
 
 %% ---- 1. arbol, arranque e invariantes ------------------------------------------
 
@@ -453,7 +488,19 @@ caos_sector_sin_senal_test_() ->
        esperar_asignadas(12),
        Pids = [maps:get(pid, p29_datos:aeronave(Id)) || Id <- [1, 2]],
        ?assertEqual(1, p29_reloj:tick()),
-       timer:sleep(30),
+       %% el tick llega a las aeronaves por mensaje: hay que esperar a que
+       %% TODAS lo procesen y dejen su tick_ultimo_reporte. Sin esto el
+       %% watchdog las ve "sin reporte todavia" y nunca marca sin_senal, y
+       %% el caso fallaba de forma intermitente.
+       ?assertEqual(ok,
+                    esperar(fun() ->
+                                    lists:all(
+                                      fun(Id) ->
+                                          is_integer(maps:get(tick_ultimo_reporte,
+                                                              p29_datos:aeronave(Id),
+                                                              undefined))
+                                      end, [1, 2])
+                            end, 2000)),
        {Sup, Pids}
    end,
    fun({SupPid, Pids}) ->
@@ -463,21 +510,42 @@ caos_sector_sin_senal_test_() ->
    fun({_Sup, Pids}) ->
       [
        ?_test(begin
-                  %% apagon: ninguna aeronave reporta
+                  %% apagon: ninguna aeronave reporta. Danos margen de sobra
+                  %% (7 ticks para un umbral de 3): el cast de ADS-B del tick 1
+                  %% y los ticks del reloj son de procesos distintos y no
+                  %% estan ordenados entre si; con solo 3 ticks el despachador
+                  %% podia procesar 2..4 antes del reporte 1 y ver "sin
+                  %% reporte todavia" (nunca sin_senal). Con el margen el
+                  %% watchdog dispara igual, sea cual sea ese orden.
                   lists:foreach(fun(P) -> p29_reloj:desuscribir(P) end, Pids),
-                  _ = [p29_reloj:tick() || _ <- lists:seq(2, 4)],
+                  _ = [p29_reloj:tick() || _ <- lists:seq(2, 8)],
                   timer:sleep(30),
-                  esperar(fun() ->
-                              [maps:get(estado, p29_datos:aeronave(Id))
-                               || Id <- [1, 2]] =:= [sin_senal, sin_senal]
-                          end, 2000),
+                  case esperar(fun() ->
+                                       [maps:get(estado, p29_datos:aeronave(Id))
+                                        || Id <- [1, 2]] =:= [sin_senal, sin_senal]
+                                   end, 2000) of
+                    ok -> ok;
+                    timeout ->
+                      error({aeronaves_no_calladas,
+                             [p29_datos:aeronave(Id) || Id <- [1, 2]],
+                             p29_reloj:tick_actual()})
+                  end,
+                  %% la liberacion de carga la pide el watchdog al despachador
+                  %% por mensaje: puede llegar un instante despues del cambio
+                  %% de estado de la aeronave. Esperarla, no asumir el orden.
+                  ?assertEqual(ok,
+                               esperar(fun() ->
+                                               p29_despachador:envios_de(1) =:= [] andalso
+                                               p29_despachador:envios_de(2) =:= [] andalso
+                                               p29_datos:envios_por_estado(en_ruta) =:= []
+                                           end, 2000)),
                   ?assertEqual([], p29_despachador:envios_de(1)),
                   ?assertEqual([], p29_despachador:envios_de(2)),
                   ?assertEqual(0, length(p29_datos:envios_por_estado(en_ruta))),
                   ?assertEqual(ok, p29_despachador:invariantes()),
                   %% vuelve la senal: reportan de nuevo y recuperan la carga
                   lists:foreach(fun(P) -> p29_reloj:subscribe(P) end, Pids),
-                  ?assertEqual(5, p29_reloj:tick()),
+                  ?assertEqual(9, p29_reloj:tick()),
                   timer:sleep(30),
                   esperar_asignadas(12),
                   ?assertEqual([en_ruta, en_ruta],
@@ -610,82 +678,79 @@ web_endpoints_test_() ->
                    Ruta = fun(Q) ->
                               "http://127.0.0.1:" ++ integer_to_list(Puerto) ++ Q
                           end,
-                   %% Reintento para /metrics: el atasco de accept del
-                   %% runtime en Windows/OTP 29 (comentario arriba) puede
-                   %% superar incluso 15 s; pedir de nuevo lo libera. En
-                   %% Linux/CI la primera tentativa siempre basta.
-                   PedirMetricas =
-                     fun Intento(N) when N > 0 ->
-                             try
-                                 httpc:request(
-                                     get, {Ruta("/metrics"), []},
-                                     [{timeout, 15000}],
-                                     [{body_format, binary}])
-                             catch
-                                 _:_ ->
-                                     case N > 1 of
-                                         true ->
-                                             timer:sleep(500),
-                                             Intento(N - 1);
-                                         false ->
-                                             error({metrics_timeout, N})
-                                     end
-                             end
+                   %% Todo pasa por pedir_http/2: en Windows/OTP 29 una conexion
+                   %% nueva puede quedarse en el backlog de ranch y volver
+                   %% {error, timeout} (o lanzar) aunque el listener este sano;
+                   %% pedir de nuevo lo libera. En Linux/CI la primera basta.
+                   Get = fun(Q) ->
+                             pedir_http(fun() ->
+                                            httpc:request(
+                                              get, {Ruta(Q), []},
+                                              [{timeout, 5000}],
+                                              [{body_format, binary}])
+                                        end)
                          end,
-                   {ok, {{_, 200, _}, _, CuerpoEstado}} =
-                     httpc:request(get, {Ruta("/api/estado"), []},
-                                   [{timeout, 10000}], [{body_format, binary}]),
+                   Post = fun(Q, Cuerpo) ->
+                              pedir_http(fun() ->
+                                             httpc:request(
+                                               post, {Ruta(Q), [],
+                                                      "application/json", Cuerpo},
+                                               [{timeout, 5000}],
+                                               [{body_format, binary}])
+                                         end)
+                          end,
+                   {ok, {{_, 200, _}, _, CuerpoEstado}} = Get("/api/estado"),
                    EstadoJson = decodificar(CuerpoEstado),
                    ?assertEqual(<<"ok">>, maps:get(<<"invariantes">>, EstadoJson)),
                    ?assertEqual(12,
                                 maps:get(<<"en_ruta">>,
                                          maps:get(<<"envios">>, EstadoJson))),
-                   {ok, {{_, 200, _}, _, CuerpoEnvios}} =
-                     httpc:request(get, {Ruta("/api/envios"), []},
-                                   [{timeout, 10000}], [{body_format, binary}]),
+                   {ok, {{_, 200, _}, _, CuerpoEnvios}} = Get("/api/envios"),
                    ?assertEqual(12, length(decodificar(CuerpoEnvios))),
                    {ok, {{_, 200, _}, _, CuerpoAeronaves}} =
-                     httpc:request(get, {Ruta("/api/aeronaves"), []},
-                                   [{timeout, 10000}], [{body_format, binary}]),
+                     Get("/api/aeronaves"),
                    ?assertEqual(2, length(decodificar(CuerpoAeronaves))),
-                   {ok, {{_, 200, _}, _, CuerpoMetricas}} =
-                     PedirMetricas(3),
+                   {ok, {{_, 200, _}, _, CuerpoMetricas}} = Get("/metrics"),
                    ?assertMatch({match, _},
                                 re:run(CuerpoMetricas,
                                        <<"^p29_flotilla_envios\\{estado=">>,
                                        [multiline])),
                    %% caos por HTTP: averiar una aeronave viva y una inexistente
                    {ok, {{_, 200, _}, _, CuerpoAveriar}} =
-                     httpc:request(post, {Ruta("/api/averiar"), [],
-                                          "application/json",
-                                          <<"{\"aeronave\":1}">>},
-                                   [{timeout, 10000}], [{body_format, binary}]),
+                     Post("/api/averiar", <<"{\"aeronave\":1}">>),
                    ?assertMatch(#{<<"ok">> := true, <<"aeronave">> := 1},
                                 decodificar(CuerpoAveriar)),
                    {ok, {{_, 404, _}, _, CuerpoNoHubo}} =
-                     httpc:request(post, {Ruta("/api/averiar"), [],
-                                          "application/json",
-                                          <<"{\"aeronave\":99}">>},
-                                   [{timeout, 10000}], [{body_format, binary}]),
+                     pedir_http(fun() ->
+                                    httpc:request(
+                                      post, {Ruta("/api/averiar"), [],
+                                             "application/json",
+                                             <<"{\"aeronave\":99}">>},
+                                      [{timeout, 5000}],
+                                      [{body_format, binary}])
+                                end, [404]),
                    ?assertMatch(#{<<"ok">> := false}, decodificar(CuerpoNoHubo)),
                    %% cuerpo basura: 400, nunca crash
                    {ok, {{_, 400, _}, _, CuerpoBasura}} =
-                     httpc:request(post, {Ruta("/api/averiar"), [],
-                                          "application/json",
-                                          <<"\x07no-es-json">>},
-                                   [{timeout, 10000}], [{body_format, binary}]),
+                     pedir_http(fun() ->
+                                    httpc:request(
+                                      post, {Ruta("/api/averiar"), [],
+                                             "application/json",
+                                             <<"\x07no-es-json">>},
+                                      [{timeout, 5000}],
+                                      [{body_format, binary}])
+                                end, [400]),
                    ?assertMatch(#{<<"ok">> := false}, decodificar(CuerpoBasura)),
                    %% urgente por HTTP: alta de un envio urgente fuera del lote
                    {ok, {{_, 200, _}, _, CuerpoUrgente}} =
-                     httpc:request(post, {Ruta("/api/urgente"), [],
-                                          "application/json",
-                                          <<"{\"peso_kg\":30, \"origen_iata\":\"MEX\", \"destino_iata\":\"BOG\"}">>},
-                                   [{timeout, 10000}], [{body_format, binary}]),
+                     Post("/api/urgente",
+                          <<"{\"peso_kg\":30, \"origen_iata\":\"MEX\", \"destino_iata\":\"BOG\"}">>),
                    ?assertMatch(#{<<"ok">> := true, <<"envio">> := _},
                                 decodificar(CuerpoUrgente))
-                end)
+               end)
          ]
      end}}.
+
 
 %% ---- 10. p29_meteo: alertas SIGMET/AIRMET determinísticas --------------
 
