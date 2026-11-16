@@ -19,11 +19,10 @@ init(Req0, _Estado) ->
               Cuerpo, Req0),
       {ok, Req, []}
   catch
-    Clase:Razon:Pila ->
+    Clase:Razon ->
       %% el scrape puede fallar apagado, pero jamas debe tumbar al nodo HTTP
-      logger:error("metrics fallo: ~p:~p (pila: ~s)",
-                   [Clase, Razon,
-                    iolist_to_binary(io_lib:format("~p", [Pila]))],
+      logger:error("metrics fallo: ~p:~p",
+                   [Clase, Razon],
                    #{dominio => flotilla}),
       Req = cowboy_req:reply(500, #{}, <<>>, Req0),
       {ok, Req, []}
