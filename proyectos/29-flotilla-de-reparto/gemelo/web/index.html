@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gemelo digital · Flotilla de reparto #29</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="gemelo">
+
+<header class="cabecera">
+  <div class="marca">
+    <span class="logo">◈</span>
+    <div>
+      <h1>Gemelo digital de la flotilla</h1>
+      <p class="sub">Proyecto #29 · SWI-Prolog · las reglas viven en <code>reglas.pl</code></p>
+    </div>
+  </div>
+  <div class="reloj">
+    <span class="etiqueta">Ahora</span>
+    <strong id="ahora">--:--</strong>
+    <span class="etiqueta" id="jornada">jornada</span>
+  </div>
+</header>
+
+<main class="rejilla">
+
+  <!-- Mapa -->
+  <section class="panel panel-mapa">
+    <h2>Mapa y rutas <span class="pista">tramo lento en rojo</span></h2>
+    <div class="mapa" id="mapa">
+      <svg id="rutas" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="capa-puntos" id="puntos"></div>
+    </div>
+    <ul class="leyenda" id="leyenda"></ul>
+  </section>
+
+  <!-- Flota -->
+  <section class="panel">
+    <h2>Flota <span class="pista" id="resumen-flota"></span></h2>
+    <div class="flota" id="flota"></div>
+  </section>
+
+  <!-- Entregas -->
+  <section class="panel panel-ancho">
+    <h2>Entregas <span class="pista" id="resumen-entregas"></span></h2>
+    <div class="tabla-scroll">
+      <table id="tabla-entregas">
+        <thead><tr><th>Entrega</th><th>Punto</th><th>Ventana</th><th>Estado</th><th>Unidad</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Situaciones -->
+  <section class="panel">
+    <h2>Lo que el gemelo dedujo</h2>
+    <div class="chips" id="situaciones"></div>
+  </section>
+
+  <!-- Plan situación 1 -->
+  <section class="panel panel-ancho">
+    <h2>Situación 1 · la unidad averiada
+      <span class="pista">todas las respuestas válidas, con su porqué</span></h2>
+    <div class="controles">
+      <label for="entregas-plan">Entregas a repartir</label>
+      <input id="entregas-plan" type="text" placeholder="vacío = pendientes de la unidad averiada">
+      <button id="btn-plan">Calcular reparto</button>
+    </div>
+    <div id="plan" class="salida"></div>
+  </section>
+
+  <!-- Urgente -->
+  <section class="panel panel-ancho">
+    <h2>Situación 2 · el pedido urgente
+      <span class="pista">la unidad más cercana no se elige por serlo</span></h2>
+    <div id="urgente" class="salida"></div>
+  </section>
+
+  <!-- Silencio -->
+  <section class="panel">
+    <h2>Situación 3 · la unidad que se calló</h2>
+    <div class="controles">
+      <label for="sel-silencio">Unidad</label>
+      <select id="sel-silencio"></select>
+    </div>
+    <div id="silencio" class="salida"></div>
+  </section>
+
+  <!-- Llegadas -->
+  <section class="panel">
+    <h2>Situación 4 · ¿llega a su ventana?</h2>
+    <div class="controles">
+      <label for="sel-llegadas">Unidad</label>
+      <select id="sel-llegadas"></select>
+    </div>
+    <div id="llegadas" class="salida"></div>
+  </section>
+
+  <!-- Fallidas -->
+  <section class="panel panel-ancho">
+    <h2>Situación 5 · la entrega fallida que sigue a bordo</h2>
+    <div id="fallidas" class="salida"></div>
+  </section>
+
+  <!-- Qué falta -->
+  <section class="panel panel-ancho">
+    <h2>¿Qué tendría que cambiar?</h2>
+    <div id="que-falta" class="salida"></div>
+  </section>
+
+</main>
+
+<footer class="pie">
+  <p>Interfaz de solo consulta: pide todo a <code>/api/*</code>. Ninguna regla de reparto,
+     capacidad, ventana o prioridad se calcula en JavaScript.</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
