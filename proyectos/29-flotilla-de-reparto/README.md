@@ -201,6 +201,20 @@ Segunda demo de la UI (2:20, 1440×900, H.264) centrada en el enunciado de últi
 
 La grabación usa el mismo release de la RPi por el túnel SSH. Para que la jornada se vea completa se bajó el reloj a **120 ms/tick** en runtime (`application:set_env`, `tick_interval_ms`); `sys.config` sigue en 33 ms y la app no se modifica.
 
+### Verificación completa en curso-plf (2026-11-18)
+
+Corrida de extremo a extremo sobre la instancia AWS `curso-plf` (Erlang/OTP 25, rebar3, SWI-Prolog 9.0.4), tecleando cada comando en la grabación: compilación, EUnit, Common Test, arranque de la app y APIs de la app Erlang; después las suites plunit del gemelo Prolog y su servidor HTTP, con Janus (Python) en modo puente.
+
+| Evidencia | Qué muestra | Archivo |
+|---|---|---|
+| **Verificación en terminal** (6:03) | `rebar3 compile`, `rebar3 eunit` 29/29, `rebar3 ct` 9/9, arranque de la app y `/api/estado` + `/api/metricas` en `:8080`; gemelo: plunit 28 + 18 + 6 pruebas OK, `swipl servidor.pl 8089` y `/api/estado`, `/api/janus` (`ping`, `lecturas`, `resumen`, `graficar`) y `/api/extensiones` | https://asciinema.org/a/QIgbjxRfLjnWqpCu · copia permanente en [`docs/verificacion-corrida-completa-2026-11-18.cast`](docs/verificacion-corrida-completa-2026-11-18.cast) |
+| App Erlang en `curso-plf` | Panel AeroCargo servido por la app real levantada para la verificación | ![](docs/capturas/09-erlang-app-curso-plf.png) |
+| Gemelo Prolog: panel | Reglas del gemelo (`reglas.pl`), reloj de la jornada y rutas por unidad | ![](docs/capturas/10-gemelo-panel.png) |
+| Gemelo Prolog: Janus lecturas | `/api/janus?accion=lecturas` — lecturas GPS simuladas generadas en Python desde Prolog | ![](docs/capturas/11-gemelo-janus-lecturas.png) |
+| Gemelo Prolog: Janus gráfica | `/api/janus?accion=graficar` — SVG de entregas por estado generado por Python | ![](docs/capturas/12-gemelo-janus-grafica.png) |
+
+Se reproduce con `asciinema play docs/verificacion-corrida-completa-2026-11-18.cast`. Las capturas se tomaron con Playwright contra la app en `http://<curso-plf>:8080` y contra el servidor del gemelo por túnel SSH a `:8089`, con los servicios levantados solo para la demo.
+
 ### Optimizaciones de rendimiento (app.js)
 
 - **requestAnimationFrame** para todas las actualizaciones visuales (batched rendering at max 2Hz)
