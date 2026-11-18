@@ -142,7 +142,7 @@ test(lo_dudoso_no_se_trata_como_hecho) :-
     veredicto_entrega(e14, 300, no_se_sabe, _).
 
 test(detecta_duplicada_por_una_decision_previa) :-
-    situacion(e5, duplicada, Ev),
+    once(situacion(e5, duplicada, Ev)),
     get_dict(unidad_original, Ev, u2),
     get_dict(unidad_nueva, Ev, u1).
 
@@ -183,7 +183,7 @@ test(detecta_al_conductor_sin_horas) :-
 
 %% Situacion 5: la entrega fallida sigue a bordo y ocupa bodega.
 test(direccion_mala_es_no_ubicable) :-
-    destino_fallida(e11, 300, no_ubicable, _).
+    once(destino_fallida(e11, 300, no_ubicable, _)).
 
 test(el_paquete_fallido_cuenta_contra_la_capacidad) :-
     impacto_fallida(e8, 300, u4, SinContar, Contando),

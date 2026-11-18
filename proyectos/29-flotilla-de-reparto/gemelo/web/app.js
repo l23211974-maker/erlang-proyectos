@@ -429,49 +429,67 @@ async function cargarSilencio() {
 /* ---------- situación 4: llegadas ---------- */
 
 function pintarLlegadas(datos) {
-  const cont = $('#llegadas');
+  const cont = $("#llegadas");
   cont.replaceChildren();
   if (datos.averiada) {
-    cont.append(el('p', 'vacio',
-      'Ojo: esta unidad está averiada. Sus paradas pendientes no van a ocurrir tal cual; los veredictos de abajo son la estimación sobre la ruta que tenía asignada.'));
+    cont.append(el("p", "vacio",
+      "Ojo: esta unidad está averiada. Sus paradas pendientes no van a ocurrir tal cual; los veredictos de abajo son la estimación sobre la ruta que tenía asignada."));
   }
-  if (!datos.llegadas.length) { vacio(cont, 'Sin paradas pendientes.'); return; }
+  if (!datos.llegadas.length) { vacio(cont, "Sin paradas pendientes."); return; }
 
-  const tabla = el('table');
-  tabla.innerHTML = '<thead><tr><th>Entrega</th><th>Llegada</th><th>Veredicto</th></tr></thead>';
-  const cuerpo = el('tbody');
+  const tabla = el("table");
+  tabla.innerHTML = "<thead><tr><th>Entrega</th><th>Llegada</th><th>Veredicto</th><th>Motivo (tramo/paradas)</th><th>Ruta alterna</th></tr></thead>";
+  const cuerpo = el("tbody");
   for (const l of datos.llegadas) {
-    const tr = el('tr');
-    const clase = l.veredicto === 'en_ventana' ? 'ok'
-      : l.veredicto === 'tarde' ? 'averiada' : 'en_duda';
-    tr.append(el('td', 'mono', l.entrega),
-      el('td', 'mono', hhmm(l.minimo) + '–' + hhmm(l.maximo)));
-    const td = el('td');
-    td.append(el('span', 'insignia ' + clase, texto(l.veredicto)));
+    const tr = el("tr");
+    const clase = l.veredicto === "en_ventana" ? "ok"
+      : l.veredicto === "tarde" ? "averiada" : "en_duda";
+    tr.append(el("td", "mono", l.entrega),
+      el("td", "mono", hhmm(l.minimo) + "–" + hhmm(l.maximo)));
+    const td = el("td");
+    td.append(el("span", "insignia " + clase, texto(l.veredicto)));
     tr.append(td);
+    const tdMot = el("td", "por-que");
+    if (l.motivo) {
+      const partes = [];
+      if (l.motivo.por) partes.push("por: " + texto(l.motivo.por));
+      if (l.motivo.parada_min !== undefined) partes.push("parada " + l.motivo.parada_min + "-" + l.motivo.parada_max + " min");
+      if (l.tramos_lentos && l.tramos_lentos.length) partes.push("tramos lentos: " + l.tramos_lentos.map(texto).join(", "));
+      tdMot.textContent = partes.join(" · ") || texto(l.motivo);
+    } else { tdMot.textContent = "—"; }
+    tr.append(tdMot);
+    const tdAlt = el("td", "por-que");
+    if (l.alterna) {
+      if (l.alterna.existe === "si") {
+        const bits = ["llegada " + hhmm(l.alterna.minimo) + "–" + hhmm(l.alterna.maximo), "veredicto " + texto(l.alterna.veredicto)];
+        if (l.alterna.cambia === "si") bits.push("→ cambia el veredicto");
+        else if (l.alterna.cambia === "no") bits.push("→ no cambia");
+        else if (l.alterna.cambia === "mejora") bits.push("→ mejora");
+        else if (l.alterna.cambia === "no_aplica") bits.push("(sin tramo lento en ruta actual)");
+        tdAlt.textContent = bits.join(" · ");
+      } else if (l.alterna.existe === "no") {
+        tdAlt.textContent = "No hay ruta alterna sin tramos lentos (" + texto(l.alterna.motivo || "") + ")";
+      } else { tdAlt.textContent = texto(l.alterna); }
+    } else { tdAlt.textContent = "—"; }
+    tr.append(tdAlt);
     cuerpo.append(tr);
   }
   tabla.append(cuerpo);
   cont.append(tabla);
-
   if (datos.horas) {
-    const caja = el('div', 'tarjeta');
-    caja.append(el('h3', null, 'Horas del conductor'));
-    const clase = datos.horas.veredicto === 'si' ? 'ok'
-      : datos.horas.veredicto === 'no' ? 'averiada' : 'en_duda';
-    const p = el('p');
-    p.append(el('span', 'insignia ' + clase, 'alcanza: ' + texto(datos.horas.veredicto)));
-    caja.append(p, el('p', 'por-que', texto(datos.horas.evidencia)));
+    const caja = el("div", "tarjeta");
+    caja.append(el("h3", null, "Horas del conductor"));
+    const clase = datos.horas.veredicto === "si" ? "ok" : datos.horas.veredicto === "no" ? "averiada" : "en_duda";
+    const p = el("p");
+    p.append(el("span", "insignia " + clase, "alcanza: " + texto(datos.horas.veredicto)));
+    caja.append(p, el("p", "por-que", texto(datos.horas.evidencia)));
     cont.append(caja);
   }
-
   if (datos.tramos_lentos.length) {
-    const caja = el('div', 'tarjeta');
-    caja.append(el('h3', null, 'Tramo lento y rutas que toca'));
+    const caja = el("div", "tarjeta");
+    caja.append(el("h3", null, "Tramo lento y rutas que toca"));
     for (const t of datos.tramos_lentos) {
-      caja.append(el('p', null,
-        t.tramo.origen + '–' + t.tramo.destino + ': ' + t.minutos + ' min · toca a ' +
-        (t.unidades.length ? t.unidades.join(', ') : 'ninguna unidad')));
+      caja.append(el("p", null, t.tramo.origen + "–" + t.tramo.destino + ": " + t.minutos + " min · toca a " + (t.unidades.length ? t.unidades.join(", ") : "ninguna unidad")));
     }
     cont.append(caja);
   }
@@ -488,21 +506,36 @@ async function cargarLlegadas() {
 /* ---------- situación 5: fallidas ---------- */
 
 function pintarFallidas(datos) {
-  const cont = $('#fallidas');
+  const cont = $("#fallidas");
   cont.replaceChildren();
-  if (!datos.fallidas.length) { vacio(cont, 'Ninguna entrega fallida.'); return; }
+  if (!datos.fallidas.length) { vacio(cont, "Ninguna entrega fallida."); return; }
 
   for (const f of datos.fallidas) {
-    const caja = el('div', 'tarjeta');
-    caja.append(el('h3', null, f.entrega + ' · ' + texto(f.motivo)));
-    caja.append(el('p', null, 'Punto ' + texto(f.punto) + ' · ' + f.peso + ' kg / ' + f.volumen + ' u'));
-    caja.append(el('p', null, 'Destino: ' + texto(f.destino)));
+    const caja = el("div", "tarjeta");
+    caja.append(el("h3", null, f.entrega + " · " + texto(f.motivo)));
+    caja.append(el("p", null, "Punto " + texto(f.punto) + " · " + f.peso + " kg / " + f.volumen + " u"));
+    caja.append(el("p", null, "Destino: " + texto(f.destino)));
     if (f.impacto) {
-      caja.append(el('p', null,
-        'Capacidad de ' + f.impacto.unidad + ' si no se contara el paquete: ' +
-        texto(f.impacto.sin_contar) + ' · contándolo: ' + texto(f.impacto.contando)));
+      caja.append(el("p", null,
+        "Capacidad de " + f.impacto.unidad + " si no se contara el paquete: " +
+        texto(f.impacto.sin_contar) + " · contándolo: " + texto(f.impacto.contando)));
     }
-    caja.append(el('p', 'por-que', texto(f.evidencia)));
+    if (f.impacto_decisiones) {
+      const imp = f.impacto_decisiones;
+      const bloque = el("div", "tarjeta");
+      bloque.append(el("h3", null, "Impacto en decisiones de situaciones 1 y 2 (sin contar esta carga)"));
+      const s1 = imp.situacion_1 || {};
+      const s2 = imp.situacion_2 || {};
+      const p1 = el("p");
+      p1.append(el("b", null, "Situación 1 (plan de avería): "));
+      p1.append(document.createTextNode("cambia=" + texto(s1.cambia) + " · actual: " + texto(s1.actual) + " · sin contarla: " + texto(s1.sin_contarla)));
+      const p2 = el("p");
+      p2.append(el("b", null, "Situación 2 (pedido urgente): "));
+      p2.append(document.createTextNode("cambia=" + texto(s2.cambia) + " · actual: " + texto(s2.actual) + " · sin contarla: " + texto(s2.sin_contarla)));
+      bloque.append(p1, p2);
+      caja.append(bloque);
+    }
+    caja.append(el("p", "por-que", texto(f.evidencia)));
     cont.append(caja);
   }
 }
@@ -525,6 +558,80 @@ async function pintarQueFalta() {
       cont.append(el('p', 'vacio', objetivo + ': ' + e.message));
     }
   }
+}
+
+
+
+/* ---------- Janus (Python desde Prolog) ---------- */
+
+function pintarJanus(datos) {
+  const cont = $('#janus');
+  if (!cont) return;
+  cont.replaceChildren();
+  if (!datos) { vacio(cont, 'Sin datos de Janus.'); return; }
+  const pre = el('pre', 'por-que');
+  pre.textContent = JSON.stringify(datos, null, 2);
+  cont.append(pre);
+}
+
+function pintarJanusGrafica(datos) {
+  const cont = $('#janus-grafica');
+  if (!cont) return;
+  cont.replaceChildren();
+  if (!datos) return;
+  const r = datos.resultado || datos;
+  const rel = r.archivo_relativo;
+  if (rel) {
+    const caja = el('div', 'tarjeta');
+    caja.append(el('h3', null, 'Gráfica generada en Python (Janus)'));
+    const img = document.createElement('img');
+    img.src = '/' + String(rel).replace(/^\/+/, '') + '?t=' + Date.now();
+    img.alt = 'Gráfica generada por Janus/Python';
+    img.style.maxWidth = '100%';
+    img.style.height = 'auto';
+    caja.append(img);
+    const pre = el('pre', 'por-que');
+    pre.textContent = JSON.stringify(r, null, 2);
+    caja.append(pre);
+    cont.append(caja);
+  }
+}
+
+async function janusAccion(accion, extra) {
+  const q = extra ? ('janus?accion=' + accion + '&' + extra) : ('janus?accion=' + accion);
+  try {
+    const d = await api(q);
+    pintarJanus(d);
+    if (accion === 'graficar' || accion === 'graficar_llegadas') pintarJanusGrafica(d);
+  } catch (e) {
+    pintarJanus({ error: e.message, accion: accion });
+  }
+}
+
+async function cargarJanusEstado() {
+  try { pintarJanus(await api('janus?accion=estado')); } catch (e) { /* opcional */ }
+}
+
+
+/* ---------- extensiones posibles ---------- */
+
+function pintarExtensiones(datos) {
+  const cont = $('#extensiones');
+  cont.replaceChildren();
+  if (!datos) { vacio(cont, 'Sin datos de extensiones.'); return; }
+  const mk = (titulo, obj) => {
+    const caja = el('div', 'tarjeta');
+    caja.append(el('h3', null, titulo));
+    const pre = el('pre', 'por-que');
+    pre.textContent = JSON.stringify(obj, null, 2);
+    caja.append(pre);
+    cont.append(caja);
+  };
+  mk('1) Ventanas blandas con penalización y prioridad por contrato', datos.ventanas_blandas_prioridad || {});
+  mk('2) Autonomía de combustible/batería y puntos de carga', datos.autonomia_y_carga || {});
+  mk('3) Transferencia de paquetes a medio camino', datos.transferencias || {});
+  mk('4) Devoluciones y recolecciones junto con las entregas', datos.devoluciones_recolecciones || {});
+  mk('5) Cierre de calle/cruce que cambia varios tramos', datos.cierres || {});
 }
 
 /* ---------- arranque ---------- */
@@ -572,6 +679,8 @@ async function arrancar() {
     cargarLlegadas(),
     api('fallidas').then(pintarFallidas).catch((e) => vacio($('#fallidas'), e.message)),
     pintarQueFalta(),
+    api('extensiones').then(pintarExtensiones).catch((e) => vacio($('#extensiones'), e.message)),
+    cargarJanusEstado(),
   ]);
 }
 
@@ -579,5 +688,19 @@ $('#btn-plan').addEventListener('click', cargarPlan);
 $('#entregas-plan').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') cargarPlan(); });
 $('#sel-silencio').addEventListener('change', cargarSilencio);
 $('#sel-llegadas').addEventListener('change', cargarLlegadas);
+
+const _btnJanusPing = $('#btn-janus-ping');
+if (_btnJanusPing) _btnJanusPing.addEventListener('click', () => janusAccion('ping'));
+const _btnJanusLect = $('#btn-janus-lecturas');
+if (_btnJanusLect) _btnJanusLect.addEventListener('click', () => janusAccion('lecturas', 'cantidad=8'));
+const _btnJanusRes = $('#btn-janus-resumen');
+if (_btnJanusRes) _btnJanusRes.addEventListener('click', () => janusAccion('resumen'));
+const _btnJanusGraf = $('#btn-janus-graficar');
+if (_btnJanusGraf) _btnJanusGraf.addEventListener('click', () => janusAccion('graficar'));
+const _btnJanusGrafL = $('#btn-janus-graficar-llegadas');
+if (_btnJanusGrafL) _btnJanusGrafL.addEventListener('click', () => {
+  const u = $('#sel-llegadas') ? $('#sel-llegadas').value : 'u1';
+  janusAccion('graficar_llegadas', 'unidad=' + encodeURIComponent(u));
+});
 
 arrancar();

@@ -10,7 +10,13 @@ gemelo/
 ├── hechos.pl               escenario: 4 unidades, 14 entregas, 8 puntos, eventos
 ├── reglas.pl               todas las reglas del dominio (nada de dominio fuera de aquí)
 ├── servidor.pl             library(http/…): JSON en /api/* + estáticos de web/
+├── janus_bridge.pl         puente py_call/2 (Janus nativo o proceso Python + JSON)
+├── integracion_janus.pl    lecturas simuladas y gráficas vía Python desde Prolog
+├── janus_call.py           runner genérico para llamadas Python desde Prolog
+├── janus_sim.py            lecturas simuladas y gráficas SVG (stdlib, sin deps)
 ├── tests/reglas_tests.pl   28 pruebas plunit (averia, urgente, silencio, llegada, fallida, contrato)
+├── tests/extensiones_tests.pl 18 pruebas plunit de extensiones posibles
+├── tests/janus_tests.pl    6 pruebas plunit de integración Janus/Python
 ├── web/                    interfaz de solo consulta (index.html, style.css, app.js)
 ├── PROBLEMA.md             enunciado de la extensión
 └── CONTEXTO_AGENTES.md     restricciones de arquitectura y criterios de aceptación
@@ -28,9 +34,11 @@ $env:GEMELO_PORT = 8090; swipl servidor.pl    # otro puerto
 swipl servidor.pl 8091                        # o como argumento
 ```
 
-Requisitos: SWI-Prolog 10 (probado con 10.0.2 en Windows) y nada más. Solo se usan
-bibliotecas estándar: `plunit`, `lists`, `heaps` y `library(http/…)`. No hay Janus/Python,
-ni dependencias externas.
+Requisitos: SWI-Prolog 9.0.4+ (probado en Linux aarch64 y Windows) y Python 3 (stdlib)
+para la integración Janus. Se usan bibliotecas estándar: plunit, lists, heaps,
+library(http/…), library(process), library(readutil). Janus se integra vía py_call/2
+(nativo si library(janus) está disponible, o puente compatible janus_bridge.pl +
+janus_call.py) para lecturas simuladas y gráficas SVG (janus_sim.py, sin dependencias externas).
 
 ## Supuestos (cifras propias de esta extensión)
 
@@ -192,5 +200,5 @@ ejecutar la flotilla en tiempo real, Prolog para razonar sobre ella sin ambigüe
   esta extensión (y para pedir *todos* los planes) es la herramienta correcta.
 - El escenario es uno solo y vive en `hechos.pl`; cambiar el caso es editar hechos, no
   reescribir reglas.
-- No hay Janus/Python: las lecturas son hechos, no un generador.
+- Janus/Python implementado: py_call/2 (nativo o puente compatible) llama a Python desde Prolog para generar lecturas simuladas (lecturas_simuladas_janus/4) y gráficas SVG (graficar_entregas_janus/1, graficar_llegadas_janus/2) vía /api/janus (ccion=ping|lecturas|resumen|graficar|graficar_llegadas). Las lecturas del escenario base siguen siendo hechos; Janus agrega lecturas simuladas y visualización bajo demanda.
 - La interfaz no tiene autenticación ni escritura: es de solo consulta, por diseño.

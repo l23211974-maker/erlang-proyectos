@@ -23,6 +23,7 @@
 %% El directorio de web/ se guarda como hecho: nb_setval es por hilo y los
 %% handlers corren en hilos del pool de httpd.
 :- dynamic(gemelo_web/1).
+:- discontiguous manejar/2.
 
 :- prolog_load_context(directory, Dir),
    atomic_list_concat([Dir, '/hechos.pl'], Hechos),
@@ -30,6 +31,8 @@
    atomic_list_concat([Dir, '/web'], Web),
    consult(Hechos),
    consult(Reglas),
+   use_module(Dir/janus_bridge),
+   use_module(Dir/integracion_janus),
    assertz(gemelo_web(Web)).
 
 :- http_handler(root(api/estado),       api(estado),       []).
@@ -40,6 +43,8 @@
 :- http_handler(root(api/fallidas),     api(fallidas),     []).
 :- http_handler(root(api/que_falta),    api(que_falta),    []).
 :- http_handler(root(api/prioridad),    api(prioridad),    []).
+:- http_handler(root(api/extensiones),  api(extensiones),  []).
+:- http_handler(root(api/janus),        api(janus),        []).
 :- http_handler(root(.),                estaticos,         [prefix]).
 
 %% ---------------------------------------------------------------------------
@@ -99,6 +104,42 @@ api(Que, Request) :-
           ( format(user_error, "api ~w: ~q~n", [Que, Error]),
             reply_json_dict(_{error: Error}, [status(500)]) )).
 
+
+
+%% ---------------------------------------------------------------------------
+%% /api/extensiones - extensiones posibles implementadas
+%% ---------------------------------------------------------------------------
+
+extensiones_json(Json) :-
+    ahora(Ahora),
+    % 1) Ventanas blandas y prioridad por contrato
+    findall(_{entrega:E, penalizacion_por_minuto:P}, ventana_blanda(E,P), Blandas),
+    findall(_{entrega:E, prioridad:N}, (prioridad_contrato(E,N), N \== normal), Contratos),
+    % 2) Autonomia y puntos de carga
+    findall(_{unidad:U, autonomia:A, consumo:C, estado:V, evidencia:Ev},
+            (unidad(U,_,_), puede_completar_ruta(U,Ahora,V,Ev), autonomia(U,A,C)), Autonomias),
+    findall(_{punto:P, recarga_minutos:T}, punto_carga(P,T), PuntosCarga),
+    % 3) Transferencias a medio camino
+    findall(_{entrega:E, de:U1, a:U2, punto:Pt, minuto:M},
+            transferencia_viable(E,U1,U2,Pt,Ahora,_), Transferencias),
+    findall(_{punto:Pt, u1:U1, u2:U2, minuto:M}, punto_encuentro(Pt,U1,U2,M), Encuentros),
+    % 4) Devoluciones y recolecciones
+    findall(_{id:R, punto:Pt, peso:P, volumen:V, unidad:U, orden:O, ventana:D-H},
+            recoleccion(R,Pt,P,V,U,O,_,D,H), Recolecciones),
+    findall(_{entrega:E, unidad:U, punto_devolucion:Pt}, devolucion(E,U,Pt), Devoluciones),
+    findall(_{unidad:U, peso:Peso, volumen:Vol, capacidad_ext:libre(LP-LV)},
+            (unidad(U,_,_), capacidad_libre_ext(U,LP,LV,Ahora), carga_con_recolecciones(U,Peso,Vol,Ahora)), CapExt),
+    % 5) Cierres de calle/cruce
+    cierres_activos(CierresA),
+    findall(_{evento:futuro, minuto:M, entidad:Ent, detalle:D},
+            (evento(M,cierre,Ent,D), \+ cierre_efectivo(M)), CierresFuturos),
+    Json = _{ ahora: Ahora,
+              ventanas_blandas_prioridad: _{blandas: Blandas, prioridad_contrato: Contratos},
+              autonomia_y_carga: _{unidades: Autonomias, puntos_carga: PuntosCarga},
+              transferencias: _{permitidas: si, encuentros: Encuentros, viables_ahora: Transferencias},
+              devoluciones_recolecciones: _{recolecciones: Recolecciones, devoluciones: Devoluciones, capacidad_efectiva: CapExt},
+              cierres: _{activos: CierresA, programados_fuera_jornada: CierresFuturos} }.
+
 %% Traduce cualquier termino del dominio a algo que json_write_dict/1 acepte:
 %% dicts y listas se recorren, atomos y numeros se dejan, y un termino
 %% compuesto (tramo(c,d), reintento_hoy(u1), peso_volumen(...)) se manda como
@@ -150,6 +191,42 @@ param(Request, Nombre, Defecto, Valor) :-
     ;   Valor = V0
     ).
 param(_, _, Defecto, Defecto).
+
+
+
+%% ---------------------------------------------------------------------------
+%% /api/janus - integración Python desde Prolog (Janus/puente py_call)
+%% ---------------------------------------------------------------------------
+
+manejar(janus, Request) :-
+    param(Request, 'accion',  estado, Accion0),
+    atom_string(Accion, Accion0),
+    manejar_janus(Accion, Request).
+
+manejar_janus(estado, _) :-
+    janus_estado(E), responder(E).
+manejar_janus(ping, _) :-
+    janus_ping(I), responder(_{accion: ping, resultado: I}).
+manejar_janus(lecturas, Request) :-
+    param(Request, 'cantidad', 8, C0),
+    ( catch(atom_number(C0, C), _, fail) -> Cant = C ; Cant = 8 ),
+    ( ahora(A) -> Ahora = A ; Ahora = 300 ),
+    lecturas_simuladas_janus(Ahora, Cant, 29, Lecturas),
+    responder(_{accion: lecturas, ahora: Ahora, cantidad: Cant, lecturas: Lecturas}).
+manejar_janus(resumen, _) :-
+    resumen_flota_janus(R), responder(_{accion: resumen, resultado: R}).
+manejar_janus(graficar, _) :-
+    graficar_entregas_janus(R), responder(_{accion: graficar_entregas, resultado: R}).
+manejar_janus(graficar_llegadas, Request) :-
+    param(Request, 'unidad', u1, U0),
+    atom_string(U, U0),
+    graficar_llegadas_janus(U, R),
+    responder(_{accion: graficar_llegadas, unidad: U, resultado: R}).
+manejar_janus(Otra, _) :-
+    responder(_{error: accion_desconocida, accion: Otra,
+                acciones: [estado, ping, lecturas, resumen, graficar, graficar_llegadas]}).
+
+manejar(extensiones, _) :- extensiones_json(Json), responder(Json).
 
 %% ---------------------------------------------------------------------------
 %% /api/estado
@@ -378,14 +455,19 @@ silencio_json(Request, Json) :-
 %% ---------------------------------------------------------------------------
 
 llegadas_json(Request, Json) :-
-    param(Request, 'unidad', "u1", Valor0),
+    param(Request, 'unidad',  u1, Valor0),
     atom_string(U, Valor0),
     ahora(Ahora),
-    (   llegadas_unidad(U, Ahora, Llegadas)
-    ->  findall(_{entrega: E, minimo: Min, maximo: Max, veredicto: V},
-                member(E-(Min-Max)-V, Llegadas), LlegadasJson)
-    ;   LlegadasJson = []
-    ),
+    (   catch(llegadas_unidad_detalle(U, Ahora, Detalles), _, fail)
+    ->  true ; Detalles = [] ),
+    findall(_{entrega: E, minimo: Min, maximo: Max, veredicto: V,
+              motivo: Motivo, tramos_lentos: TL, alterna: Alt},
+            ( member(D, Detalles),
+              E = D.entrega, Min = D.minimo, Max = D.maximo, V = D.veredicto,
+              get_dict(motivo, D, Motivo),
+              get_dict(tramos_lentos, D, TL),
+              get_dict(alterna, D, Alt) ),
+            LlegadasJson),
     (   alcanza_horas(U, Ahora, HorasV, HorasEv)
     ->  Horas = _{veredicto: HorasV, evidencia: HorasEv}
     ;   Horas = null ),
@@ -411,7 +493,11 @@ fallida_json(D) :-
     (   impacto_fallida(E, Ahora, U, SinContar, Contando)
     ->  Impacto = _{unidad: U, sin_contar: SinContar, contando: Contando}
     ;   Impacto = null ),
+    (   catch(impacto_decisiones_fallida(E, Ahora, ImpactoDec), _, fail)
+    ->  ImpactoDecisiones = ImpactoDec
+    ;   ImpactoDecisiones = null ),
     entrega(E, P, Peso, Vol),
     D = _{ entrega: E, motivo: Motivo, punto: P,
            peso: Peso, volumen: Vol,
-           destino: Destino, evidencia: Ev, impacto: Impacto }.
+           destino: Destino, evidencia: Ev, impacto: Impacto,
+           impacto_decisiones: ImpactoDecisiones }.

@@ -15,6 +15,7 @@
 %% Las ventanas se declaran junto a cada entrega y se amplian al final con el
 %% pedido urgente, por eso no quedan juntas en el archivo.
 :- discontiguous ventana/3.
+:- discontiguous evento/4.
 
 %% ---------------------------------------------------------------------------
 %% Tiempo
@@ -45,6 +46,8 @@ manejado(u4, 300).
 
 max_manejo(480).            % tope de minutos al volante por conductor
 umbral_silencio(60).        % minutos sin lectura que vuelven dudosa a una unidad
+tolerancia_ventana(0).      % retraso tolerado en ventana (0 = ventanas duras por defecto)
+tiempo_recogida_averia(parada_minima).  % recoger paquetes de averiada: viaje al punto + 1 parada minima
 
 %% Ultima lectura conocida de cada unidad (posicion y minuto en que se midio).
 lectura(u1, posicion, a_almacen, 120).
@@ -163,6 +166,7 @@ evento(275, entregada,   e5,  u2).
 evento(280, tramo_lento, tramo(c_centro, d_sur), 24).
 evento(290, reporte_lote, u2, 290).
 evento(300, fallida,     e8,  cliente_ausente).
+evento(400, cierre,      cruce(h_cerro), mantenimiento).  % futuro (fuera de jornada): extension cierres
 
 %% El reporte en lote de u2 llega a las 290 pero trae lo que ocurrio antes:
 %% la entrega e5 se hizo a las 275 y hasta el reporte nadie lo sabia.
@@ -180,3 +184,52 @@ ventana(ue1, 300, 360).     % plazo: 13:00-14:00
 %% ---------------------------------------------------------------------------
 
 reintento(e8, 330, 420).    % nueva ventana si se reprograma hoy
+
+
+%% ===========================================================================
+%% Extensiones posibles (implementadas)
+%% ===========================================================================
+
+%% 1) Ventanas blandas con penalizacion y clientes con prioridad por contrato.
+%%    e2 tiene ventana blanda: puede llegar tarde con penalizacion por minuto.
+%%    e9 tiene prioridad alta por contrato (cliente prioritario).
+ventana_blanda(e2, 5).          % penalizacion 5 unidades por minuto de retraso
+ventana_blanda(e14, 2).         % penalizacion 2 por minuto
+prioridad_contrato(e9, alta).
+prioridad_contrato(e1, alta).
+prioridad_contrato(e7, media).
+%% prioridad normal por defecto (se resuelve en reglas)
+
+%% 2) Autonomia de combustible/bateria y puntos de carga en la ruta.
+%%    autonomia(Unidad, MinutosDisponibles, ConsumoPorMinutoViaje).
+%%    punto_carga(Punto, MinutosRecargaCompleta).
+autonomia(u1, 180, 1).          % 180 min de autonomia restante
+autonomia(u2, 60,  1).          % poca autonomia (afecta si debe cargar)
+autonomia(u3, 0,   1).          % averiada, sin autonomia util
+autonomia(u4, 200, 1).
+punto_carga(a_almacen, 30).
+punto_carga(g_puente, 20).
+recarga_minima(10).             % recarga rapida minima en minutos
+
+%% 3) Transferir paquetes entre dos unidades a medio camino.
+%%    punto_encuentro(Punto, U1, U2, MinutoDisponible) - lugar/tiempo viable
+%%    para transbordo de paquetes entre dos unidades.
+punto_encuentro(c_centro, u1, u4, 310).
+punto_encuentro(a_almacen, u1, u2, 305).
+transferencia_permitida(si).    % politica: se permiten transferencias
+
+%% 4) Devoluciones y recolecciones junto con las entregas.
+%%    recoleccion(Id, Punto, Peso, Volumen, UnidadAsignada, Orden, Minuto, VentanaDesde, VentanaHasta).
+%%    devolucion(Entrega, Unidad, PuntoDevolucion). Recoger agrega carga; devolver la libera.
+recoleccion(r1, b_norte, 8, 1, u1, 4, 60, 300, 420).
+devolucion(e11, u4, a_almacen). % e11 (direccion mala) debe devolverse al almacen
+
+%% 5) Cierre de una calle o de un cruce que cambia varios tramos a la vez.
+%%    (sin cierres activos en el escenario base; se consultan por hechos/eventos)
+%%    Ejemplo de cierre de cruce (afecta todos los tramos de g_puente):
+%%      evento(350, cierre, cruce(g_puente), obra).
+%%    Ejemplo de cierre de tramo especifico:
+%%      evento(350, cierre, tramo(b_norte, g_puente), accidente).
+%%    Un cierre futuro de ejemplo (minuto 400, fuera de jornada) demuestra la
+%%    capacidad sin afectar el escenario base; ver evento cierre cruce(h_cerro).
+
