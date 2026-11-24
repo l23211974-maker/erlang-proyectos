@@ -18,7 +18,7 @@
 
 *{box-sizing:border-box}
 
-html,body{margin:0;padding:0}
+html,body{margin:0;padding:0;max-width:100%;overflow-x:hidden}
 
 body{
   background:
@@ -61,10 +61,12 @@ h1{font-size:clamp(19px,2.4vw,26px);margin:0;letter-spacing:.2px}
 
 .rejilla{
   display:grid;gap:16px;
-  grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));
   padding:8px clamp(16px,3vw,36px);
   max-width:1500px;margin:0 auto;
 }
+/* Ningun hijo de un grid puede crecer mas alla de su pista. */
+.rejilla > *{min-width:0;max-width:100%}
 .panel-ancho{grid-column:1/-1}
 @media (min-width:1050px){
   .panel-mapa{grid-column:1/-1}
@@ -77,6 +79,7 @@ h1{font-size:clamp(19px,2.4vw,26px);margin:0;letter-spacing:.2px}
   padding:16px 18px 18px;
   box-shadow:0 10px 30px rgba(0,0,0,.28);
   min-width:0;
+  overflow:hidden;
 }
 .panel h2{
   font-size:14px;margin:0 0 14px;letter-spacing:.06em;text-transform:uppercase;
@@ -100,7 +103,10 @@ h1{font-size:clamp(19px,2.4vw,26px);margin:0;letter-spacing:.2px}
 .punto{
   position:absolute;transform:translate(-50%,-50%);
   display:flex;flex-direction:column;align-items:center;gap:3px;
-  font-size:10px;color:var(--tenue);white-space:nowrap;
+  font-size:10px;color:var(--tenue);
+  max-width:130px;text-align:center;white-space:normal;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 .punto .nodo{
   width:9px;height:9px;border-radius:50%;
@@ -124,10 +130,11 @@ h1{font-size:clamp(19px,2.4vw,26px);margin:0;letter-spacing:.2px}
 
 /* ---------- flota ---------- */
 
-.flota{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.flota{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr))}
 .unidad{
   border:1px solid var(--linea);border-radius:12px;padding:12px;
   background:rgba(9,20,28,.6);
+  min-width:0;overflow:hidden;
 }
 .unidad header{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .unidad h3{margin:0;font-size:15px}
@@ -144,13 +151,20 @@ h1{font-size:clamp(19px,2.4vw,26px);margin:0;letter-spacing:.2px}
 .ruta .parada{
   font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:999px;
   background:#1a2a38;border:1px solid var(--linea);color:var(--texto);
-  display:flex;align-items:center;gap:5px;
+  display:flex;align-items:center;gap:5px;max-width:100%;
+  min-width:0;white-space:normal;overflow-wrap:anywhere;
 }
 .ruta .parada em{font-style:normal;color:var(--tenue)}
 
 .insignia{
   font-size:10px;text-transform:uppercase;letter-spacing:.1em;
   padding:3px 9px;border-radius:999px;border:1px solid currentColor;
+  display:inline-block;
+  max-width:100%;
+  white-space:normal;
+  line-height:1.25;
+  overflow-wrap:anywhere;
+  vertical-align:middle;
 }
 .ok{color:var(--verde)}
 .en_duda{color:var(--acento-2)}
@@ -159,25 +173,32 @@ h1{font-size:clamp(19px,2.4vw,26px);margin:0;letter-spacing:.2px}
 
 /* ---------- chips / tablas ---------- */
 
-.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
 .chip{
   font-size:12px;padding:6px 11px;border-radius:10px;
   background:rgba(20,36,50,.85);border:1px solid var(--linea);
+  max-width:100%;
+  min-width:0;
+  white-space:normal;
+  line-height:1.25;
+  overflow-wrap:anywhere;
 }
 .chip b{color:var(--acento)}
 .chip.rojo b{color:var(--rojo)}
 .chip.ambar b{color:var(--acento-2)}
 
-table{width:100%;border-collapse:collapse;font-size:13px}
+table{width:100%;max-width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
 th{
   text-align:left;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
   color:var(--tenue);padding:6px 8px;border-bottom:1px solid var(--linea);
+  white-space:normal;overflow-wrap:anywhere;
 }
-td{padding:7px 8px;border-bottom:1px solid rgba(36,56,74,.55);vertical-align:top}
+td{padding:7px 8px;border-bottom:1px solid rgba(36,56,74,.55);vertical-align:top;
+  white-space:normal;overflow-wrap:anywhere;word-break:normal;}
 tr:last-child td{border-bottom:none}
 .mono{font-family:var(--mono);font-size:12px}
-.tabla-scroll{overflow-x:auto}
-.tabla-scroll table{min-width:520px}
+.tabla-scroll{overflow-x:auto;max-width:100%;min-width:0}
+.tabla-scroll table{min-width:0}
 
 .controles{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:14px}
 .controles label{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--tenue);display:block;margin-bottom:4px}
@@ -193,18 +214,24 @@ button{
 button:hover{filter:brightness(1.12)}
 button:active{transform:translateY(1px)}
 
-.salida{display:grid;gap:12px}
+.salida{
+  display:grid;gap:12px;
+  grid-template-columns:minmax(0,1fr);
+  min-width:0;max-width:100%;overflow:hidden;
+}
+.salida > *{min-width:0;max-width:100%}
 .vacio{color:var(--tenue);font-style:italic;font-size:13px}
 .tarjeta{
   border:1px solid var(--linea);border-radius:12px;padding:12px 14px;
   background:rgba(9,20,28,.55);
+  min-width:0;overflow:hidden;
 }
 .tarjeta h3{margin:0 0 6px;font-size:14px}
-.tarjeta p{margin:4px 0;font-size:13px;color:var(--tenue)}
+.tarjeta p{margin:4px 0;font-size:13px;color:var(--tenue);word-break:break-word}
 .tarjeta p b{color:var(--texto)}
-.lista-pasos{margin:6px 0 0;padding-left:18px;font-size:13px}
+.lista-pasos{margin:6px 0 0;padding-left:18px;font-size:13px;word-break:break-word}
 .lista-pasos li{margin:3px 0}
-.por-que{font-family:var(--mono);font-size:11px;color:var(--tenue);word-break:break-word}
+.por-que{font-family:var(--mono);font-size:11px;color:var(--tenue);overflow-wrap:anywhere;min-width:0}
 
 .pie{
   max-width:1500px;margin:22px auto 0;padding:0 clamp(16px,3vw,36px);
