@@ -183,7 +183,7 @@ th{
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 td{padding:7px 8px;border-bottom:1px solid rgba(36,56,74,.55);vertical-align:top;
-  word-break:break-word;overflow-wrap:break-word;}
+  word-break:break-all;overflow-wrap:anywhere;}
 tr:last-child td{border-bottom:none}
 .mono{font-family:var(--mono);font-size:12px}
 .tabla-scroll{overflow-x:auto}
@@ -214,7 +214,7 @@ button:active{transform:translateY(1px)}
 .tarjeta p b{color:var(--texto)}
 .lista-pasos{margin:6px 0 0;padding-left:18px;font-size:13px;word-break:break-word}
 .lista-pasos li{margin:3px 0}
-.por-que{font-family:var(--mono);font-size:11px;color:var(--tenue);word-break:break-word;overflow-wrap:break-word}
+.por-que{font-family:var(--mono);font-size:11px;color:var(--tenue);word-break:break-all;overflow-wrap:anywhere}
 
 .pie{
   max-width:1500px;margin:22px auto 0;padding:0 clamp(16px,3vw,36px);
