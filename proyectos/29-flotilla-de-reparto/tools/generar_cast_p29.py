@@ -179,4 +179,44 @@ with destino.open("w", encoding="utf-8", newline="\n") as f:
 print(f"Cast generado: {destino}")
 print(f"Eventos: {len(eventos)}")
 print(f"Duracion simulada: {t:.1f} s")
-print("Reproducir: asciinema play " + str(destino))
+
+# --- reproductor HTML autocontenido (sin instalar asciinema) ---------------
+cast_texto = destino.read_text(encoding="utf-8")
+html = """<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proyecto 29 - corrida completa (asciinema)</title>
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/asciinema-player@3/dist/bundle/asciinema-player.min.css">
+<style>
+  body{background:#0b1016;color:#dce7f1;font-family:"Segoe UI",system-ui,sans-serif;
+       margin:0;padding:24px}
+  h1{font-size:18px;margin:0 0 4px}
+  p{color:#8aa3b8;font-size:13px;margin:0 0 18px}
+  code{color:#39d0c4;font-family:Consolas,monospace}
+  #p{max-width:1080px}
+</style>
+</head>
+<body>
+<h1>Proyecto 29 - Flotilla de reparto - corrida completa</h1>
+<p>Archivo: <code>proyecto-29-corrida.cast</code> - se reproduce solo al abrir esta pagina.</p>
+<div id="p"></div>
+<script src="https://cdn.jsdelivr.net/npm/asciinema-player@3/dist/bundle/asciinema-player.min.js"></script>
+<script>
+const CAST = __CAST__;
+AsciinemaPlayer.create({ data: CAST }, document.getElementById('p'), {
+  cols: 120, rows: 35, fit: 'width', autoplay: true,
+  idleTimeLimit: 4, theme: 'monokai', terminalFontSize: 'small'
+});
+</script>
+</body>
+</html>
+"""
+reproductor = destino.parent / "reproducir-corrida.html"
+with reproductor.open("w", encoding="utf-8", newline="\n") as f:
+    f.write(html.replace("__CAST__", json.dumps(cast_texto)))
+
+print(f"Reproductor: {reproductor}  (doble clic, no instala nada)")
+print("Con asciinema instalado: asciinema play " + str(destino))
