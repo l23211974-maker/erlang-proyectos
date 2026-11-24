@@ -90,11 +90,7 @@ estaticos(Request) :-
     ),
     atomic_list_concat([Dir, '/', Rel], Archivo),
     (   exists_file(Archivo)
-    ->  http_reply_file(Archivo,
-            [ unsafe(true),
-              headers(['Cache-Control'='no-cache, must-revalidate'])
-            ],
-            Request)
+    ->  http_reply_file(Archivo, [unsafe(true)], Request)
     ;   throw(http_reply(not_found(Rel)))
     ).
 
