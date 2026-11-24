@@ -54,6 +54,10 @@ def prompt(ruta="~/erlang-proyectos/proyectos/29-flotilla-de-reparto"):
             f"{AZUL}{ruta}{GRIS}$ ")
 
 
+def prompt_local():
+    return f"{VERDE}max@DESKTOP-9K3L7Q2{GRIS}:{AZUL}/c/Users/Max{GRIS}$ "
+
+
 def linea(texto, delay=0.0):
     out(texto + "\r\n", delay)
 
@@ -69,12 +73,14 @@ header = {
     "title": "Proyecto 29 - Flotilla de Reparto - Corrida completa en AWS",
 }
 
-# --- 0. sesion ya conectada a AWS ----------------------------------------
+# --- 0. sesion local -> ssh a AWS ----------------------------------------
 out("\u001b[2J\u001b[H")  # limpia pantalla
-out(prompt(), 0.4)
+out(prompt_local(), 0.4)
 escribir("ssh curso-plf")
 out("\r\n", 0.25)
-linea(f"{GRIS}Welcome to Ubuntu 24.04.3 LTS (GNU/Linux 7.0.0-1017-aws aarch64){RESET}", 0.5)
+linea(f"{GRIS}Welcome to Ubuntu 24.04.3 LTS (GNU/Linux 7.0.0-1017-aws aarch64){RESET}", 0.9)
+linea("", 0.05)
+linea(f"{GRIS} * Documentation:  https://help.ubuntu.com{RESET}", 0.1)
 linea(f"{GRIS}Last login: Mon Nov 24 04:40:12 2026 from 192.168.1.10{RESET}", 0.2)
 out(prompt(), 0.6)
 
@@ -132,43 +138,21 @@ escribir("swipl -q -g run_tests -t halt tests/reglas_tests.pl")
 out("\r\n", 0.3)
 
 pruebas = [
-    "averia:decide_cubre_exactamente_una_vez",
-    "averia:todos_los_planes_validos",
-    "averia:respeta_capacidad_en_peso_y_volumen",
-    "averia:no_deja_huerfanas_ni_duplicadas",
-    "averia:no_mueve_lo_que_no_hacia_falta",
-    "averia:explica_por_que_a_cada_unidad",
-    "averia:sin_plan_dice_que_restriccion_lo_impide",
-    "urgente:no_elige_la_mas_cercana_por_serla",
-    "urgente:explica_que_retrasa_y_cuanto",
-    "urgente:la_prioridad_vive_en_un_solo_lugar",
-    "silencio:antes_del_reporte_todo_es_no_se_sabe",
-    "silencio:el_reporte_cambia_el_pasado",
-    "silencio:cada_entrega_tiene_su_propio_veredicto",
-    "silencio:lo_dudoso_no_se_trata_como_hecho",
-    "silencio:detecta_duplicada_por_una_decision_previa",
-    "llegada:encadena_tramos_y_paradas",
-    "llegada:tres_veredictos_posibles",
-    "llegada:un_tramo_lento_marca_las_rutas_que_lo_tocan",
-    "llegada:la_consulta_inversa_usa_las_mismas_reglas",
-    "llegada:detecta_al_conductor_sin_horas",
-    "fallida:direccion_mala_es_no_ubicable",
-    "fallida:el_paquete_cuenta_contra_la_capacidad",
-    "fallida:reintento_hoy_si_pasa_por_el_punto",
-    "fallida:situacion_se_consulta_al_reves",
-    "contrato:la_verdad_tiene_tres_valores",
-    "contrato:una_entrega_sin_unidad_tambien_se_planea",
-    "contrato:huerfana_se_deduce_de_los_hechos",
-    "contrato:situacion_en_cualquier_direccion",
+    ("averia", 7),
+    ("urgente", 3),
+    ("silencio", 5),
+    ("llegada", 5),
+    ("fallida", 4),
+    ("contrato", 4),
 ]
-for i, nombre in enumerate(pruebas, 1):
-    marca = f"[{i}/{len(pruebas)}]"
-    # acorta el nombre con puntos suspensivos en el medio
-    n = nombre if len(nombre) <= 40 else nombre[:20] + ".." + nombre[-16:]
-    out(f"{GRIS}% {marca} {n:<42} {OK}passed{RESET}", 0.14)
+for grupo, cuantos in pruebas:
+    out(f"{GRIS}% PL-Unit: {grupo} {RESET}", 0.16)
+    for _ in range(cuantos):
+        out(f"{OK}.{RESET}", 0.13)
+    out(f" {GRIS}done{RESET}\r\n", 0.12)
 
-linea("", 0.15)
-out(f"{OK}Pruebas gemelo: OK{RESET}\r\n", 0.2)
+linea("", 0.1)
+out(f"{OK}% All 28 tests passed{RESET}\r\n", 0.2)
 out(prompt("~/erlang-proyectos/proyectos/29-flotilla-de-reparto/gemelo"), 0.4)
 
 # --- 7. resumen final -----------------------------------------------------
