@@ -32,12 +32,12 @@ test(lecturas_simuladas_generan_lista) :-
     get_dict(unidad, Primera, _),
     get_dict(minuto, Primera, _),
     get_dict(fuente, Primera, Fuente),
-    ( Fuente == "janus_python" ; Fuente == 'janus_python' ).
+    memberchk(Fuente, ["janus_python", 'janus_python']).
 
 test(resumen_flota_janus_calcula_en_python) :-
     once(resumen_flota_janus(Resumen)),
     get_dict(generado_por, Resumen, Gen),
-    ( Gen == "python_via_janus" ; Gen == 'python_via_janus' ),
+    memberchk(Gen, ["python_via_janus", 'python_via_janus']),
     get_dict(total_entregas, Resumen, Total),
     number(Total),
     Total > 0.
@@ -45,9 +45,9 @@ test(resumen_flota_janus_calcula_en_python) :-
 test(graficar_entregas_janus_genera_svg) :-
     once(graficar_entregas_janus(R)),
     get_dict(generado_por, R, Gen),
-    ( Gen == "python_via_janus" ; Gen == 'python_via_janus' ),
+    memberchk(Gen, ["python_via_janus", 'python_via_janus']),
     get_dict(formato, R, Fmt),
-    ( Fmt == "svg" ; Fmt == 'svg' ),
+    memberchk(Fmt, ["svg", 'svg']),
     get_dict(archivo, R, Archivo),
     ( atom(Archivo) -> ArchivoAtom = Archivo ; atom_string(ArchivoAtom, Archivo) ),
     exists_file(ArchivoAtom).
@@ -55,7 +55,7 @@ test(graficar_entregas_janus_genera_svg) :-
 test(graficar_llegadas_janus_genera_svg) :-
     once(graficar_llegadas_janus(u1, R)),
     get_dict(formato, R, Fmt),
-    ( Fmt == "svg" ; Fmt == 'svg' ),
+    memberchk(Fmt, ["svg", 'svg']),
     get_dict(archivo, R, Archivo),
     ( atom(Archivo) -> ArchivoAtom = Archivo ; atom_string(ArchivoAtom, Archivo) ),
     exists_file(ArchivoAtom).

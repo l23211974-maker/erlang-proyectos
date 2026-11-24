@@ -26,3 +26,8 @@ opencode.json
 .cursor/
 bitacora/
 .obsidian/
+
+# Python / gemelo generado
+__pycache__/
+*.pyc
+proyectos/29-flotilla-de-reparto/gemelo/web/grafica_*.svg
