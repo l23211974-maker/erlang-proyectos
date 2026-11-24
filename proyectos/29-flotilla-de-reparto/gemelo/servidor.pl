@@ -101,8 +101,10 @@ estaticos(Request) :-
 api(Que, Request) :-
     catch(manejar(Que, Request),
           Error,
-          ( format(user_error, "api ~w: ~q~n", [Que, Error]),
-            reply_json_dict(_{error: Error}, [status(500)]) )).
+          ( format(string(Detalle), "~w", [Error]),
+            format(user_error, "api ~w: ~w~n", [Que, Detalle]),
+            reply_json_dict(_{error: error_interno, que: Que, detalle: Detalle},
+                            [status(500)]) )).
 
 
 
@@ -121,7 +123,9 @@ extensiones_json(Json) :-
     findall(_{punto:P, recarga_minutos:T}, punto_carga(P,T), PuntosCarga),
     % 3) Transferencias a medio camino
     findall(_{entrega:E, de:U1, a:U2, punto:Pt, minuto:M},
-            transferencia_viable(E,U1,U2,Pt,Ahora,_), Transferencias),
+            ( transferencia_viable(E,U1,U2,Pt,Ahora,Det),
+              get_dict(minuto, Det, M)
+            ), Transferencias),
     findall(_{punto:Pt, u1:U1, u2:U2, minuto:M}, punto_encuentro(Pt,U1,U2,M), Encuentros),
     % 4) Devoluciones y recolecciones
     findall(_{id:R, punto:Pt, peso:P, volumen:V, unidad:U, orden:O, ventana:D-H},
@@ -144,7 +148,7 @@ extensiones_json(Json) :-
 %% dicts y listas se recorren, atomos y numeros se dejan, y un termino
 %% compuesto (tramo(c,d), reintento_hoy(u1), peso_volumen(...)) se manda como
 %% texto legible en vez de romper la respuesta.
-a_json(Var, _) :- var(Var), !, throw(error(instancia_no_ligada, json)).
+a_json(Var, @(null)) :- var(Var), !.   % valor ausente: null en el JSON, nunca un 500
 a_json(D0, D) :- is_dict(D0), !,
     dict_pairs(D0, Etiqueta, Pares0),
     maplist(a_json_par, Pares0, Pares),
