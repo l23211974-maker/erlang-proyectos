@@ -835,6 +835,11 @@
 
   // ---- arranque -----------------------------------------------------------
 
+  // Enlace al gemelo: mismo host, puerto 8089 (servidor Prolog del gemelo).
+  $$('[data-gemelo-link]').forEach(function (a) {
+    a.href = location.protocol + '//' + location.hostname + ':8089/';
+  });
+
   if (page === 'monitoreo-en-vivo') iniciarDashboard();
   else if (page === 'bitacora-y-alertas') iniciarBitacora();
   else if (page === 'detalle-de-unidad-y-reasignacion') iniciarUnidad();
